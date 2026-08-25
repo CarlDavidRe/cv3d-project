@@ -1,0 +1,14 @@
+schema_version: 1
+
+experiment:
+  phase: phase1
+  name: infrastructure
+  seed: 0
+  deterministic: true
+
+paths:
+  data_root: data
+  output_root: outputs
+
+phase1:
+  num_anchors: 48

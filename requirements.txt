@@ -1,0 +1,4 @@
+# Minimal dependencies for the Phase 1 infrastructure skeleton.
+# Backbone-specific dependencies will be added with their implementations.
+numpy>=1.24
+PyYAML>=6.0
