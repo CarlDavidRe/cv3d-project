@@ -7,8 +7,11 @@ experiment:
   deterministic: true
 
 paths:
-  data_root: data
+  data_root: data/NUM
   output_root: outputs
 
 phase1:
   num_anchors: 48
+  num_dataset:
+    split_manifest: data/splits/num_v1.json
+    target_name: PSNR

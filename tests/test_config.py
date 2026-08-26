@@ -19,7 +19,11 @@ class ConfigTests(unittest.TestCase):
     def test_checked_in_config_loads(self) -> None:
         config = load_config(self.config_path)
         self.assertEqual(config["experiment"]["phase"], "phase1")
+        self.assertEqual(config["paths"]["data_root"], "data/NUM")
         self.assertEqual(config["phase1"]["num_anchors"], 48)
+        self.assertEqual(
+            config["phase1"]["num_dataset"]["target_name"], "PSNR"
+        )
 
     def test_existing_fields_can_be_overridden_with_typed_values(self) -> None:
         config = load_config(
