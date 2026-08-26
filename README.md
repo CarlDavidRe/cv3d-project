@@ -94,5 +94,6 @@ MSE and LPIPS increase directly with uncertainty. Use
 `--uncertainty-direction` to specify the convention for a custom target.
 
 The loader preserves official Phase 1 targets exactly; it does not reinterpret
-PSNR/SSIM/MSE/LPIPS arrays as Phase 2 surface-gain utilities. Backbone,
-predictor, loss, and metric modules remain intentionally unimplemented.
+PSNR/SSIM/MSE/LPIPS arrays as Phase 2 surface-gain utilities. The common metric
+library is available in `nbv.eval`; backbone, predictor, and loss modules remain
+intentionally unimplemented.
