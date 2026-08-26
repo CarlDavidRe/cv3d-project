@@ -223,3 +223,5 @@ __marimo__/
 # Project-generated artifacts (the directory documentation remains tracked)
 outputs/*
 !outputs/README.md
+data/*tar.gz
+
