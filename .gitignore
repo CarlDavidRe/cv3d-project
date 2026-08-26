@@ -157,6 +157,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Large local datasets
+data/NUM/
+
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -216,3 +219,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project-generated artifacts (the directory documentation remains tracked)
+outputs/*
+!outputs/README.md
+data/*tar.gz
+
