@@ -1,5 +1,6 @@
-# Minimal dependencies for Phase 1 infrastructure and NUM data loading.
-# Backbone-specific dependencies will be added with their implementations.
-numpy>=1.24
+# Phase 1 infrastructure, NUM data loading, and step-5 frozen backbones.
+numpy>=1.24,<2.4
 Pillow>=9.5
 PyYAML>=6.0
+torch>=2.1
+torchvision>=0.16

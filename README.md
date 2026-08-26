@@ -95,5 +95,74 @@ MSE and LPIPS increase directly with uncertainty. Use
 
 The loader preserves official Phase 1 targets exactly; it does not reinterpret
 PSNR/SSIM/MSE/LPIPS arrays as Phase 2 surface-gain utilities. The common metric
-library is available in `nbv.eval`; backbone, predictor, and loss modules remain
-intentionally unimplemented.
+library is available in `nbv.eval`.
+
+## Step 5: frozen feature smoke tests
+
+Step 5 implements the shared frozen-feature interface and the supervised
+ImageNet ViT-B/16, DINOv2, and VGGT extractors. It does **not** implement a
+predictor, loss, training loop, or feature cache yet. Consequently, the useful
+run at this checkpoint is a one-image extraction smoke test.
+
+ImageNet ViT-B/16 is the lightest setup check and can run on CPU (the first run
+downloads its weights):
+
+```bash
+python3 scripts/inspect_features.py \
+  --backbone imagenet_vit \
+  --data-root data/NUM \
+  --device cpu
+```
+
+DINOv2 also works on CPU, although a CUDA GPU is faster. Its first run downloads
+the official torch.hub source and weights:
+
+```bash
+python3 scripts/inspect_features.py \
+  --backbone dinov2 \
+  --data-root data/NUM \
+  --device auto
+```
+
+VGGT is a 1B-parameter model, so use a Colab GPU rather than a CPU-only local
+machine. Install the official package in the same environment first:
+
+```bash
+git clone https://github.com/facebookresearch/vggt.git ../vggt
+python3 -m pip install -e ../vggt
+python3 scripts/inspect_features.py \
+  --backbone vggt \
+  --data-root data/NUM \
+  --device cuda
+```
+
+The VGGT smoke test processes each NUM image as a one-frame sequence, which is
+the required independent single-image behavior for Phase 1. It does not perform
+the joint multi-view processing reserved for Phase 3.
+
+### Google Colab
+
+Select a GPU runtime, upload or clone this repository, and run these cells from
+the project root:
+
+```bash
+!python -m pip install -r requirements.txt
+!python -m pip install -e .
+!python -m unittest discover -s tests -v
+```
+
+Mount Drive if the NUM dataset is stored there, and pass its absolute directory
+to `--data-root`. For VGGT, install the official repository and run the smoke
+test:
+
+```bash
+!git clone https://github.com/facebookresearch/vggt.git /content/vggt
+!python -m pip install -e /content/vggt
+!python scripts/inspect_features.py --backbone vggt \
+    --data-root /content/drive/MyDrive/path/to/NUM --device cuda
+```
+
+Model checkpoints are downloaded only on the first run and use the runtime's
+normal torch/huggingface caches. Colab's local storage is temporary, so point
+those caches at Drive if you do not want to download the large VGGT checkpoint
+again in a later session.
