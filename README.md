@@ -2,9 +2,13 @@
 
 This repository implements the phased project described in
 [`project_overview.md`](project_overview.md). Development is currently limited
-to Phase 1 (the single-image feature probe).
+to Phase 1 (the single-image feature probe). For local work, follow Steps 1–6
+in order. The final section restates the full remote-GPU path as one sequential
+Colab workflow.
 
-## Setup
+## Steps 1–4: setup and dataset verification
+
+### Environment and infrastructure
 
 Python 3.10 or newer is required.
 
@@ -34,7 +38,7 @@ python3 -m unittest discover -s tests -v
 The canonical PUN-compatible 48-anchor definition now lives in
 `src/nbv/geometry/anchors_v1.csv`.
 
-## NUM dataset loader
+### NUM dataset loader
 
 Place the [official PUN NUM dataset](https://github.com/ZhangLab-DeepNeuroCogLab/PUN)
 at `data/NUM` (or pass another root). The loader reads the released layout:
@@ -140,158 +144,6 @@ The VGGT smoke test processes each NUM image as a one-frame sequence, which is
 the required independent single-image behavior for Phase 1. It does not perform
 the joint multi-view processing reserved for Phase 3.
 
-### Google Colab from VS Code
-
-Connect a VS Code notebook to a GPU using the official Colab extension, then
-open a Colab terminal with the `Colab: Open Terminal` command. Commands in this
-section run in that remote terminal, not in the local VS Code terminal.
-
-#### Select Python 3.12
-
-Check the remote runtime before installing anything:
-
-```bash
-python --version
-```
-
-If it already reports Python 3.12, keep the current runtime. Otherwise, in VS
-Code disconnect the current server with `Colab: Remove Server`, select the
-notebook kernel again, choose `Colab` and `New Colab Server`, and select a GPU
-runtime whose Python version is 3.12 (for example, runtime `2026.07`). In the
-Colab web interface, the equivalent setting is under **Runtime > Change runtime
-type > Runtime version**. Reconnect and verify with `python --version`.
-
-Changing the runtime recreates the Colab VM and deletes files under `/content`,
-so select the runtime before cloning the repository or extracting the dataset.
-Files saved in mounted Google Drive are not deleted.
-
-On Python 3.12, VGGT's NumPy requirement should install from a wheel. If pip
-instead downloads `numpy-1.26.4.tar.gz` and spends a long time building it,
-cancel the install and require the binary wheel explicitly:
-
-```bash
-python -m pip install --upgrade pip
-python -m pip install --only-binary=:all: "numpy==1.26.4"
-python -m pip install --no-build-isolation -e /content/vggt
-```
-
-#### Clone this private repository with GitHub CLI
-
-The Colab VM cannot use the SSH key or SSH agent on the local machine. Install
-GitHub CLI and authenticate through its browser/device flow instead:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y gh
-gh auth login
-```
-
-Choose `GitHub.com`, `HTTPS`, authentication for Git operations, and browser
-login. Open the URL shown by `gh`, enter its one-time code, and then clone:
-
-```bash
-cd /content
-gh repo clone CarlDavidRe/cv3d-project
-cd cv3d-project
-
-python -m pip install -r requirements.txt
-python -m pip install -e .
-```
-
-Authentication and the clone under `/content` are lost when the Colab runtime
-is recycled, so repeat these steps in a new runtime. Changes must be committed
-and pushed before another runtime can clone them.
-
-#### Make the local NUM dataset available
-
-Colab cannot directly mount a directory from the local computer. Archive the
-dataset locally from this repository and verify the archive before uploading:
-
-```bash
-cd data
-tar -czf NUM.tar.gz NUM
-ls -lh NUM.tar.gz
-tar -tzf NUM.tar.gz | head
-```
-
-Do not use VS Code's `Upload to Colab` action for the NUM archive. That action
-uses the extension's file API and large archives may exceed its memory, request,
-or timeout limits. It remains useful for small files only.
-
-In a web browser, create `MyDrive/cv3d-datasets` in Google Drive and upload
-`data/NUM.tar.gz` there. In VS Code, run
-`Colab: Mount Google Drive to Server` from the command palette and execute the
-cell it creates. Verify both the archive and available temporary disk space in
-the Colab terminal:
-
-```bash
-ls -lh /content/drive/MyDrive/cv3d-datasets/NUM.tar.gz
-df -h /content
-mkdir -p /content/drive/MyDrive/cv3d-project/outputs/step5
-```
-
-Extract the Drive archive onto Colab's faster temporary disk and verify the NUM
-directory:
-
-```bash
-mkdir -p /content/cv3d-project/data
-tar -xzf /content/drive/MyDrive/cv3d-datasets/NUM.tar.gz \
-  -C /content/cv3d-project/data
-ls /content/cv3d-project/data/NUM
-```
-
-Reading the archive once and extracting it into `/content` is normally faster
-than training against thousands of small files directly on Drive. Run the test
-suite and save its log to Drive:
-
-```bash
-cd /content/cv3d-project
-set -o pipefail
-python -m unittest discover -s tests -v 2>&1 | tee \
-  /content/drive/MyDrive/cv3d-project/outputs/step5/tests.log
-```
-
-Use the extracted dataset for all backbone smoke tests. The current Step 5
-script prints a JSON feature-shape summary rather than caching feature tensors,
-so save that summary to Drive with `tee`:
-
-```bash
-cd /content/cv3d-project
-python scripts/inspect_features.py \
-  --backbone imagenet_vit \
-  --data-root data/NUM \
-  --device cuda \
-  | tee /content/drive/MyDrive/cv3d-project/outputs/step5/imagenet_vit.json
-```
-
-For VGGT, install the official repository in the Colab runtime first:
-
-```bash
-git clone https://github.com/facebookresearch/vggt.git /content/vggt
-python -m pip install -e /content/vggt
-
-cd /content/cv3d-project
-python scripts/inspect_features.py \
-  --backbone vggt \
-  --data-root data/NUM \
-  --device cuda \
-  | tee /content/drive/MyDrive/cv3d-project/outputs/step5/vggt.json
-```
-
-Any other command that writes files under the repository's temporary
-`outputs/` directory can be synchronized to Drive before disconnecting:
-
-```bash
-mkdir -p /content/drive/MyDrive/cv3d-project/outputs/repository
-rsync -av /content/cv3d-project/outputs/ \
-  /content/drive/MyDrive/cv3d-project/outputs/repository/
-```
-
-Model checkpoints are downloaded only on their first use in each runtime.
-Colab's `/content` storage is temporary; the commands above keep logs and
-summaries under `MyDrive/cv3d-project/outputs`, where they survive runtime
-recycling.
-
 ## Step 6: lightweight probe-head overfit check
 
 Step 6 adds only the small fixed-size-feature MLP, masked Huber regression, and
@@ -345,3 +197,174 @@ python scripts/train_probe.py \
   --set probe.device=cuda \
   --set probe.extraction_batch_size=1
 ```
+
+## Complete Google Colab workflow from VS Code
+
+Use this section in order when running the GPU workflow remotely. Connect a VS
+Code notebook with the official Colab extension, then open a remote terminal
+with `Colab: Open Terminal`. Unless a step says otherwise, run its commands in
+that terminal rather than in the local VS Code terminal.
+
+### 1. Select Python 3.12
+
+Check the remote runtime before installing anything:
+
+```bash
+python --version
+```
+
+If it already reports Python 3.12, keep the current runtime. Otherwise, in VS
+Code disconnect the current server with `Colab: Remove Server`, select the
+notebook kernel again, choose `Colab` and `New Colab Server`, and select a GPU
+runtime whose Python version is 3.12 (for example, runtime `2026.07`). In the
+Colab web interface, the equivalent setting is under **Runtime > Change runtime
+type > Runtime version**. Reconnect and verify with `python --version`.
+
+Changing the runtime recreates the Colab VM and deletes files under `/content`,
+so select the runtime before cloning the repository or extracting the dataset.
+Files saved in mounted Google Drive are not deleted.
+
+### 2. Clone and install the project
+
+The Colab VM cannot use the SSH key or SSH agent on the local machine. Install
+GitHub CLI and authenticate through its browser/device flow:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y gh
+gh auth login
+```
+
+Choose `GitHub.com`, `HTTPS`, authentication for Git operations, and browser
+login. Open the URL shown by `gh`, enter its one-time code, and then clone and
+install the project:
+
+```bash
+cd /content
+gh repo clone CarlDavidRe/cv3d-project
+cd cv3d-project
+python -m pip install -r requirements.txt
+python -m pip install -e .
+```
+
+Authentication and the clone under `/content` are lost when the Colab runtime
+is recycled, so repeat this step in a new runtime. Commit and push source-code
+changes before recycling a runtime if they need to be retained.
+
+### 3. Upload and mount the NUM dataset
+
+Colab cannot directly mount a directory from the local computer. In a **local**
+terminal at the repository root, archive and verify the dataset:
+
+```bash
+cd data
+tar -czf NUM.tar.gz NUM
+ls -lh NUM.tar.gz
+tar -tzf NUM.tar.gz | head
+```
+
+Do not use VS Code's `Upload to Colab` action for the NUM archive. That action
+uses the extension's file API and large archives may exceed its memory, request,
+or timeout limits. It remains useful for small files only.
+
+In a browser, create `MyDrive/cv3d-datasets` in Google Drive and upload
+`data/NUM.tar.gz` there. In VS Code, run
+`Colab: Mount Google Drive to Server` from the command palette and execute the
+cell it creates. Back in the Colab terminal, verify the archive and temporary
+disk space:
+
+```bash
+ls -lh /content/drive/MyDrive/cv3d-datasets/NUM.tar.gz
+df -h /content
+```
+
+### 4. Extract the dataset to temporary storage
+
+Extract the archive onto Colab's faster temporary disk, then verify the NUM
+directory:
+
+```bash
+mkdir -p /content/cv3d-project/data
+tar -xzf /content/drive/MyDrive/cv3d-datasets/NUM.tar.gz \
+  -C /content/cv3d-project/data
+ls /content/cv3d-project/data/NUM
+```
+
+Reading the archive once and extracting it into `/content` is normally faster
+than training against thousands of small files directly on Drive.
+
+### 5. Run tests and frozen-feature smoke tests
+
+Keep generated files under the repository's `outputs/` directory until the
+workflow is complete:
+
+```bash
+cd /content/cv3d-project
+mkdir -p outputs/step5
+set -o pipefail
+python -m unittest discover -s tests -v 2>&1 | tee outputs/step5/tests.log
+
+python scripts/inspect_features.py \
+  --backbone imagenet_vit \
+  --data-root data/NUM \
+  --device cuda \
+  | tee outputs/step5/imagenet_vit.json
+```
+
+For VGGT, install the official repository in the runtime and run its smoke
+test:
+
+```bash
+git clone https://github.com/facebookresearch/vggt.git /content/vggt
+python -m pip install -e /content/vggt
+
+cd /content/cv3d-project
+python scripts/inspect_features.py \
+  --backbone vggt \
+  --data-root data/NUM \
+  --device cuda \
+  | tee outputs/step5/vggt.json
+```
+
+On Python 3.12, VGGT's NumPy requirement should install from a wheel. If pip
+instead downloads `numpy-1.26.4.tar.gz` and spends a long time building it,
+cancel the install and run:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install --only-binary=:all: "numpy==1.26.4"
+python -m pip install --no-build-isolation -e /content/vggt
+```
+
+Model checkpoints are downloaded only on their first use in each runtime.
+
+### 6. Run the probe-head overfit check
+
+Run the Step 6 check after the smoke tests. Its checkpoint and metrics are
+written under `outputs/phase1/probe_tiny/seed_0/`:
+
+```bash
+cd /content/cv3d-project
+python scripts/train_probe.py \
+  --config configs/experiments/phase1_probe_tiny.yaml
+```
+
+Use the VGGT override shown in Step 6 above if that is the backbone being
+checked.
+
+### 7. Copy all output files to Google Drive
+
+This is the final step before disconnecting or recycling the runtime. Copy the
+entire output tree to persistent Drive storage and inspect the transferred
+files:
+
+```bash
+mkdir -p /content/drive/MyDrive/cv3d-project/outputs
+rsync -av /content/cv3d-project/outputs/ \
+  /content/drive/MyDrive/cv3d-project/outputs/
+find /content/drive/MyDrive/cv3d-project/outputs -type f | sort
+```
+
+Colab's `/content` storage is temporary. The final copy preserves test logs,
+feature summaries, checkpoints, metrics, and any other repository outputs in
+`MyDrive/cv3d-project/outputs`.
