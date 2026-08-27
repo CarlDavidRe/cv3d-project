@@ -291,3 +291,57 @@ Model checkpoints are downloaded only on their first use in each runtime.
 Colab's `/content` storage is temporary; the commands above keep logs and
 summaries under `MyDrive/cv3d-project/outputs`, where they survive runtime
 recycling.
+
+## Step 6: lightweight probe-head overfit check
+
+Step 6 adds only the small fixed-size-feature MLP, masked Huber regression, and
+a deterministic tiny-subset training command. Frozen features are extracted
+once into memory, the backbone is released, and only the probe head is optimized.
+Ranking loss, full-split training, feature-cache files, experiment sweeps, and
+evaluation remain later steps.
+
+Feature inputs are selected independently for each backbone under
+`probe.feature_selection`. Each value is an ordered list; multiple components
+are concatenated before the prediction head:
+
+| Backbone | Available components |
+|---|---|
+| ImageNet ViT | `pooled_patch`, `max_pooled_patch`, `cls_token` |
+| DINOv2 | `pooled_patch`, `max_pooled_patch`, `cls_token`, `pooled_register` |
+| VGGT | `pooled_patch`, `max_pooled_patch`, `pooled_camera`, `pooled_register` |
+
+`pooled_patch` is mean pooling. Camera and register sequences are also mean
+pooled. Selecting `pooled_register` for DINOv2 requires a model variant that
+actually exposes register tokens, such as `dinov2_vitb14_reg`. The default
+configuration uses only `pooled_patch` for all three backbones.
+
+With those defaults, ImageNet ViT-B/16 and DINOv2 ViT-B/14 produce
+768-dimensional probe inputs, whereas VGGT-1B produces 1024-dimensional
+inputs. The head infers this width and maps it through the shared
+128-dimensional hidden layer to 48 outputs. Thus the architecture is shared,
+but its capacity is not strictly matched: the 768-dimensional heads have
+106,160 parameters and the VGGT head has 139,440. Combining components further
+increases the input width and parameter count. A final controlled comparison
+must account for these differences; strict capacity matching is outside this
+Step 6 overfit check.
+
+Run the required tiny-subset check with the supervised ImageNet ViT:
+
+```bash
+python scripts/train_probe.py \
+  --config configs/experiments/phase1_probe_tiny.yaml
+```
+
+The command returns a nonzero status unless it reaches the configured relative
+loss reduction. It writes `best.pt` and `tiny_overfit.json` under
+`outputs/phase1/probe_tiny/seed_0/`. To check another frozen backbone while
+keeping the same head and training setup, override only the backbone:
+
+```bash
+python scripts/train_probe.py \
+  --config configs/experiments/phase1_probe_tiny.yaml \
+  --set probe.backbone=vggt \
+  --set 'probe.feature_selection.vggt=[pooled_camera,pooled_patch]' \
+  --set probe.device=cuda \
+  --set probe.extraction_batch_size=1
+```

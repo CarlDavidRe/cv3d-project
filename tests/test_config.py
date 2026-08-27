@@ -25,6 +25,24 @@ class ConfigTests(unittest.TestCase):
             config["phase1"]["num_dataset"]["target_name"], "PSNR"
         )
 
+    def test_tiny_probe_config_loads_and_supports_training_overrides(self) -> None:
+        path = self.config_path.with_name("phase1_probe_tiny.yaml")
+        config = load_config(
+            path,
+            [
+                "probe.backbone=vggt",
+                "probe.extraction_batch_size=1",
+                "probe.feature_selection.vggt=[pooled_camera, pooled_patch]",
+            ],
+        )
+
+        self.assertEqual(config["probe"]["backbone"], "vggt")
+        self.assertEqual(config["probe"]["extraction_batch_size"], 1)
+        self.assertEqual(
+            config["probe"]["feature_selection"]["vggt"],
+            ["pooled_camera", "pooled_patch"],
+        )
+
     def test_existing_fields_can_be_overridden_with_typed_values(self) -> None:
         config = load_config(
             self.config_path,

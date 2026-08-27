@@ -11,6 +11,12 @@ from nbv.features.base import (
 )
 from nbv.features.dinov2 import DINOv2Extractor
 from nbv.features.imagenet_vit import ImageNetViTExtractor
+from nbv.features.selection import (
+    FEATURE_COMPONENTS_BY_BACKBONE,
+    FeatureSelectionError,
+    select_feature_components,
+    validate_feature_selection,
+)
 from nbv.features.vggt import VGGTExtractor
 
 
@@ -34,9 +40,13 @@ def create_feature_extractor(name: str, **kwargs: Any) -> FrozenFeatureExtractor
 __all__ = [
     "DINOv2Extractor",
     "FeatureExtractorError",
+    "FEATURE_COMPONENTS_BY_BACKBONE",
+    "FeatureSelectionError",
     "FrozenFeatureExtractor",
     "FrozenFeatures",
     "ImageNetViTExtractor",
     "VGGTExtractor",
     "create_feature_extractor",
+    "select_feature_components",
+    "validate_feature_selection",
 ]

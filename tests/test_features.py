@@ -9,9 +9,13 @@ from torch import nn
 from nbv.features import (
     DINOv2Extractor,
     FeatureExtractorError,
+    FeatureSelectionError,
+    FrozenFeatures,
     ImageNetViTExtractor,
     VGGTExtractor,
     create_feature_extractor,
+    select_feature_components,
+    validate_feature_selection,
 )
 
 
@@ -137,6 +141,55 @@ class FrozenFeatureTests(unittest.TestCase):
     def test_factory_rejects_unknown_backbone(self) -> None:
         with self.assertRaisesRegex(ValueError, "Unknown feature extractor"):
             create_feature_extractor("unknown")
+
+    def test_probe_components_can_select_and_concatenate_token_features(self) -> None:
+        features = FrozenFeatures(
+            pooled_patch=torch.tensor([[2.0, 1.0]]),
+            patch_tokens=torch.tensor([[[1.0, 2.0], [3.0, 0.0]]]),
+            cls_token=torch.tensor([[10.0, 11.0]]),
+            camera_tokens=torch.tensor([[[20.0, 21.0]]]),
+            register_tokens=torch.tensor(
+                [[[30.0, 31.0], [32.0, 33.0]]]
+            ),
+        )
+
+        selected = select_feature_components(
+            features,
+            [
+                "pooled_patch",
+                "max_pooled_patch",
+                "cls_token",
+                "pooled_camera",
+                "pooled_register",
+            ],
+        )
+
+        torch.testing.assert_close(
+            selected,
+            torch.tensor(
+                [[2.0, 1.0, 3.0, 2.0, 10.0, 11.0, 20.0, 21.0, 31.0, 32.0]]
+            ),
+        )
+        self.assertFalse(selected.requires_grad)
+
+    def test_feature_selection_rejects_unsupported_or_missing_tokens(self) -> None:
+        with self.assertRaisesRegex(FeatureSelectionError, "Unsupported"):
+            validate_feature_selection("vggt", ["cls_token"])
+
+        features = FrozenFeatures(
+            pooled_patch=torch.ones(1, 2),
+            patch_tokens=torch.ones(1, 3, 2),
+        )
+        with self.assertRaisesRegex(FeatureSelectionError, "not exposed"):
+            select_feature_components(features, ["pooled_register"])
+
+    def test_feature_selection_rejects_empty_or_duplicate_components(self) -> None:
+        with self.assertRaisesRegex(FeatureSelectionError, "at least one"):
+            validate_feature_selection("dinov2", [])
+        with self.assertRaisesRegex(FeatureSelectionError, "duplicates"):
+            validate_feature_selection(
+                "imagenet_vit", ["pooled_patch", "pooled_patch"]
+            )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,45 @@
+schema_version: 1
+
+experiment:
+  phase: phase1
+  name: probe_tiny
+  seed: 0
+  deterministic: true
+
+paths:
+  data_root: data/NUM
+  output_root: outputs
+
+phase1:
+  num_anchors: 48
+  num_dataset:
+    split_manifest: data/splits/num_v1.json
+    target_name: PSNR
+
+probe:
+  backbone: imagenet_vit
+  feature_selection:
+    imagenet_vit: [pooled_patch]
+    dinov2: [pooled_patch]
+    vggt: [pooled_patch]
+  device: auto
+  max_samples: 8
+  extraction_batch_size: 4
+  mask_source_view: true
+  head:
+    hidden_dim: 128
+    dropout: 0.0
+  training:
+    epochs: 1000
+    batch_size: 8
+    learning_rate: 0.01
+    weight_decay: 0.0
+    huber_delta: 1.0
+    required_relative_loss_reduction: 0.98
+  imagenet_vit:
+    pretrained: true
+  dinov2:
+    model_name: dinov2_vitb14
+  vggt:
+    model_id: facebook/VGGT-1B
+    layer_index: -1
