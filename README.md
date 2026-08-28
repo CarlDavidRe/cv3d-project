@@ -406,8 +406,18 @@ python scripts/run_phase1.py \
 ```
 
 The command reuses compatible files under `data/cache/features/` after an
-interrupted or repeated run. On a fresh Colab VM, copy a previously persisted
-cache back into that location before starting if one is available.
+interrupted or repeated run. On a fresh Colab VM, restore a previously saved
+feature cache before starting the comparison:
+
+```bash
+mkdir -p /content/cv3d-project/data/cache
+rsync -av /content/drive/MyDrive/cv3d-project/data-cache/ \
+  /content/cv3d-project/data/cache/
+```
+
+If the Drive directory does not exist yet, skip this restoration command and
+let the runner calculate the features. Compatible restored entries are reused
+automatically.
 
 ### 8. Copy generated files to Google Drive
 
@@ -419,13 +429,18 @@ files:
 mkdir -p /content/drive/MyDrive/cv3d-project/outputs
 rsync -av /content/cv3d-project/outputs/ \
   /content/drive/MyDrive/cv3d-project/outputs/
+
 mkdir -p /content/drive/MyDrive/cv3d-project/data-cache
 rsync -av /content/cv3d-project/data/cache/ \
   /content/drive/MyDrive/cv3d-project/data-cache/
+
 find /content/drive/MyDrive/cv3d-project/outputs -type f | sort
 ```
 
 Colab's `/content` storage is temporary. The final copy preserves test logs,
 feature summaries, checkpoints, metrics, and any other repository outputs in
 `MyDrive/cv3d-project/outputs`; the second copy preserves expensive frozen
-feature caches separately.
+feature caches separately. Run the copy after feature extraction finishes so
+only complete cache files are persisted. These commands do not save model
+downloads under `/root/.cache`; DINOv2 and other backbone weights may need to
+be downloaded again in a new Colab runtime.
