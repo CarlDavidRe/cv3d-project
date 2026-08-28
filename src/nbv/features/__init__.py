@@ -9,6 +9,15 @@ from nbv.features.base import (
     FrozenFeatureExtractor,
     FrozenFeatures,
 )
+from nbv.features.cache import (
+    FEATURE_CACHE_SCHEMA_VERSION,
+    CachedFeatureDataset,
+    FeatureCacheError,
+    cache_fingerprint,
+    feature_cache_path,
+    load_feature_cache,
+    save_feature_cache,
+)
 from nbv.features.dinov2 import DINOv2Extractor
 from nbv.features.imagenet_vit import ImageNetViTExtractor
 from nbv.features.selection import (
@@ -38,15 +47,22 @@ def create_feature_extractor(name: str, **kwargs: Any) -> FrozenFeatureExtractor
 
 
 __all__ = [
+    "CachedFeatureDataset",
     "DINOv2Extractor",
+    "FEATURE_CACHE_SCHEMA_VERSION",
     "FeatureExtractorError",
+    "FeatureCacheError",
     "FEATURE_COMPONENTS_BY_BACKBONE",
     "FeatureSelectionError",
     "FrozenFeatureExtractor",
     "FrozenFeatures",
     "ImageNetViTExtractor",
     "VGGTExtractor",
+    "cache_fingerprint",
     "create_feature_extractor",
+    "feature_cache_path",
+    "load_feature_cache",
+    "save_feature_cache",
     "select_feature_components",
     "validate_feature_selection",
 ]

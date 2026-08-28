@@ -1,0 +1,74 @@
+schema_version: 1
+
+experiment:
+  phase: phase1
+  name: backbone_sweep
+  seed: 0
+  deterministic: true
+
+paths:
+  data_root: data/NUM
+  output_root: outputs
+
+phase1:
+  num_anchors: 48
+  num_dataset:
+    split_manifest: data/splits/num_v1.json
+    target_name: PSNR
+
+probe:
+  device: auto
+  target_direction: auto
+  extraction_batch_size:
+    imagenet_vit: 64
+    dinov2: 64
+    vggt: 1
+  mask_source_view: true
+  max_samples_per_split: null
+
+  feature_cache:
+    root: data/cache/features
+    dtype: float16
+    rebuild: false
+
+  variants:
+    - name: imagenet_vit_pooled_patch
+      backbone: imagenet_vit
+      components: [pooled_patch]
+    - name: dinov2_pooled_patch
+      backbone: dinov2
+      components: [pooled_patch]
+    - name: vggt_pooled_patch
+      backbone: vggt
+      components: [pooled_patch]
+    - name: vggt_camera_patch
+      backbone: vggt
+      components: [pooled_camera, pooled_patch]
+
+  head:
+    hidden_dim: 128
+    dropout: 0.0
+
+  training:
+    epochs: 50
+    batch_size: 256
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    huber_delta: 1.0
+    ranking_weight: 0.1
+    ranking_margin: 0.0
+    patience: 8
+
+  evaluation:
+    batch_size: 1024
+    ndcg_k: 5
+
+  imagenet_vit:
+    pretrained: true
+  dinov2:
+    model_name: dinov2_vitb14
+    pretrained: true
+  vggt:
+    model_id: facebook/VGGT-1B
+    image_size: 518
+    layer_index: -1

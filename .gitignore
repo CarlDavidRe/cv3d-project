@@ -159,6 +159,7 @@ venv.bak/
 
 # Large local datasets
 data/NUM/
+data/cache/
 
 # Spyder project settings
 .spyderproject
@@ -224,4 +225,3 @@ __marimo__/
 outputs/*
 !outputs/README.md
 data/*tar.gz
-

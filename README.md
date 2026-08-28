@@ -2,7 +2,7 @@
 
 This repository implements the phased project described in
 [`project_overview.md`](project_overview.md). Development is currently limited
-to Phase 1 (the single-image feature probe). For local work, follow Steps 1–6
+to Phase 1 (the single-image feature probe). For local work, follow Steps 1–7
 in order. The final section restates the full remote-GPU path as one sequential
 Colab workflow.
 
@@ -150,7 +150,7 @@ Step 6 adds only the small fixed-size-feature MLP, masked Huber regression, and
 a deterministic tiny-subset training command. Frozen features are extracted
 once into memory, the backbone is released, and only the probe head is optimized.
 Ranking loss, full-split training, feature-cache files, experiment sweeps, and
-evaluation remain later steps.
+evaluation are added by Step 7 below.
 
 Feature inputs are selected independently for each backbone under
 `probe.feature_selection`. Each value is an ordered list; multiple components
@@ -197,6 +197,48 @@ python scripts/train_probe.py \
   --set probe.device=cuda \
   --set probe.extraction_batch_size=1
 ```
+
+## Step 7: Phase 1 experiment runner
+
+Step 7 adds the configured single-image sweep path and stops at the 48-anchor
+prediction head. One command extracts or reuses frozen features, trains the
+same lightweight head for every configured feature variant, selects the best
+validation checkpoint, evaluates it on the object-disjoint test split, and
+writes a comparison table:
+
+```bash
+python scripts/run_phase1.py \
+  --config configs/experiments/phase1_sweep.yaml
+```
+
+The default sweep contains ImageNet ViT pooled patches, DINOv2 pooled patches,
+VGGT pooled patches, and a small VGGT camera-plus-patch combination. Variants
+using the same backbone are cached in one pass, so the two VGGT variants do not
+require two VGGT forwards per image. Cache files are fingerprinted from the
+backbone settings, preprocessing, layer, pooling, split manifest, target, and
+sample IDs. They live under `data/cache/features/` by default.
+
+The configured loss is:
+
+```text
+Huber + ranking_weight * pairwise_ranking
+```
+
+Set `probe.training.ranking_weight=0.0` to run pure Huber regression. PSNR and
+SSIM are automatically interpreted as lower-is-more-uncertain for ranking
+metrics; MSE and LPIPS are interpreted as higher-is-more-uncertain. A custom
+target must set `probe.target_direction` explicitly.
+
+Results are written under
+`outputs/phase1/backbone_sweep/seed_0/`. The run contains the resolved config
+and environment metadata, while each `variants/<name>/` directory contains its
+best head checkpoint, training history, summary, and per-sample test metrics.
+The common table is emitted as `metrics/comparison.csv`,
+`metrics/comparison.json`, and `metrics/comparison.md`.
+
+This step deliberately does not implement PUN integration, qualitative
+visualization, policies, geometry, closed-loop evaluation, or multi-view
+processing.
 
 ## Complete Google Colab workflow from VS Code
 
@@ -352,7 +394,22 @@ python scripts/train_probe.py \
 Use the VGGT override shown in Step 6 above if that is the backbone being
 checked.
 
-### 7. Copy all output files to Google Drive
+### 7. Run the Phase 1 comparison
+
+After the tiny overfit check succeeds, run the complete configured backbone
+comparison. This is the compute-intensive Step 7 command:
+
+```bash
+cd /content/cv3d-project
+python scripts/run_phase1.py \
+  --config configs/experiments/phase1_sweep.yaml
+```
+
+The command reuses compatible files under `data/cache/features/` after an
+interrupted or repeated run. On a fresh Colab VM, copy a previously persisted
+cache back into that location before starting if one is available.
+
+### 8. Copy generated files to Google Drive
 
 This is the final step before disconnecting or recycling the runtime. Copy the
 entire output tree to persistent Drive storage and inspect the transferred
@@ -362,9 +419,13 @@ files:
 mkdir -p /content/drive/MyDrive/cv3d-project/outputs
 rsync -av /content/cv3d-project/outputs/ \
   /content/drive/MyDrive/cv3d-project/outputs/
+mkdir -p /content/drive/MyDrive/cv3d-project/data-cache
+rsync -av /content/cv3d-project/data/cache/ \
+  /content/drive/MyDrive/cv3d-project/data-cache/
 find /content/drive/MyDrive/cv3d-project/outputs -type f | sort
 ```
 
 Colab's `/content` storage is temporary. The final copy preserves test logs,
 feature summaries, checkpoints, metrics, and any other repository outputs in
-`MyDrive/cv3d-project/outputs`.
+`MyDrive/cv3d-project/outputs`; the second copy preserves expensive frozen
+feature caches separately.

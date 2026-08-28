@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from nbv.losses import masked_huber_loss
+from nbv.losses import masked_huber_loss, masked_pairwise_ranking_loss
 from nbv.models import LightweightProbeHead, count_trainable_parameters
 from nbv.training import fit_probe
 
@@ -36,6 +36,28 @@ class ProbeTests(unittest.TestCase):
         values = torch.zeros(1, 3)
         with self.assertRaisesRegex(ValueError, "at least one"):
             masked_huber_loss(values, values, torch.zeros(1, 3, dtype=torch.bool))
+
+    def test_pairwise_ranking_prefers_the_target_order(self) -> None:
+        targets = torch.tensor([[3.0, 2.0, 1.0]])
+        correct = masked_pairwise_ranking_loss(
+            torch.tensor([[4.0, 2.0, 0.0]]), targets
+        )
+        reversed_order = masked_pairwise_ranking_loss(
+            torch.tensor([[0.0, 2.0, 4.0]]), targets
+        )
+
+        self.assertLess(correct, reversed_order)
+
+    def test_pairwise_ranking_ignores_masked_pairs_and_target_ties(self) -> None:
+        predictions = torch.tensor([[0.0, 100.0, 1.0]], requires_grad=True)
+        targets = torch.tensor([[0.0, 2.0, 0.0]])
+        mask = torch.tensor([[True, False, True]])
+
+        loss = masked_pairwise_ranking_loss(predictions, targets, mask)
+        loss.backward()
+
+        self.assertEqual(loss.item(), 0.0)
+        self.assertIsNotNone(predictions.grad)
 
     def test_tiny_detached_feature_set_can_be_overfit(self) -> None:
         torch.manual_seed(4)
