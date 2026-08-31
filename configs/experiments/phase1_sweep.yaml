@@ -22,7 +22,7 @@ probe:
   extraction_batch_size:
     imagenet_vit: 64
     dinov2: 64
-    vggt: 1
+    vggt: 32
   mask_source_view: true
   max_samples_per_split: null
 
@@ -35,12 +35,27 @@ probe:
     - name: imagenet_vit_pooled_patch
       backbone: imagenet_vit
       components: [pooled_patch]
+    - name: imagenet_vit_cls_token
+      backbone: imagenet_vit
+      components: [cls_token]
     - name: dinov2_pooled_patch
       backbone: dinov2
       components: [pooled_patch]
+    - name: dinov2_cls_token
+      backbone: dinov2
+      components: [cls_token]
     - name: vggt_pooled_patch
       backbone: vggt
       components: [pooled_patch]
+    - name: vggt_max_pooled_patch
+      backbone: vggt
+      components: [max_pooled_patch]
+    - name: vggt_camera_token
+      backbone: vggt
+      components: [pooled_camera]
+    - name: vggt_pooled_register
+      backbone: vggt
+      components: [pooled_register]
     - name: vggt_camera_patch
       backbone: vggt
       components: [pooled_camera, pooled_patch]

@@ -114,7 +114,31 @@ VGGT feature variants to test, subject to what is cleanly exposed by the impleme
 - selected intermediate/final layers,
 - a small fixed combination of the above.
 
-Do not create a huge feature sweep. Start with a minimal set that answers whether representation choice matters.
+The initial controlled sweep should use these fixed-size alternatives:
+
+| Backbone | Feature variant | Purpose |
+|---|---|---|
+| ImageNet-ViT | mean-pooled patch tokens | Generic spatial-feature baseline |
+| ImageNet-ViT | classification token | Test the backbone's learned global summary |
+| DINOv2 | mean-pooled patch tokens | Self-supervised spatial-feature baseline |
+| DINOv2 | classification token | Test DINOv2's learned global summary |
+| VGGT | mean-pooled patch tokens | Direct comparison with the generic patch baselines |
+| VGGT | max-pooled patch tokens | Preserve strong localized geometric evidence that mean pooling may dilute |
+| VGGT | camera token | Test VGGT's global camera-aware representation; VGGT has no classification token |
+| VGGT | mean-pooled register tokens | Test the aggregator's learned global workspace separately |
+| VGGT | camera token + mean-pooled patch tokens | One small global-and-spatial fusion variant |
+
+Use the final cached VGGT layer for this first sweep. Treat intermediate-layer
+selection and larger token combinations as follow-up ablations only if the
+initial results justify them. This keeps the sweep small enough to interpret
+while covering each feature family exposed by the current implementation.
+
+Run the sweep cache-first. Before loading a frozen backbone, reuse every
+compatible per-variant cache whose model, preprocessing, layer, pooling,
+dataset split, and target metadata match the request. Extract only missing or
+explicitly invalidated variants, and extract all missing variants for the same
+backbone from a shared forward pass. Cache rebuilding should remain disabled
+by default; enable it only when intentionally invalidating prior features.
 
 ### Baseline
 

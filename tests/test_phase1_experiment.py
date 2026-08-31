@@ -76,10 +76,24 @@ class Phase1ExperimentTests(unittest.TestCase):
         )
         settings = parse_phase1_sweep_settings(config, REPOSITORY_ROOT)
 
-        self.assertEqual(len(settings.variants), 4)
+        self.assertEqual(
+            tuple(variant.name for variant in settings.variants),
+            (
+                "imagenet_vit_pooled_patch",
+                "imagenet_vit_cls_token",
+                "dinov2_pooled_patch",
+                "dinov2_cls_token",
+                "vggt_pooled_patch",
+                "vggt_max_pooled_patch",
+                "vggt_camera_token",
+                "vggt_pooled_register",
+                "vggt_camera_patch",
+            ),
+        )
         self.assertEqual(settings.target_direction, "lower")
-        self.assertEqual(settings.extraction_batch_sizes["vggt"], 1)
+        self.assertEqual(settings.extraction_batch_sizes["vggt"], 32)
         self.assertEqual(settings.cache_dtype, torch.float16)
+        self.assertFalse(settings.rebuild_cache)
 
     def test_multiple_variants_share_one_backbone_forward_per_batch(self) -> None:
         extractor = _FakeExtractor()

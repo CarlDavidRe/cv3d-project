@@ -211,10 +211,13 @@ python scripts/run_phase1.py \
   --config configs/experiments/phase1_sweep.yaml
 ```
 
-The default sweep contains ImageNet ViT pooled patches, DINOv2 pooled patches,
-VGGT pooled patches, and a small VGGT camera-plus-patch combination. Variants
-using the same backbone are cached in one pass, so the two VGGT variants do not
-require two VGGT forwards per image. Cache files are fingerprinted from the
+The default sweep compares mean-pooled patches and classification tokens for
+both ImageNet ViT and DINOv2. For VGGT it compares mean-pooled patches,
+max-pooled patches, the camera token, mean-pooled register tokens, and one
+camera-plus-mean-patch combination. VGGT has no classification token; its
+camera token is the model-specific global-token alternative. Variants using
+the same backbone are extracted in one pass, so all five VGGT variants share
+the same VGGT forward per image batch. Cache files are fingerprinted from the
 backbone settings, preprocessing, layer, pooling, split manifest, target, and
 sample IDs. They live under `data/cache/features/` by default.
 
@@ -405,9 +408,12 @@ python scripts/run_phase1.py \
   --config configs/experiments/phase1_sweep.yaml
 ```
 
-The command reuses compatible files under `data/cache/features/` after an
-interrupted or repeated run. On a fresh Colab VM, restore a previously saved
-feature cache before starting the comparison:
+The command checks compatible files under `data/cache/features/` before it
+loads a backbone. It trains directly from cached variants and extracts only
+the missing variants, sharing the frozen-backbone forward when several missing
+variants use the same backbone. This is the default because
+`probe.feature_cache.rebuild` is `false`. On a fresh Colab VM, restore a
+previously saved feature cache before starting the comparison:
 
 ```bash
 mkdir -p /content/cv3d-project/data/cache
