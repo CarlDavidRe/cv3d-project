@@ -211,8 +211,9 @@ python scripts/train_probe.py \
 Step 7 adds the configured single-image sweep path and stops at the 48-anchor
 prediction head. One command extracts or reuses frozen features, trains the
 same lightweight head for every configured feature variant, selects the best
-validation checkpoint, evaluates it on the object-disjoint test split, and
-writes a comparison table:
+validation checkpoint, and then evaluates the official pretrained PUN/UPNet
+checkpoint as the final sweep entry. All entries use the same object-disjoint
+test records and common comparison table:
 
 ```bash
 python scripts/run_phase1.py \
@@ -240,6 +241,24 @@ This smoke command validates the runner and artifact contract, but it is not a
 reportable experiment and does not replace the configured pretrained-backbone
 sweep.
 
+To smoke-test the official PUN checkpoint and common evaluator on CPU without
+retraining PUN, keep one minimal raw-RGB runner entry and replace the baselines:
+
+```bash
+python scripts/run_phase1.py \
+  --config configs/experiments/phase1_sweep.yaml \
+  --set experiment.name=pun_checkpoint_smoke \
+  --set probe.device=cpu \
+  --set probe.max_samples_per_split=2 \
+  --set 'probe.variants=[{name: raw_rgb_smoke, backbone: raw_rgb, components: [flattened_rgb]}]' \
+  --set 'probe.baselines=[{name: pun_upnet, type: pun}]' \
+  --set probe.training.epochs=1 \
+  --set probe.training.batch_size=2 \
+  --set probe.training.patience=1 \
+  --set probe.pun.batch_size=2 \
+  --set probe.pun.num_workers=0
+```
+
 The default sweep starts with two controls: `train_mean_map` repeats the
 per-anchor mean of valid training targets without using an image, while
 `raw_rgb_16x16_mlp` feeds a cached 768-value coarse RGB grid to the shared MLP.
@@ -252,6 +271,24 @@ the same backbone are extracted in one pass, so all five VGGT variants share
 the same VGGT forward per image batch. Cache files are fingerprinted from the
 backbone settings, preprocessing, layer, pooling, split manifest, target, and
 sample IDs. They live under `data/cache/features/` by default.
+
+The final `pun_upnet` entry does not train PUN locally. It loads the official
+released `vit_small_patch16_224_PSNR_250425172703/best_vit_regressor.pth`
+checkpoint, whose UPNet architecture is a timm ViT-S/16 with its classifier
+removed and a 48-output linear regressor. The runner uses the same deterministic
+timm preprocessing as the official inference script. The release is pinned by
+Google Drive file ID and SHA-256 in the sweep config; a missing checkpoint is
+downloaded atomically to `data/cache/models/pun/`, while a checksum mismatch is
+rejected.
+
+PUN is evaluated last and receives exactly the same validation/test NUM images,
+source-view mask, target orientation, normalized regret, Spearman, NDCG@5, and
+Huber/ranking evaluator as the project methods. Its official unmasked map MSE
+is also reported as `official_unmasked_mse_loss`. No optimizer, local training
+split, or early stopping is used for this entry. The released checkpoint does
+not include a machine-readable training manifest, so possible overlap between
+its original training data and this project's held-out objects/categories is
+recorded as a comparability limitation in `summary.json`.
 
 The configured loss is:
 
@@ -271,11 +308,12 @@ best head checkpoint, training history, summary, and per-sample test metrics.
 The common table is emitted as `metrics/comparison.csv`,
 `metrics/comparison.json`, and `metrics/comparison.md`.
 
-The checked-in seed-0 run is complete: 41,760 training, 5,232 validation, and
-14,400 test samples; one analytical baseline plus ten learned variants; eleven
-checkpoint/summary/history/per-sample artifact sets; and twenty-one training
-SVGs. Treat this single-seed result as preliminary until the final comparison
-is repeated across the chosen report seeds.
+The checked-in seed-0 artifacts predate PUN integration: they contain 41,760
+training, 5,232 validation, and 14,400 test samples; one analytical baseline
+plus ten locally trained variants; eleven artifact sets; and twenty-one
+training SVGs. Rerun the current config to produce PUN as the twelfth and final
+comparison row. Treat the single-seed result as preliminary until the final
+comparison is repeated across the chosen report seeds.
 
 Every learned variant's `training_history.json` contains an epoch-zero baseline
 and one row per completed epoch. It records the batch-time
@@ -285,6 +323,9 @@ both use fixed end-of-epoch weights with dropout disabled. The history also
 contains train/validation Huber and ranking loss components, learning rate, and
 validation normalized regret, Spearman, and NDCG@5. The target-only mean-map
 baseline has an empty history because it is not optimized.
+The pretrained PUN entry also has an empty history because the sweep performs
+inference only; its small `best.pt` is a checksum-pinned descriptor pointing to
+the official checkpoint in the shared model cache.
 
 The runner creates these dependency-free SVG diagnostics under
 `figures/training/`:
@@ -309,9 +350,9 @@ Use validation diagnostics—not test results—for early stopping and tuning. I
 the Step 8 demo uses test examples, fix their sample IDs without inspecting
 per-sample test results.
 
-This step deliberately does not implement PUN integration, qualitative
-visualization, policies, geometry, closed-loop evaluation, or multi-view
-processing.
+This step deliberately stops before policies, geometry, closed-loop
+evaluation, or multi-view processing. Phase 2 must separately add the official
+PUN history aggregation rule.
 
 ## Step 8: visualize a completed Phase 1 experiment
 

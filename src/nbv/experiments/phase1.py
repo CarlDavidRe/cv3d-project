@@ -6,6 +6,7 @@ import csv
 from dataclasses import dataclass
 import gc
 import hashlib
+from importlib.metadata import version as package_version
 import json
 import logging
 from pathlib import Path
@@ -30,12 +31,24 @@ from nbv.features import (
 from nbv.models import (
     FixedMapHead,
     LightweightProbeHead,
+    PUN_CHECKPOINT_SHA256,
+    PUN_CHECKPOINT_URL,
+    PUN_REFERENCE_COMMIT,
+    PUN_RELEASE_NAME,
+    PUN_REPOSITORY,
+    PUNUPNet,
     count_trainable_parameters,
+    create_pun_transform,
+    ensure_pun_checkpoint,
+    load_pun_checkpoint,
+    resolve_pun_data_config,
 )
 from nbv.reproducibility import RunContext, initialize_run, seed_everything
 from nbv.training import (
     evaluate_phase1_probe,
+    evaluate_pun_upnet,
     fit_phase1_probe,
+    PUNImageDataset,
     valid_target_mean,
 )
 from nbv.visualization import (
@@ -90,6 +103,7 @@ class Phase1SweepSettings:
     training: Mapping[str, Any]
     evaluation_batch_size: int
     ndcg_k: int
+    pun: Mapping[str, Any] | None
 
 
 def run_phase1_sweep(
@@ -118,7 +132,17 @@ def run_phase1_sweep(
         str, Sequence[Mapping[str, float | int | None]]
     ] = {}
     best_epochs: dict[str, int] = {}
-    if settings.baselines:
+    fixed_baselines = tuple(
+        baseline
+        for baseline in settings.baselines
+        if baseline.baseline_type == "train_mean_map"
+    )
+    pun_baselines = tuple(
+        baseline
+        for baseline in settings.baselines
+        if baseline.baseline_type == "pun"
+    )
+    if fixed_baselines:
         reference_variant = settings.variants[0]
         reference_caches = {
             split: load_feature_cache(
@@ -127,7 +151,7 @@ def run_phase1_sweep(
             )
             for split in _SPLITS
         }
-        for baseline in settings.baselines:
+        for baseline in fixed_baselines:
             active_logger.info("Evaluating Phase 1 baseline %s", baseline.name)
             comparison_rows.append(
                 _evaluate_baseline(
@@ -177,6 +201,22 @@ def run_phase1_sweep(
             result[f"ndcg_at_{settings.ndcg_k}_mean"],
         )
         del split_caches
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+    # PUN is deliberately last and evaluated from the official released
+    # checkpoint; it neither consumes a feature cache nor trains locally.
+    for baseline in pun_baselines:
+        active_logger.info(
+            "Evaluating official pretrained PUN baseline %s", baseline.name
+        )
+        result = _evaluate_pretrained_pun(
+            baseline,
+            settings,
+            context,
+        )
+        comparison_rows.append(result)
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -245,9 +285,9 @@ def parse_phase1_sweep_settings(
         if name in names:
             raise ValueError(f"Duplicate sweep entry name {name!r}")
         baseline_type = raw.get("type")
-        if baseline_type != "train_mean_map":
+        if baseline_type not in ("train_mean_map", "pun"):
             raise ValueError(
-                f"probe.baselines[{index}].type must be train_mean_map"
+                f"probe.baselines[{index}].type must be train_mean_map or pun"
             )
         baselines.append(BaselineVariant(name, baseline_type))
         names.add(name)
@@ -301,6 +341,10 @@ def parse_phase1_sweep_settings(
             validated_training["patience"], "training.patience"
         )
 
+    pun_settings = _parse_pun_settings(probe, root, target_name) if any(
+        baseline.baseline_type == "pun" for baseline in baselines
+    ) else None
+
     return Phase1SweepSettings(
         variants=tuple(variants),
         baselines=tuple(baselines),
@@ -340,6 +384,7 @@ def parse_phase1_sweep_settings(
         ndcg_k=_positive_integer(
             evaluation.get("ndcg_k", 5), "probe.evaluation.ndcg_k"
         ),
+        pun=pun_settings,
     )
 
 
@@ -419,6 +464,74 @@ def extract_variant_caches(
             metadata=dict(metadata_by_variant[variant.name]),
         )
         for variant in variants
+    }
+
+
+def _parse_pun_settings(
+    probe: Mapping[str, Any], repository_root: Path, experiment_target_name: str
+) -> Mapping[str, Any]:
+    """Validate the official pretrained UPNet configuration when requested."""
+
+    pun = _mapping(probe, "pun")
+    checkpoint = _mapping(pun, "checkpoint")
+    source_repository = _nonempty_string(
+        pun.get("source_repository", PUN_REPOSITORY),
+        "probe.pun.source_repository",
+    )
+    source_commit = _nonempty_string(
+        pun.get("source_commit", PUN_REFERENCE_COMMIT),
+        "probe.pun.source_commit",
+    )
+    release_target_name = _nonempty_string(
+        pun.get("target_name", "PSNR"), "probe.pun.target_name"
+    )
+    if release_target_name.upper() != experiment_target_name.upper():
+        raise ValueError(
+            "probe.pun.target_name must match phase1.num_dataset.target_name"
+        )
+    download_if_missing = checkpoint.get("download_if_missing", True)
+    if not isinstance(download_if_missing, bool):
+        raise TypeError("probe.pun.checkpoint.download_if_missing must be boolean")
+    checkpoint_path = _rooted_path(
+        repository_root,
+        checkpoint.get("path"),
+        "probe.pun.checkpoint.path",
+    )
+    validate_artifact_path(checkpoint_path, "probe.pun.checkpoint.path")
+    checkpoint_sha256 = _nonempty_string(
+        checkpoint.get("sha256", PUN_CHECKPOINT_SHA256),
+        "probe.pun.checkpoint.sha256",
+    )
+    if len(checkpoint_sha256) != 64 or any(
+        character not in "0123456789abcdefABCDEF"
+        for character in checkpoint_sha256
+    ):
+        raise ValueError("probe.pun.checkpoint.sha256 must be a SHA-256 hex digest")
+    return {
+        "source_repository": source_repository,
+        "source_commit": source_commit,
+        "release_name": _nonempty_string(
+            pun.get("release_name", PUN_RELEASE_NAME),
+            "probe.pun.release_name",
+        ),
+        "model_name": _nonempty_string(
+            pun.get("model_name", "vit_small_patch16_224"),
+            "probe.pun.model_name",
+        ),
+        "target_name": release_target_name,
+        "checkpoint_path": checkpoint_path,
+        "checkpoint_url": _nonempty_string(
+            checkpoint.get("download_url", PUN_CHECKPOINT_URL),
+            "probe.pun.checkpoint.download_url",
+        ),
+        "checkpoint_sha256": checkpoint_sha256.lower(),
+        "download_if_missing": download_if_missing,
+        "batch_size": _positive_integer(
+            pun.get("batch_size", 256), "probe.pun.batch_size"
+        ),
+        "num_workers": _nonnegative_integer(
+            pun.get("num_workers", 4), "probe.pun.num_workers"
+        ),
     }
 
 
@@ -599,6 +712,165 @@ def _evaluate_baseline(
             f"ndcg_at_{settings.ndcg_k}_mean"
         ],
     }
+
+
+def _evaluate_pretrained_pun(
+    baseline: BaselineVariant,
+    settings: Phase1SweepSettings,
+    context: RunContext,
+) -> dict[str, Any]:
+    """Evaluate the official released UPNet weights and emit common artifacts."""
+
+    if baseline.baseline_type != "pun" or settings.pun is None:
+        raise ValueError("PUN settings are required for the PUN baseline")
+    pun = settings.pun
+    checkpoint_path = ensure_pun_checkpoint(
+        pun["checkpoint_path"],
+        expected_sha256=str(pun["checkpoint_sha256"]),
+        download_url=str(pun["checkpoint_url"]),
+        download_if_missing=bool(pun["download_if_missing"]),
+    )
+    model = PUNUPNet(
+        model_name=str(pun["model_name"]),
+        num_anchors=settings.num_anchors,
+        pretrained=False,
+    )
+    load_pun_checkpoint(
+        model,
+        checkpoint_path,
+        expected_sha256=str(pun["checkpoint_sha256"]),
+    )
+    data_config = resolve_pun_data_config(model)
+    transform = create_pun_transform(data_config)
+    image_splits = {
+        split: PUNImageDataset(
+            NUMDataset(
+                settings.data_root,
+                split=split,
+                split_manifest=settings.split_manifest,
+                target_name=settings.target_name,
+                transform=transform,
+            ),
+            num_anchors=settings.num_anchors,
+            mask_source_view=settings.mask_source_view,
+            max_samples=settings.max_samples_per_split,
+        )
+        for split in ("val", "test")
+    }
+    evaluation_kwargs = {
+        "batch_size": int(pun["batch_size"]),
+        "target_direction": settings.target_direction,
+        "huber_delta": settings.training["huber_delta"],
+        "ranking_weight": settings.training["ranking_weight"],
+        "ranking_margin": settings.training["ranking_margin"],
+        "ndcg_k": settings.ndcg_k,
+        "num_workers": int(pun["num_workers"]),
+        "device": settings.device,
+    }
+    validation_result = evaluate_pun_upnet(
+        model, image_splits["val"], **evaluation_kwargs
+    )
+    test_result = evaluate_pun_upnet(
+        model, image_splits["test"], **evaluation_kwargs
+    )
+
+    variant_dir = context.run_dir / "variants" / baseline.name
+    variant_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint = {
+        "model": {
+            "type": "pun_upnet",
+            "model_name": pun["model_name"],
+            "feature_dim": model.feature_dim,
+            "num_anchors": settings.num_anchors,
+        },
+        "preprocessing": data_config,
+        "official_checkpoint": {
+            "release_name": pun["release_name"],
+            "path": str(checkpoint_path),
+            "download_url": pun["checkpoint_url"],
+            "sha256": pun["checkpoint_sha256"],
+        },
+        "baseline": {
+            "name": baseline.name,
+            "type": baseline.baseline_type,
+            "source_repository": pun["source_repository"],
+            "source_commit": pun["source_commit"],
+        },
+        "checkpoint_selection": "official_release",
+    }
+    torch.save(checkpoint, variant_dir / "best.pt")
+    (variant_dir / "training_history.json").write_text(
+        "[]\n", encoding="utf-8"
+    )
+    _write_per_sample_csv(
+        variant_dir / "test_per_sample.csv", test_result.per_sample
+    )
+    trainable_parameters = count_trainable_parameters(model)
+    official_differences = {
+        "training_data": (
+            "official release does not publish a machine-readable training-split "
+            "manifest; overlap with this project's test objects/categories cannot "
+            "be ruled out"
+        ),
+        "common_evaluation": (
+            "source-relative anchor 0 masked; normalized regret, Spearman, "
+            "NDCG@5, and project Huber/ranking losses added"
+        ),
+    }
+    summary = {
+        "variant": baseline.name,
+        "backbone": "pun_upnet",
+        "feature": f"{pun['model_name']}_official_pretrained",
+        "feature_components": [],
+        "input_dim": model.feature_dim,
+        "trainable_parameters": trainable_parameters,
+        "best_epoch": None,
+        "epochs_completed": 0,
+        "best_validation_loss": None,
+        "checkpoint_selection": "official_release",
+        "target_name": settings.target_name,
+        "target_direction": settings.target_direction,
+        "train_samples": None,
+        "official_pun": {
+            "source_repository": pun["source_repository"],
+            "source_commit": pun["source_commit"],
+            "model_name": pun["model_name"],
+            "target_name": pun["target_name"],
+            "release_name": pun["release_name"],
+            "checkpoint_path": str(checkpoint_path),
+            "checkpoint_url": pun["checkpoint_url"],
+            "checkpoint_sha256": pun["checkpoint_sha256"],
+            "timm_version": package_version("timm"),
+            "preprocessing": data_config,
+            "differences": official_differences,
+        },
+        "validation": dict(validation_result.summary),
+        "test": dict(test_result.summary),
+    }
+    (variant_dir / "summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+    row = {
+        "variant": baseline.name,
+        "backbone": "pun_upnet",
+        "feature": f"{pun['model_name']}_official_pretrained",
+        "input_dim": model.feature_dim,
+        "trainable_parameters": trainable_parameters,
+        "best_epoch": None,
+        "huber_loss": test_result.summary["huber_loss"],
+        "official_unmasked_mse_loss": test_result.summary[
+            "official_unmasked_mse_loss"
+        ],
+        "normalized_regret_mean": test_result.summary[
+            "normalized_regret_mean"
+        ],
+        "spearman_mean": test_result.summary["spearman_mean"],
+        f"ndcg_at_{settings.ndcg_k}_mean": test_result.summary[
+            f"ndcg_at_{settings.ndcg_k}_mean"
+        ],
+    }
+    return row
 
 
 def _train_and_evaluate_variant(
@@ -869,6 +1141,7 @@ def _write_comparison(
         "trainable_parameters",
         "best_epoch",
         "huber_loss",
+        "official_unmasked_mse_loss",
         "normalized_regret_mean",
         "spearman_mean",
         f"ndcg_at_{ndcg_k}_mean",
@@ -996,6 +1269,12 @@ def _nonempty_string(value: object, name: str) -> str:
 def _positive_integer(value: object, name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise ValueError(f"{name} must be a positive integer")
+    return value
+
+
+def _nonnegative_integer(value: object, name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{name} must be a non-negative integer")
     return value
 
 

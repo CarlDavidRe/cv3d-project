@@ -198,6 +198,38 @@ Include **PUN** in this phase.
 
 Use the official implementation/evaluation behavior where possible. If any part is reimplemented, document the exact aggregation, preprocessing, target definition, and evaluation differences.
 
+#### Official pretrained PUN/UPNet integration
+
+Use the official released PSNR checkpoint rather than retraining PUN inside
+this project:
+
+```text
+release: vit_small_patch16_224_PSNR_250425172703
+model: timm vit_small_patch16_224 → classifier removed → Linear(384, 48)
+checkpoint: best_vit_regressor.pth
+official Drive file ID: 1vpVFy2LQMjN0jTJ_o1chZ6B4nJNfNVKP
+SHA-256: 91b2065f7652aac0c84386d4af10cd0c1ae723c049c91e45ccc78722f70907ae
+```
+
+Pin the official PUN source revision and checkpoint checksum in the experiment
+config. Download a missing checkpoint atomically into the shared model cache,
+reject checksum mismatches, instantiate the official UPNet architecture with
+`pretrained=False`, and then load the complete released state dict. Apply the
+deterministic preprocessing resolved from the timm backbone configuration,
+matching the official inference script.
+
+Run PUN inference after every local probe entry so it is the final row in the
+Phase 1 sweep. Do not create an optimizer, select an epoch, or use the local
+train split for PUN. Evaluate the released predictions on the exact same
+validation/test records, source-view mask, target direction, and common metric
+implementation as all other entries. Also retain the official full-map
+unmasked MSE as `official_unmasked_mse_loss`.
+
+The released checkpoint does not include a machine-readable manifest of its
+original training samples. Therefore, report that object/category overlap with
+the project's test split cannot be ruled out; do not present the pretrained
+PUN comparison as strictly training-data-controlled.
+
 ### Predictor
 
 Conceptual interface:
@@ -296,6 +328,7 @@ Create a notebook or lightweight script that shows:
 - [x] The same lightweight head can train on every backbone.
 - [x] Evaluation produces one common metrics JSON/table.
 - [ ] PUN baseline results are available in the same comparison table.
+- [x] Official pretrained PUN is configured as the final inference-only sweep entry.
 - [x] At least one qualitative visualization is reproducible from a saved checkpoint.
 - [x] Experiment config, seed, checkpoint, and metrics are saved together.
 - [x] A single command can reproduce the main Phase 1 comparison.
@@ -315,13 +348,13 @@ Repository audit as of 2026-08-31:
 | Feature/model caching | Implemented and tested | Model downloads use the shared model-cache root; feature vectors use metadata-fingerprinted, atomically written caches. Compatible caches are reused by default. |
 | Probe training and diagnostics | Implemented and tested | The shared MLP, masked objectives, early stopping, best-state restoration, comparable post-epoch train/validation diagnostics, validation ranking histories, and dependency-free SVG curves are implemented. An ImageNet-ViT tiny-set overfit artifact succeeds. |
 | Phase 1 controls | Implemented and tested | `train_mean_map` and `raw_rgb_16x16_mlp` are configured and emit the same evaluation/result schema as learned probes. |
-| One-command sweep | Implemented and completed for seed 0 | `scripts/run_phase1.py` produced the mean-map baseline and all ten learned variants, with 11 comparison rows, 11 checkpoint/summary/history/per-sample artifact sets, and 21 validated training SVGs under `outputs/phase1/backbone_sweep/seed_0/`. Additional seeds remain desirable for final reporting. |
+| One-command sweep | Implemented; pre-PUN seed-0 run completed | The checked-in run contains the mean-map baseline and ten locally trained variants (11 rows). The current config appends official pretrained PUN as row 12 on rerun. Additional seeds remain desirable for final reporting. |
 | Runtime/memory profiling | Not implemented | Trainable parameter counts are reported, but inference timing and peak-memory measurement still need a documented common protocol. |
-| PUN comparison | Not implemented | Official PUN behavior/results still need integration into the common comparison table. |
+| PUN comparison | Implemented and smoke-tested; full row pending | The runner checksum-verifies and loads the official released PSNR UPNet checkpoint, applies official timm preprocessing, evaluates it last with both official unmasked MSE and common masked metrics, and emits the normal artifact schema. The complete 14,400-sample test row has not yet been generated. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
 | Phase 2/3 code | Not started | No visibility cache, policies, closed-loop simulator, history dataset, or joint VGGT implementation is present. |
 
-The automated suite currently contains 90 passing tests. This number records
+The automated suite currently contains 94 passing tests. This number records
 the audit state rather than replacing the requirement for real-data,
 real-checkpoint, and full-sweep validation.
 
@@ -800,12 +833,14 @@ project_root/
 │   │
 │   ├── models/
 │   │   ├── __init__.py
-│   │   └── heads.py
+│   │   ├── heads.py
+│   │   └── pun.py
 │   │
 │   ├── training/
 │   │   ├── __init__.py
 │   │   ├── phase1.py
-│   │   └── probe.py
+│   │   ├── probe.py
+│   │   └── pun.py
 │   └── visualization/
 │       ├── __init__.py
 │       ├── phase1_prediction.py
@@ -832,6 +867,7 @@ project_root/
 │   ├── test_phase1_experiment.py
 │   ├── test_phase1_prediction_visualization.py
 │   ├── test_probe.py
+│   ├── test_pun.py
 │   └── test_reproducibility.py
 │
 └── outputs/
@@ -1310,7 +1346,7 @@ Before final experiments, use this checklist:
 | `vggt_camera_token` | VGGT camera token | shared lightweight head | implemented |
 | `vggt_pooled_register` | VGGT mean-pooled registers | shared lightweight head | implemented |
 | `vggt_camera_patch` | VGGT camera + mean-pooled patches | shared lightweight head | implemented |
-| PUN | official PUN representation | official predictor/evaluation behavior | pending integration |
+| `pun_upnet` | official released PUN ViT-S/16 checkpoint | inference only; official preprocessing + common evaluator | implemented; full sweep pending |
 
 “Implemented” here means the entry is configured and covered by the Phase 1
 runner/tests; it does not mean the complete dataset sweep has already been run.
@@ -1612,7 +1648,7 @@ For every final table/figure:
 - [ ] Seed saved.
 - [ ] Dataset split version saved.
 - [ ] Backbone version saved.
-- [ ] PUN version/commit documented.
+- [x] PUN version/commit and checkpoint SHA-256 documented.
 - [ ] Feature/token layer documented.
 - [ ] Input resolution documented.
 - [ ] Loss weights documented.
@@ -1679,8 +1715,12 @@ one row per completed epoch. Its stable fields are:
 
 `train_loss` is measured in evaluation mode after the epoch; it is not the
 same quantity as `optimization_train_loss`. The analytical mean-map baseline
-stores an empty history. No test metric appears in a training history: the test
-split is evaluated only after restoring the validation-selected checkpoint.
+stores an empty history. The pretrained PUN baseline also stores an empty
+history because it performs official-checkpoint inference only; its `best.pt`
+is a lightweight descriptor containing the release, cache path, preprocessing,
+and checksum rather than a duplicate of the 83 MB state dict. No test metric
+appears in a training history: the test split is evaluated only after restoring
+the validation-selected checkpoint or loading the pinned official release.
 
 The implemented per-variant `summary.json` shape is:
 
@@ -1874,7 +1914,7 @@ Start here.
 - [x] Implement the cache-first one-command sweep runner.
 - [x] Implement common validation/test metrics and comparison-table writers.
 - [x] Run backbone comparison.
-- [ ] Integrate PUN baseline.
+- [x] Integrate official pretrained PUN baseline.
 - [x] Produce the populated seed-0 comparison table.
 - [x] Build saved-checkpoint prediction-versus-target visualization.
 - [ ] Freeze Phase 1 checkpoint.

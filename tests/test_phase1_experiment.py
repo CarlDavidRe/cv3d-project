@@ -107,7 +107,10 @@ class Phase1ExperimentTests(unittest.TestCase):
                 (baseline.name, baseline.baseline_type)
                 for baseline in settings.baselines
             ),
-            (("train_mean_map", "train_mean_map"),),
+            (
+                ("train_mean_map", "train_mean_map"),
+                ("pun_upnet", "pun"),
+            ),
         )
         self.assertEqual(settings.target_direction, "lower")
         self.assertEqual(settings.extraction_batch_sizes["raw_rgb"], 256)
@@ -118,6 +121,18 @@ class Phase1ExperimentTests(unittest.TestCase):
             REPOSITORY_ROOT / "data" / "cache" / "models",
         )
         self.assertFalse(settings.rebuild_cache)
+        self.assertIsNotNone(settings.pun)
+        assert settings.pun is not None
+        self.assertEqual(settings.pun["model_name"], "vit_small_patch16_224")
+        self.assertEqual(
+            settings.pun["release_name"],
+            "vit_small_patch16_224_PSNR_250425172703",
+        )
+        self.assertTrue(settings.pun["download_if_missing"])
+        self.assertEqual(
+            settings.pun["checkpoint_sha256"],
+            "91b2065f7652aac0c84386d4af10cd0c1ae723c049c91e45ccc78722f70907ae",
+        )
 
     def test_step_numbered_feature_cache_path_is_rejected(self) -> None:
         config = load_config(
@@ -125,6 +140,14 @@ class Phase1ExperimentTests(unittest.TestCase):
             ["probe.feature_cache.root=data/step5/features"],
         )
         with self.assertRaisesRegex(ConfigError, "step-numbered"):
+            parse_phase1_sweep_settings(config, REPOSITORY_ROOT)
+
+    def test_pretrained_pun_target_must_match_the_experiment(self) -> None:
+        config = load_config(
+            REPOSITORY_ROOT / "configs/experiments/phase1_sweep.yaml",
+            ["phase1.num_dataset.target_name=MSE"],
+        )
+        with self.assertRaisesRegex(ValueError, "pun.target_name must match"):
             parse_phase1_sweep_settings(config, REPOSITORY_ROOT)
 
     def test_multiple_variants_share_one_backbone_forward_per_batch(self) -> None:

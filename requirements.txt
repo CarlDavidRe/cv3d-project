@@ -1,6 +1,7 @@
-# Phase 1 infrastructure, NUM data loading, and step-5 frozen backbones.
+# Phase 1 infrastructure, frozen backbones, and official pretrained PUN.
 numpy>=1.24,<2.4
 Pillow>=9.5
 PyYAML>=6.0
 torch>=2.1
 torchvision>=0.16
+timm>=1.0,<2

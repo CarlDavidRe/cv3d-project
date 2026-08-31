@@ -68,6 +68,8 @@ probe:
   baselines:
     - name: train_mean_map
       type: train_mean_map
+    - name: pun_upnet
+      type: pun
 
   head:
     hidden_dim: 128
@@ -98,3 +100,18 @@ probe:
     model_id: facebook/VGGT-1B
     image_size: 518
     layer_index: -1
+
+  # Official released PUN/UPNet checkpoint. No local PUN training is run.
+  pun:
+    source_repository: https://github.com/ZhangLab-DeepNeuroCogLab/PUN
+    source_commit: aa6f8f4f12154854a4c1867209725c80475af102
+    release_name: vit_small_patch16_224_PSNR_250425172703
+    model_name: vit_small_patch16_224
+    target_name: PSNR
+    batch_size: 256
+    num_workers: 4
+    checkpoint:
+      path: data/cache/models/pun/vit_small_patch16_224_PSNR_250425172703/best_vit_regressor.pth
+      download_url: https://drive.usercontent.google.com/download?id=1vpVFy2LQMjN0jTJ_o1chZ6B4nJNfNVKP&export=download&confirm=t
+      sha256: 91b2065f7652aac0c84386d4af10cd0c1ae723c049c91e45ccc78722f70907ae
+      download_if_missing: true

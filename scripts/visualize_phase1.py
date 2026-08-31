@@ -11,6 +11,7 @@ import sys
 from typing import Any, Mapping, Sequence
 
 import numpy as np
+from PIL import Image
 import torch
 
 
@@ -27,7 +28,13 @@ from nbv.features import (  # noqa: E402
     load_feature_cache,
     select_feature_components,
 )
-from nbv.models import LightweightProbeHead  # noqa: E402
+from nbv.models import (  # noqa: E402
+    LightweightProbeHead,
+    PUNUPNet,
+    create_pun_transform,
+    ensure_pun_checkpoint,
+    load_pun_checkpoint,
+)
 from nbv.visualization import (  # noqa: E402
     Phase1PredictionDiagnostics,
     write_phase1_prediction_svg,
@@ -329,10 +336,24 @@ def _discover_variants(
         raise ValueError(f"No complete saved variants found under {variants_root}")
 
     ordered: list[str] = []
-    for field in ("baselines", "variants"):
-        entries = probe.get(field, ())
-        if not isinstance(entries, list):
-            continue
+    raw_baselines = probe.get("baselines", ())
+    baselines = raw_baselines if isinstance(raw_baselines, list) else []
+    raw_variants = probe.get("variants", ())
+    variants = raw_variants if isinstance(raw_variants, list) else []
+    configured_groups = (
+        [
+            entry
+            for entry in baselines
+            if isinstance(entry, Mapping) and entry.get("type") != "pun"
+        ],
+        variants,
+        [
+            entry
+            for entry in baselines
+            if isinstance(entry, Mapping) and entry.get("type") == "pun"
+        ],
+    )
+    for entries in configured_groups:
         for entry in entries:
             if not isinstance(entry, Mapping):
                 continue
@@ -377,6 +398,10 @@ def _predict(
     if isinstance(prediction_map, torch.Tensor):
         return prediction_map.detach().cpu().float().numpy(), "fixed checkpoint map"
 
+    model_config = checkpoint.get("model")
+    if isinstance(model_config, Mapping) and model_config.get("type") == "pun_upnet":
+        return _predict_pun(checkpoint, image=image, device=device)
+
     head_config = checkpoint.get("head")
     variant = checkpoint.get("variant")
     state = checkpoint.get("head_state_dict")
@@ -418,6 +443,54 @@ def _predict(
     with torch.inference_mode():
         prediction = head(feature.to(dtype=torch.float32)).squeeze(0)
     return prediction.detach().cpu().float().numpy(), feature_source
+
+
+def _predict_pun(
+    checkpoint: Mapping[str, Any],
+    *,
+    image: np.ndarray,
+    device: str,
+) -> tuple[np.ndarray, str]:
+    """Load a complete saved UPNet without downloading pretrained weights."""
+
+    model_config = checkpoint.get("model")
+    preprocessing = checkpoint.get("preprocessing")
+    official = checkpoint.get("official_checkpoint")
+    if not isinstance(model_config, Mapping) or not isinstance(official, Mapping):
+        raise ValueError("PUN checkpoint descriptor is missing model metadata")
+    if not isinstance(preprocessing, Mapping):
+        raise ValueError("PUN checkpoint is missing preprocessing metadata")
+    model = PUNUPNet(
+        model_name=_string(model_config.get("model_name"), "PUN model_name"),
+        num_anchors=int(model_config["num_anchors"]),
+        pretrained=False,
+    )
+    official_path = ensure_pun_checkpoint(
+        _string(official.get("path"), "official PUN checkpoint path"),
+        expected_sha256=_string(official.get("sha256"), "official PUN SHA-256"),
+        download_url=_string(official.get("download_url"), "official PUN URL"),
+        download_if_missing=True,
+    )
+    load_pun_checkpoint(
+        model,
+        official_path,
+        expected_sha256=_string(official.get("sha256"), "official PUN SHA-256"),
+    )
+    resolved_device = _resolve_device(device)
+    model.to(resolved_device).eval()
+    transform = create_pun_transform(preprocessing)
+    pixels = np.asarray(image, dtype=np.float32)
+    if pixels.ndim != 3 or pixels.shape[0] != 3:
+        raise ValueError("PUN visualization image must have shape [3, H, W]")
+    pixels = np.clip(np.transpose(pixels, (1, 2, 0)) * 255.0, 0, 255)
+    pil_image = Image.fromarray(np.rint(pixels).astype(np.uint8), mode="RGB")
+    inputs = transform(pil_image).unsqueeze(0).to(resolved_device)
+    with torch.inference_mode():
+        prediction = model(inputs).squeeze(0)
+    return (
+        prediction.detach().cpu().float().numpy(),
+        "saved official-style PUN UPNet checkpoint",
+    )
 
 
 def _load_or_extract_feature(
@@ -553,6 +626,15 @@ def _string(value: object, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{field} must be a non-empty string")
     return value.strip()
+
+
+def _resolve_device(device: str) -> torch.device:
+    if device == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    resolved = torch.device(device)
+    if resolved.type == "cuda" and not torch.cuda.is_available():
+        raise ValueError("CUDA was requested but is not available")
+    return resolved
 
 
 def _read_json_mapping(path: Path) -> Mapping[str, Any]:
