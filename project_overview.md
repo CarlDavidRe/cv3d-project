@@ -290,15 +290,15 @@ Create a notebook or lightweight script that shows:
 
 ### Phase 1 definition of done
 
-- [ ] Dataset loader is deterministic and tested.
-- [ ] All three frozen backbones can produce features through one common interface.
-- [ ] Feature caching works.
-- [ ] The same lightweight head can train on every backbone.
-- [ ] Evaluation produces one common metrics JSON/table.
+- [x] Dataset loader is deterministic and tested.
+- [x] All three frozen backbones can produce features through one common interface.
+- [x] Feature caching works.
+- [x] The same lightweight head can train on every backbone.
+- [x] Evaluation produces one common metrics JSON/table.
 - [ ] PUN baseline results are available in the same comparison table.
-- [ ] At least one qualitative visualization is reproducible from a saved checkpoint.
-- [ ] Experiment config, seed, checkpoint, and metrics are saved together.
-- [ ] A single command can reproduce the main Phase 1 comparison.
+- [x] At least one qualitative visualization is reproducible from a saved checkpoint.
+- [x] Experiment config, seed, checkpoint, and metrics are saved together.
+- [x] A single command can reproduce the main Phase 1 comparison.
 
 ### Current Phase 1 repository status
 
@@ -308,20 +308,20 @@ Repository audit as of 2026-08-31:
 |---|---|---|
 | Configuration and provenance | Implemented and tested | YAML loading/overrides, safe artifact paths, deterministic seeding, run directories, resolved config, environment metadata, and logs are implemented. |
 | Canonical anchors | Implemented and tested | The checked-in 48-anchor CSV, ordering, directions, angular distances, camera poses, and candidate masking have unit coverage. |
-| NUM data and split handling | Implemented and tested with fixtures | The loader validates RGB/target records and the checked-in object-disjoint PUN-compatible split. A complete local NUM dataset is still required for the full sweep. |
-| Target-only visualization | Implemented | `inspect_num_sample.py` produces a source-image/target SVG and self-contained interactive 3D anchor view. This is not yet a saved-checkpoint prediction visualization. |
+| NUM data and split handling | Implemented, tested, and exercised at full scale | The loader validates RGB/target records and the checked-in object-disjoint PUN-compatible split. The completed sweep contains 41,760 training, 5,232 validation, and 14,400 test samples. |
+| Target-only visualization | Implemented | `inspect_num_sample.py` produces a source-image/target SVG and self-contained interactive 3D anchor view. |
 | Metrics and losses | Implemented and tested | Masked Huber, pairwise ranking, normalized regret, Spearman, NDCG@5, and coverage AUC are available. |
-| Feature extractors | Implemented and unit-tested | Raw RGB, ImageNet-ViT-B/16, DINOv2, and single-image VGGT share one interface. Real-checkpoint smoke validation is recorded for ImageNet; record DINOv2 and VGGT smoke runs before declaring this item complete. |
+| Feature extractors | Implemented, tested, and exercised in the full sweep | Raw RGB, ImageNet-ViT-B/16, DINOv2, and single-image VGGT share one interface. The completed artifacts verify real-checkpoint extraction and training for every configured feature variant. |
 | Feature/model caching | Implemented and tested | Model downloads use the shared model-cache root; feature vectors use metadata-fingerprinted, atomically written caches. Compatible caches are reused by default. |
 | Probe training and diagnostics | Implemented and tested | The shared MLP, masked objectives, early stopping, best-state restoration, comparable post-epoch train/validation diagnostics, validation ranking histories, and dependency-free SVG curves are implemented. An ImageNet-ViT tiny-set overfit artifact succeeds. |
 | Phase 1 controls | Implemented and tested | `train_mean_map` and `raw_rgb_16x16_mlp` are configured and emit the same evaluation/result schema as learned probes. |
-| One-command sweep | Implemented, execution pending | `scripts/run_phase1.py` prepares/reuses caches, trains configured variants, writes histories and training-curve SVGs, evaluates each restored best checkpoint on validation/test splits, and writes JSON/CSV/Markdown comparisons. No complete main-sweep result is currently present. |
+| One-command sweep | Implemented and completed for seed 0 | `scripts/run_phase1.py` produced the mean-map baseline and all ten learned variants, with 11 comparison rows, 11 checkpoint/summary/history/per-sample artifact sets, and 21 validated training SVGs under `outputs/phase1/backbone_sweep/seed_0/`. Additional seeds remain desirable for final reporting. |
 | Runtime/memory profiling | Not implemented | Trainable parameter counts are reported, but inference timing and peak-memory measurement still need a documented common protocol. |
 | PUN comparison | Not implemented | Official PUN behavior/results still need integration into the common comparison table. |
-| Prediction demo | Not implemented | A saved-checkpoint visualization of prediction versus target and top-ranked anchors is still required. |
+| Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
 | Phase 2/3 code | Not started | No visibility cache, policies, closed-loop simulator, history dataset, or joint VGGT implementation is present. |
 
-The automated suite currently contains 88 passing tests. This number records
+The automated suite currently contains 90 passing tests. This number records
 the audit state rather than replacing the requirement for real-data,
 real-checkpoint, and full-sweep validation.
 
@@ -802,10 +802,14 @@ project_root/
 │   │   ├── __init__.py
 │   │   └── heads.py
 │   │
-│   └── training/
+│   ├── training/
+│   │   ├── __init__.py
+│   │   ├── phase1.py
+│   │   └── probe.py
+│   └── visualization/
 │       ├── __init__.py
-│       ├── phase1.py
-│       └── probe.py
+│       ├── phase1_prediction.py
+│       └── training_curves.py
 │
 ├── scripts/
 │   ├── init_experiment.py
@@ -813,7 +817,8 @@ project_root/
 │   ├── inspect_num_sample.py
 │   ├── prepare_num_split.py
 │   ├── run_phase1.py
-│   └── train_probe.py
+│   ├── train_probe.py
+│   └── visualize_phase1.py
 │
 ├── tests/
 │   ├── test_anchors.py
@@ -825,21 +830,24 @@ project_root/
 │   ├── test_num_splits.py
 │   ├── test_num_visualization.py
 │   ├── test_phase1_experiment.py
+│   ├── test_phase1_prediction_visualization.py
 │   ├── test_probe.py
 │   └── test_reproducibility.py
 │
 └── outputs/
-    └── README.md                    # generated runs are not tracked
+    ├── README.md
+    └── phase1/backbone_sweep/       # selected seed-0 result artifacts
 ```
 
 The implemented Phase 1 separation is:
 
-**data → cached inputs/features → predictor or fixed baseline → evaluator → results**
+**data → cached inputs/features → predictor or fixed baseline → evaluator → results → visualization**
 
-At present, the repository stops at the single-image predictor/evaluator.
-There is no `policies/`, visibility/coverage implementation, history dataset,
-closed-loop evaluator, or joint multi-view model yet; those are Phase 2/3
-additions and should be introduced only when their development steps begin.
+At present, the repository stops at the single-image predictor, evaluator, and
+saved-checkpoint qualitative visualization. There is no `policies/`,
+visibility/coverage implementation, history dataset, closed-loop evaluator, or
+joint multi-view model yet; those are Phase 2/3 additions and should be
+introduced only when their development steps begin.
 
 ## Planned full-project tree
 
@@ -1395,7 +1403,25 @@ single final-checkpoint evaluation, never an epoch-by-epoch curve.
 
 ### Step 8 — Phase 1 demo
 
-Load an experiment and visualize prediction vs. ground truth.
+Load an experiment through the visualization-only CLI and render one prediction
+versus ground-truth plot for every complete saved variant:
+
+```bash
+python scripts/visualize_phase1.py \
+  outputs/phase1/backbone_sweep/seed_0 \
+  --split val \
+  --index 0
+```
+
+The experiment directory is the positional argument. Omit `--variant` to
+discover all complete directories under `variants/`; repeat `--variant NAME` to
+select a subset. The command writes only self-contained SVGs below the
+experiment's `figures/predictions/` directory (or `--output-dir`). The explicit
+single-file `--output` path requires exactly one selected variant. It must not
+train, alter metrics/checkpoints, or write feature caches. Default all variants
+to the same deterministic validation sample. Reuse compatible frozen-feature
+caches when present; require explicit `--extract-missing-features` permission
+before running a missing pretrained backbone in memory.
 
 ### Step 9 — geometry visibility cache
 
@@ -1614,10 +1640,12 @@ outputs/<phase>/<experiment>/seed_<n>/
 │   ├── comparison.json
 │   └── comparison.md
 ├── figures/
-│   └── training/
-│       ├── <variant>_losses.svg
-│       ├── <variant>_validation_metrics.svg
-│       └── validation_loss_comparison.svg
+│   ├── training/
+│   │   ├── <variant>_losses.svg
+│   │   ├── <variant>_validation_metrics.svg
+│   │   └── validation_loss_comparison.svg
+│   └── predictions/
+│       └── <variant>_<split>_<sample_id>.svg
 └── variants/<variant>/
     ├── best.pt
     ├── summary.json
@@ -1828,7 +1856,7 @@ Start here.
 - [x] Reproduce/verify target-map orientation and source-relative anchor zero.
 - [x] Implement regret, Spearman, NDCG@5, and coverage AUC.
 - [x] Add metric unit tests.
-- [ ] Validate the loader over the complete local NUM dataset.
+- [x] Validate the loader over the complete local NUM dataset.
 
 ### Milestone 3 — feature probes
 
@@ -1839,16 +1867,16 @@ Start here.
 - [x] Add model-download and feature-vector caching.
 - [x] Add shared lightweight predictor head.
 - [x] Verify tiny-set overfitting with ImageNet-ViT.
-- [ ] Record real-checkpoint DINOv2 and VGGT smoke runs.
+- [x] Record real-checkpoint DINOv2 and VGGT runs.
 
 ### Milestone 4 — Phase 1 result
 
 - [x] Implement the cache-first one-command sweep runner.
 - [x] Implement common validation/test metrics and comparison-table writers.
-- [ ] Run backbone comparison.
+- [x] Run backbone comparison.
 - [ ] Integrate PUN baseline.
-- [ ] Produce the final populated comparison table.
-- [ ] Build saved-checkpoint prediction-versus-target visualization.
+- [x] Produce the populated seed-0 comparison table.
+- [x] Build saved-checkpoint prediction-versus-target visualization.
 - [ ] Freeze Phase 1 checkpoint.
 
 ### Milestone 5 — closed-loop geometry

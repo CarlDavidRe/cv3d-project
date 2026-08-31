@@ -90,7 +90,7 @@ python3 -m http.server 8000
 Then open the following address in a browser:
 
 ```text
-http://localhost:8000/outputs/phase1/num_sample/seed_0/figures/num_sample_3d.html
+http://localhost:8000/outputs/phase1/num_sample_3d.html
 ```
 
 Stop the server with `Ctrl+C`.
@@ -219,6 +219,27 @@ python scripts/run_phase1.py \
   --config configs/experiments/phase1_sweep.yaml
 ```
 
+For a quick CPU-only end-to-end check on real NUM records before launching the
+full GPU sweep, use:
+
+```bash
+python scripts/run_phase1.py \
+  --config configs/experiments/phase1_sweep.yaml \
+  --set experiment.name=phase1_runner_smoke \
+  --set probe.device=cpu \
+  --set probe.max_samples_per_split=8 \
+  --set 'probe.variants=[{name: raw_rgb_16x16_mlp, backbone: raw_rgb, components: [flattened_rgb]}]' \
+  --set 'probe.baselines=[{name: train_mean_map, type: train_mean_map}]' \
+  --set probe.training.epochs=3 \
+  --set probe.training.batch_size=4 \
+  --set probe.training.patience=2 \
+  --set probe.evaluation.batch_size=8
+```
+
+This smoke command validates the runner and artifact contract, but it is not a
+reportable experiment and does not replace the configured pretrained-backbone
+sweep.
+
 The default sweep starts with two controls: `train_mean_map` repeats the
 per-anchor mean of valid training targets without using an image, while
 `raw_rgb_16x16_mlp` feeds a cached 768-value coarse RGB grid to the shared MLP.
@@ -249,6 +270,12 @@ and environment metadata, while each `variants/<name>/` directory contains its
 best head checkpoint, training history, summary, and per-sample test metrics.
 The common table is emitted as `metrics/comparison.csv`,
 `metrics/comparison.json`, and `metrics/comparison.md`.
+
+The checked-in seed-0 run is complete: 41,760 training, 5,232 validation, and
+14,400 test samples; one analytical baseline plus ten learned variants; eleven
+checkpoint/summary/history/per-sample artifact sets; and twenty-one training
+SVGs. Treat this single-seed result as preliminary until the final comparison
+is repeated across the chosen report seeds.
 
 Every learned variant's `training_history.json` contains an epoch-zero baseline
 and one row per completed epoch. It records the batch-time
@@ -285,6 +312,60 @@ per-sample test results.
 This step deliberately does not implement PUN integration, qualitative
 visualization, policies, geometry, closed-loop evaluation, or multi-view
 processing.
+
+## Step 8: visualize a completed Phase 1 experiment
+
+Pass the completed experiment directory as the positional CLI argument. With no
+other arguments, the command discovers every complete saved variant (including
+fixed baselines) and generates one plot per variant for the first deterministic
+validation sample:
+
+```bash
+python scripts/visualize_phase1.py \
+  outputs/phase1/backbone_sweep/seed_0
+```
+
+Use one or more repeatable `--variant` filters to generate only selected plots,
+or choose a preselected validation sample explicitly:
+
+```bash
+python scripts/visualize_phase1.py \
+  outputs/phase1/backbone_sweep/seed_0 \
+  --variant vggt_max_pooled_patch \
+  --variant raw_rgb_16x16_mlp \
+  --split val \
+  --sample-id 02691156/154146362c18b3c447fdda991f503a6b/0
+```
+
+For each learned variant, the command first looks for a compatible feature cache
+containing that sample. Raw-RGB features can always be recreated in memory. To
+complete the default all-variant run, every pretrained variant must have a
+compatible cache; otherwise restore the caches from the training environment or
+explicitly allow one in-memory backbone forward per missing feature with
+`--extract-missing-features`. That option may require model checkpoints and a
+suitable GPU, but it still does not write feature caches.
+
+The only generated artifacts are self-contained SVGs under
+`<experiment>/figures/predictions/<split>/<category>/<object>/<view>/<variant>.svg`
+unless `--output-dir` is supplied. Each object/view has one directory containing
+all generated variant SVGs. For example, the sample
+`02691156/154146362c18b3c447fdda991f503a6b/1` stores its variants under
+`figures/predictions/val/02691156/154146362c18b3c447fdda991f503a6b/1/`,
+including `dinov2_pooled_patch.svg`.
+The single-file `--output` option is available only when exactly one
+`--variant` is selected. Each SVG contains:
+
+- the input RGB image,
+- ground-truth and predicted 48-anchor utility maps on one shared scale,
+- an absolute utility-error map,
+- the predicted and ground-truth top candidates,
+- normalized regret, Spearman, NDCG@5, raw-target MAE, and top-five rankings.
+
+The default uses validation index 0 for every variant, so comparisons use the
+same reproducible example and are not selected by inspecting test results. The
+CLI reads the saved config, checkpoints, summaries, dataset, and optional
+feature caches; it does not train, change metrics, update checkpoints, or write
+caches.
 
 ## Complete Google Colab workflow from VS Code
 
