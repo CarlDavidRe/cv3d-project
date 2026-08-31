@@ -39,6 +39,23 @@ class Phase1EvaluationResult:
     predictions: Tensor
 
 
+def valid_target_mean(targets: Tensor, valid_mask: Tensor) -> Tensor:
+    """Return the per-anchor training mean using only valid observations."""
+
+    if targets.ndim != 2 or targets.shape[0] < 1:
+        raise ValueError("targets must have non-empty shape [N, A]")
+    if valid_mask.shape != targets.shape or valid_mask.dtype != torch.bool:
+        raise ValueError("valid_mask must be boolean with the target shape")
+    if not targets.is_floating_point() or not torch.isfinite(targets).all():
+        raise ValueError("targets must be finite floating-point values")
+    valid_counts = valid_mask.sum(dim=0)
+    valid_sums = torch.where(
+        valid_mask, targets, torch.zeros_like(targets)
+    ).sum(dim=0)
+    means = valid_sums / valid_counts.clamp_min(1)
+    return torch.where(valid_counts > 0, means, torch.zeros_like(means))
+
+
 def combined_probe_loss(
     predictions: Tensor,
     targets: Tensor,

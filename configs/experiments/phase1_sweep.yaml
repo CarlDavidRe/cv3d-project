@@ -21,6 +21,7 @@ probe:
   device: auto
   target_direction: auto
   extraction_batch_size:
+    raw_rgb: 256
     imagenet_vit: 64
     dinov2: 64
     vggt: 32
@@ -33,6 +34,9 @@ probe:
     rebuild: false
 
   variants:
+    - name: raw_rgb_16x16_mlp
+      backbone: raw_rgb
+      components: [flattened_rgb]
     - name: imagenet_vit_pooled_patch
       backbone: imagenet_vit
       components: [pooled_patch]
@@ -61,6 +65,10 @@ probe:
       backbone: vggt
       components: [pooled_camera, pooled_patch]
 
+  baselines:
+    - name: train_mean_map
+      type: train_mean_map
+
   head:
     hidden_dim: 128
     dropout: 0.0
@@ -79,6 +87,8 @@ probe:
     batch_size: 1024
     ndcg_k: 5
 
+  raw_rgb:
+    output_size: 16
   imagenet_vit:
     pretrained: true
   dinov2:

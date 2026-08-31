@@ -1,0 +1,17 @@
+{
+  "backbone": "imagenet_vit",
+  "best_epoch": 430,
+  "best_loss": 5.527380722014641e-07,
+  "epochs_completed": 500,
+  "feature": "pooled_patch",
+  "feature_device": "cpu",
+  "final_loss": 0.0018963183974847198,
+  "initial_loss": 13.667567253112793,
+  "mask_source_view": true,
+  "masked_local_anchor_id": 0,
+  "num_samples": 4,
+  "overfit_succeeded": true,
+  "relative_loss_reduction": 0.9999999595584158,
+  "required_relative_loss_reduction": 0.95,
+  "trainable_parameters": 106160
+}

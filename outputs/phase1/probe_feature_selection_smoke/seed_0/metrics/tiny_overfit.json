@@ -1,0 +1,21 @@
+{
+  "backbone": "imagenet_vit",
+  "best_epoch": 194,
+  "best_loss": 6.199543634011206e-08,
+  "epochs_completed": 300,
+  "feature": "cls_token+max_pooled_patch",
+  "feature_components": [
+    "cls_token",
+    "max_pooled_patch"
+  ],
+  "feature_device": "cpu",
+  "final_loss": 7.029203698039055e-05,
+  "initial_loss": 13.939889907836914,
+  "mask_source_view": true,
+  "masked_local_anchor_id": 0,
+  "num_samples": 2,
+  "overfit_succeeded": true,
+  "relative_loss_reduction": 0.9999999955526595,
+  "required_relative_loss_reduction": 0.95,
+  "trainable_parameters": 206000
+}

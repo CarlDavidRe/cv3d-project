@@ -1,0 +1,45 @@
+experiment:
+  deterministic: true
+  name: probe_feature_selection_smoke
+  phase: phase1
+  seed: 0
+paths:
+  data_root: data/NUM
+  output_root: outputs
+phase1:
+  num_anchors: 48
+  num_dataset:
+    split_manifest: data/splits/num_v1.json
+    target_name: PSNR
+probe:
+  backbone: imagenet_vit
+  device: auto
+  dinov2:
+    model_name: dinov2_vitb14
+  extraction_batch_size: 2
+  feature_selection:
+    dinov2:
+    - pooled_patch
+    imagenet_vit:
+    - cls_token
+    - max_pooled_patch
+    vggt:
+    - pooled_patch
+  head:
+    dropout: 0.0
+    hidden_dim: 128
+  imagenet_vit:
+    pretrained: false
+  mask_source_view: true
+  max_samples: 2
+  training:
+    batch_size: 8
+    epochs: 300
+    huber_delta: 1.0
+    learning_rate: 0.01
+    required_relative_loss_reduction: 0.95
+    weight_decay: 0.0
+  vggt:
+    layer_index: -1
+    model_id: facebook/VGGT-1B
+schema_version: 1

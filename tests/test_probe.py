@@ -5,11 +5,33 @@ import unittest
 import torch
 
 from nbv.losses import masked_huber_loss, masked_pairwise_ranking_loss
-from nbv.models import LightweightProbeHead, count_trainable_parameters
-from nbv.training import fit_probe
+from nbv.models import (
+    FixedMapHead,
+    LightweightProbeHead,
+    count_trainable_parameters,
+)
+from nbv.training import fit_probe, valid_target_mean
 
 
 class ProbeTests(unittest.TestCase):
+    def test_fixed_map_head_repeats_a_non_trainable_prediction(self) -> None:
+        head = FixedMapHead(torch.tensor([1.0, 2.0, 3.0]))
+
+        predictions = head(torch.randn(4, 7))
+
+        torch.testing.assert_close(
+            predictions, torch.tensor([[1.0, 2.0, 3.0]]).expand(4, -1)
+        )
+        self.assertEqual(count_trainable_parameters(head), 0)
+
+    def test_valid_target_mean_ignores_masked_values(self) -> None:
+        targets = torch.tensor([[1.0, 100.0, 3.0], [5.0, 7.0, 9.0]])
+        mask = torch.tensor([[True, False, False], [True, True, False]])
+
+        means = valid_target_mean(targets, mask)
+
+        torch.testing.assert_close(means, torch.tensor([3.0, 7.0, 0.0]))
+
     def test_head_maps_pooled_features_to_anchor_map(self) -> None:
         head = LightweightProbeHead(6, hidden_dim=4, num_anchors=3)
 

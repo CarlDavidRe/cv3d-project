@@ -15,6 +15,7 @@ from nbv.features import (
     FeatureSelectionError,
     FrozenFeatures,
     ImageNetViTExtractor,
+    RawRGBExtractor,
     VGGTExtractor,
     create_feature_extractor,
     select_feature_components,
@@ -74,6 +75,21 @@ class _FakeVGGTAggregator(nn.Module):
 
 
 class FrozenFeatureTests(unittest.TestCase):
+    def test_raw_rgb_extractor_builds_backbone_free_flattened_grid(self) -> None:
+        extractor = RawRGBExtractor(output_size=2, device="cpu")
+        images = torch.arange(3 * 4 * 4, dtype=torch.float32).reshape(
+            1, 3, 4, 4
+        )
+        images /= images.max()
+
+        features = extractor.extract(images)
+        selected = select_feature_components(features, ["flattened_rgb"])
+
+        self.assertEqual(features.patch_tokens.shape, (1, 1, 12))
+        self.assertEqual(selected.shape, (1, 12))
+        torch.testing.assert_close(selected, features.pooled_patch)
+        self.assertEqual(features.metadata["pooling"], "adaptive_average")
+
     def test_torch_backbones_use_and_restore_the_common_model_cache(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             cache_root = Path(temporary_directory) / "models"
@@ -200,6 +216,12 @@ class FrozenFeatureTests(unittest.TestCase):
     def test_factory_rejects_unknown_backbone(self) -> None:
         with self.assertRaisesRegex(ValueError, "Unknown feature extractor"):
             create_feature_extractor("unknown")
+
+    def test_factory_constructs_raw_rgb_without_model_weights(self) -> None:
+        extractor = create_feature_extractor(
+            "raw_rgb", output_size=16, device="cpu"
+        )
+        self.assertIsInstance(extractor, RawRGBExtractor)
 
     def test_probe_components_can_select_and_concatenate_token_features(self) -> None:
         features = FrozenFeatures(

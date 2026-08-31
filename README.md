@@ -163,16 +163,19 @@ are concatenated before the prediction head:
 
 | Backbone | Available components |
 |---|---|
+| Raw RGB | `flattened_rgb` |
 | ImageNet ViT | `pooled_patch`, `max_pooled_patch`, `cls_token` |
 | DINOv2 | `pooled_patch`, `max_pooled_patch`, `cls_token`, `pooled_register` |
 | VGGT | `pooled_patch`, `max_pooled_patch`, `pooled_camera`, `pooled_register` |
 
-`pooled_patch` is mean pooling. Camera and register sequences are also mean
-pooled. Selecting `pooled_register` for DINOv2 requires a model variant that
-actually exposes register tokens, such as `dinov2_vitb14_reg`. The default
-configuration uses only `pooled_patch` for all three backbones.
+For the raw-RGB baseline, `flattened_rgb` is a backbone-free 16×16 adaptive
+average RGB grid flattened to 768 values. `pooled_patch` is mean pooling.
+Camera and register sequences are also mean pooled. Selecting
+`pooled_register` for DINOv2 requires a model variant that actually exposes
+register tokens, such as `dinov2_vitb14_reg`. The default tiny-probe
+configuration uses only `pooled_patch` for its learned backbones.
 
-With those defaults, ImageNet ViT-B/16 and DINOv2 ViT-B/14 produce
+The raw-RGB grid, ImageNet ViT-B/16, and DINOv2 ViT-B/14 produce
 768-dimensional probe inputs, whereas VGGT-1B produces 1024-dimensional
 inputs. The head infers this width and maps it through the shared
 128-dimensional hidden layer to 48 outputs. Thus the architecture is shared,
@@ -216,9 +219,12 @@ python scripts/run_phase1.py \
   --config configs/experiments/phase1_sweep.yaml
 ```
 
-The default sweep compares mean-pooled patches and classification tokens for
-both ImageNet ViT and DINOv2. For VGGT it compares mean-pooled patches,
-max-pooled patches, the camera token, mean-pooled register tokens, and one
+The default sweep starts with two controls: `train_mean_map` repeats the
+per-anchor mean of valid training targets without using an image, while
+`raw_rgb_16x16_mlp` feeds a cached 768-value coarse RGB grid to the shared MLP.
+It then compares mean-pooled patches and classification tokens for both
+ImageNet ViT and DINOv2. For VGGT it compares mean-pooled patches, max-pooled
+patches, the camera token, mean-pooled register tokens, and one
 camera-plus-mean-patch combination. VGGT has no classification token; its
 camera token is the model-specific global-token alternative. Variants using
 the same backbone are extracted in one pass, so all five VGGT variants share

@@ -118,6 +118,8 @@ The initial controlled sweep should use these fixed-size alternatives:
 
 | Backbone | Feature variant | Purpose |
 |---|---|---|
+| None | training-set mean 48-anchor map | Measure performance available from dataset and anchor priors without looking at the image |
+| Raw RGB | flattened 16×16 adaptive-average RGB grid + MLP | Test what the shared probe can learn directly from coarse pixels without a pretrained backbone |
 | ImageNet-ViT | mean-pooled patch tokens | Generic spatial-feature baseline |
 | ImageNet-ViT | classification token | Test the backbone's learned global summary |
 | DINOv2 | mean-pooled patch tokens | Self-supervised spatial-feature baseline |
@@ -132,6 +134,56 @@ Use the final cached VGGT layer for this first sweep. Treat intermediate-layer
 selection and larger token combinations as follow-up ablations only if the
 initial results justify them. This keeps the sweep small enough to interpret
 while covering each feature family exposed by the current implementation.
+
+#### Control baseline A — training-set mean map
+
+This baseline measures how much of the task can be solved from dataset-wide
+anchor preferences without observing the input image. For training target
+`y_i,j` and validity mask `m_i,j`, compute one value per anchor using only the
+training split:
+
+```text
+mean_map[j] = sum_i(m_i,j * y_i,j) / sum_i(m_i,j),  i in training split
+```
+
+Masked targets do not contribute. If an anchor has no valid training targets,
+store zero as a finite placeholder and keep that anchor masked during
+evaluation. The same resulting 48-value vector is returned for every
+validation and test image. Validation and test targets must never contribute
+to the mean.
+
+This is an analytical, zero-trainable-parameter baseline: it does not use an
+MLP, an optimizer, or image features. Save the computed map with the other
+variant artifacts and evaluate it through the same candidate masks, Huber
+loss, ranking loss, normalized regret, Spearman, and NDCG@5 implementation.
+
+#### Control baseline B — raw-RGB MLP
+
+This baseline tests whether the prediction head can learn the task directly
+from coarse image appearance without a pretrained feature backbone:
+
+```text
+RGB image [3, H, W] in [0, 1]
+    ↓ adaptive average pooling over the complete image
+RGB grid [3, 16, 16]
+    ↓ channel-first flattening
+raw feature vector [768]
+    ↓ LayerNorm → Linear(768, 128) → GELU → Dropout → Linear(128, 48)
+48-anchor prediction map
+```
+
+Use `torch.nn.functional.adaptive_avg_pool2d(image, (16, 16))`. It averages
+spatial regions into a fixed grid while retaining the complete image; do not
+crop the image or apply ImageNet normalization. Keep RGB values in `[0, 1]`.
+Do not flatten the full-resolution image, which would give this baseline a
+much larger trainable head and make the capacity comparison misleading.
+
+The 768-value input means this baseline uses exactly the same 768→128→48 MLP
+and trainable parameter count as the ImageNet-ViT-B/16 and DINOv2-B/14 probes.
+Train it with the same loss, optimizer, early stopping, seeds, split, and
+candidate masks as the frozen-feature probes. Cache the flattened RGB vectors
+with preprocessing and output-size metadata, and reuse compatible caches on
+subsequent runs.
 
 Run the sweep cache-first. Before loading a frozen backbone, reuse every
 compatible per-variant cache whose model, preprocessing, layer, pooling,
@@ -219,6 +271,31 @@ Create a notebook or lightweight script that shows:
 - [ ] At least one qualitative visualization is reproducible from a saved checkpoint.
 - [ ] Experiment config, seed, checkpoint, and metrics are saved together.
 - [ ] A single command can reproduce the main Phase 1 comparison.
+
+### Current Phase 1 repository status
+
+Repository audit as of 2026-08-31:
+
+| Area | Status | Current evidence / remaining work |
+|---|---|---|
+| Configuration and provenance | Implemented and tested | YAML loading/overrides, safe artifact paths, deterministic seeding, run directories, resolved config, environment metadata, and logs are implemented. |
+| Canonical anchors | Implemented and tested | The checked-in 48-anchor CSV, ordering, directions, angular distances, camera poses, and candidate masking have unit coverage. |
+| NUM data and split handling | Implemented and tested with fixtures | The loader validates RGB/target records and the checked-in object-disjoint PUN-compatible split. A complete local NUM dataset is still required for the full sweep. |
+| Target-only visualization | Implemented | `inspect_num_sample.py` produces a source-image/target SVG and self-contained interactive 3D anchor view. This is not yet a saved-checkpoint prediction visualization. |
+| Metrics and losses | Implemented and tested | Masked Huber, pairwise ranking, normalized regret, Spearman, NDCG@5, and coverage AUC are available. |
+| Feature extractors | Implemented and unit-tested | Raw RGB, ImageNet-ViT-B/16, DINOv2, and single-image VGGT share one interface. Real-checkpoint smoke validation is recorded for ImageNet; record DINOv2 and VGGT smoke runs before declaring this item complete. |
+| Feature/model caching | Implemented and tested | Model downloads use the shared model-cache root; feature vectors use metadata-fingerprinted, atomically written caches. Compatible caches are reused by default. |
+| Probe training | Implemented and tested | The shared MLP, masked objectives, early stopping, best-state restoration, and common evaluator are implemented. An ImageNet-ViT tiny-set overfit artifact succeeds. |
+| Phase 1 controls | Implemented and tested | `train_mean_map` and `raw_rgb_16x16_mlp` are configured and emit the same evaluation/result schema as learned probes. |
+| One-command sweep | Implemented, execution pending | `scripts/run_phase1.py` prepares/reuses caches, trains configured variants, evaluates validation/test splits, and writes JSON/CSV/Markdown comparisons. No complete main-sweep result is currently present. |
+| Runtime/memory profiling | Not implemented | Trainable parameter counts are reported, but inference timing and peak-memory measurement still need a documented common protocol. |
+| PUN comparison | Not implemented | Official PUN behavior/results still need integration into the common comparison table. |
+| Prediction demo | Not implemented | A saved-checkpoint visualization of prediction versus target and top-ranked anchors is still required. |
+| Phase 2/3 code | Not started | No visibility cache, policies, closed-loop simulator, history dataset, or joint VGGT implementation is present. |
+
+The automated suite currently contains 86 passing tests. This number records
+the audit state rather than replacing the requirement for real-data,
+real-checkpoint, and full-sweep validation.
 
 ### Phase 1 expected report result
 
@@ -622,7 +699,123 @@ Keep this strictly optional. Do not delay the main ShapeNet evaluation for it.
 
 ---
 
-# 6. Proposed repository structure
+# 6. Current and planned repository structure
+
+## Current Phase 1 tree
+
+The repository currently contains the Phase 1 implementation shown below.
+Generated directories such as `.venv/`, `build/`, `*.egg-info/`, `__pycache__/`,
+downloaded model weights, and feature-cache payloads are intentionally omitted.
+
+```text
+project_root/
+│
+├── .gitignore
+├── README.md
+├── project_overview.md
+├── colab.ipynb
+├── pyproject.toml
+├── requirements.txt
+│
+├── configs/
+│   └── experiments/
+│       ├── phase1.yaml
+│       ├── phase1_probe_tiny.yaml
+│       └── phase1_sweep.yaml
+│
+├── data/
+│   ├── NUM/                         # local dataset; not tracked
+│   ├── cache/                       # models/features; not tracked
+│   └── splits/
+│       └── num_v1.json
+│
+├── src/nbv/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── logging_utils.py
+│   ├── reproducibility.py
+│   │
+│   ├── data/
+│   │   ├── __init__.py
+│   │   ├── num_dataset.py
+│   │   └── num_splits.py
+│   │
+│   ├── eval/
+│   │   ├── __init__.py
+│   │   └── metrics.py
+│   │
+│   ├── experiments/
+│   │   ├── __init__.py
+│   │   └── phase1.py
+│   │
+│   ├── features/
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── cache.py
+│   │   ├── dinov2.py
+│   │   ├── imagenet_vit.py
+│   │   ├── model_cache.py
+│   │   ├── preprocessing.py
+│   │   ├── raw_rgb.py
+│   │   ├── selection.py
+│   │   └── vggt.py
+│   │
+│   ├── geometry/
+│   │   ├── __init__.py
+│   │   ├── anchors.py
+│   │   └── anchors_v1.csv
+│   │
+│   ├── losses/
+│   │   ├── __init__.py
+│   │   ├── huber.py
+│   │   └── ranking.py
+│   │
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── heads.py
+│   │
+│   └── training/
+│       ├── __init__.py
+│       ├── phase1.py
+│       └── probe.py
+│
+├── scripts/
+│   ├── init_experiment.py
+│   ├── inspect_features.py
+│   ├── inspect_num_sample.py
+│   ├── prepare_num_split.py
+│   ├── run_phase1.py
+│   └── train_probe.py
+│
+├── tests/
+│   ├── test_anchors.py
+│   ├── test_config.py
+│   ├── test_feature_cache.py
+│   ├── test_features.py
+│   ├── test_metrics.py
+│   ├── test_num_dataset.py
+│   ├── test_num_splits.py
+│   ├── test_num_visualization.py
+│   ├── test_phase1_experiment.py
+│   ├── test_probe.py
+│   └── test_reproducibility.py
+│
+└── outputs/
+    └── README.md                    # generated runs are not tracked
+```
+
+The implemented Phase 1 separation is:
+
+**data → cached inputs/features → predictor or fixed baseline → evaluator → results**
+
+At present, the repository stops at the single-image predictor/evaluator.
+There is no `policies/`, visibility/coverage implementation, history dataset,
+closed-loop evaluator, or joint multi-view model yet; those are Phase 2/3
+additions and should be introduced only when their development steps begin.
+
+## Planned full-project tree
+
+The original planned structure for future Phase 2/3 work remains:
 
 ```text
 project_root/
@@ -734,7 +927,8 @@ project_root/
     └── tables/
 ```
 
-The exact file names can change. The important separation is:
+The exact future file names can change. The important full-project separation
+remains:
 
 **data → frozen features → predictor → policy → evaluator → visualization**
 
@@ -755,9 +949,14 @@ class FeatureExtractor:
 
 Implementations:
 
+- `RawRGBExtractor`
 - `ImageNetViTExtractor`
 - `DINOv2Extractor`
 - `VGGTExtractor`
+
+`RawRGBExtractor` is deliberately backbone-free but follows the same cached
+fixed-vector contract. `FixedMapHead` adapts the training-set mean map to the
+common evaluator; `LightweightProbeHead` is used for every trainable variant.
 
 ### Predictor
 
@@ -873,6 +1072,7 @@ Frozen backbone features can make training much cheaper.
 
 Cache per-image frozen features for:
 
+- flattened 16×16 raw-RGB vectors,
 - ImageNet-ViT,
 - DINOv2,
 - independent single-image VGGT.
@@ -885,6 +1085,14 @@ Cache metadata must include:
 - feature layer,
 - token type,
 - pooling choice if pooling happens before caching.
+
+The current implementation stores one fixed-size tensor per configured
+variant, fingerprints the full extraction metadata, writes cache files
+atomically, and validates exact metadata on load. Missing variants that share
+a backbone are selected from the same forward pass. Backbone downloads use the
+separate `data/cache/models/` root. The training-set mean baseline does not
+need an image-feature cache; it is derived only from valid cached training
+targets.
 
 ### Phase 2
 
@@ -1051,15 +1259,25 @@ Before final experiments, use this checklist:
 
 # 16. Experiment matrix
 
-## Phase 1 — minimum table
+## Phase 1 — configured sweep
 
-| Model | Frozen backbone | Feature | Trainable head | PUN comparison |
-|---|---|---|---|---|
-| ViT probe | ImageNet-ViT | pooled image/patch feature | shared lightweight head | yes |
-| DINOv2 probe | DINOv2 | pooled patch feature | shared lightweight head | yes |
-| VGGT probe A | VGGT | patch feature | shared lightweight head | yes |
-| VGGT probe B | VGGT | camera/register or combined feature | shared lightweight head | yes |
-| PUN | PUN baseline | official representation | official | reference |
+| Entry | Image representation | Prediction rule | Current status |
+|---|---|---|---|
+| `train_mean_map` | none | fixed per-anchor training-target mean | implemented |
+| `raw_rgb_16x16_mlp` | flattened 16×16 adaptive-average RGB | shared lightweight head | implemented |
+| `imagenet_vit_pooled_patch` | ImageNet-ViT mean-pooled patches | shared lightweight head | implemented |
+| `imagenet_vit_cls_token` | ImageNet-ViT classification token | shared lightweight head | implemented |
+| `dinov2_pooled_patch` | DINOv2 mean-pooled patches | shared lightweight head | implemented |
+| `dinov2_cls_token` | DINOv2 classification token | shared lightweight head | implemented |
+| `vggt_pooled_patch` | VGGT mean-pooled patches | shared lightweight head | implemented |
+| `vggt_max_pooled_patch` | VGGT max-pooled patches | shared lightweight head | implemented |
+| `vggt_camera_token` | VGGT camera token | shared lightweight head | implemented |
+| `vggt_pooled_register` | VGGT mean-pooled registers | shared lightweight head | implemented |
+| `vggt_camera_patch` | VGGT camera + mean-pooled patches | shared lightweight head | implemented |
+| PUN | official PUN representation | official predictor/evaluation behavior | pending integration |
+
+“Implemented” here means the entry is configured and covered by the Phase 1
+runner/tests; it does not mean the complete dataset sweep has already been run.
 
 ## Phase 2 — minimum policy table
 
@@ -1351,9 +1569,71 @@ For every final table/figure:
 
 # 22. Result files
 
-Use machine-readable output so tables can be regenerated automatically.
+Use machine-readable output so tables can be regenerated automatically. The
+implemented Phase 1 runner uses this structure:
 
-Suggested structure:
+```text
+outputs/<phase>/<experiment>/seed_<n>/
+├── config.yaml
+├── metadata.json
+├── run.log
+├── metrics/
+│   ├── comparison.csv
+│   ├── comparison.json
+│   └── comparison.md
+├── figures/
+└── variants/<variant>/
+    ├── best.pt
+    ├── summary.json
+    ├── test_per_sample.csv
+    └── training_history.json
+```
+
+The tiny-overfit command instead stores `checkpoints/best.pt` and
+`metrics/tiny_overfit.json` in the same run root. Later closed-loop work may
+add `rollouts/` and per-step files without changing the Phase 1 contract.
+
+The implemented per-variant `summary.json` shape is:
+
+```json
+{
+  "variant": "vggt_pooled_patch",
+  "backbone": "vggt",
+  "feature": "pooled_patch",
+  "feature_components": ["pooled_patch"],
+  "input_dim": 1024,
+  "trainable_parameters": 139440,
+  "best_epoch": null,
+  "epochs_completed": null,
+  "best_validation_loss": null,
+  "target_name": "PSNR",
+  "target_direction": "lower",
+  "train_samples": null,
+  "validation": {
+    "num_samples": null,
+    "loss": null,
+    "huber_loss": null,
+    "ranking_loss": null,
+    "normalized_regret_mean": null,
+    "spearman_mean": null,
+    "ndcg_at_5_mean": null
+  },
+  "test": {
+    "num_samples": null,
+    "loss": null,
+    "huber_loss": null,
+    "ranking_loss": null,
+    "normalized_regret_mean": null,
+    "spearman_mean": null,
+    "ndcg_at_5_mean": null
+  }
+}
+```
+
+Runtime, memory, coverage, and per-step fields belong to the future Phase 2
+result schema and are not currently emitted by the Phase 1 runner.
+
+For future closed-loop phases, retain the planned machine-readable additions:
 
 ```text
 outputs/
@@ -1371,7 +1651,8 @@ outputs/
       best.pt
 ```
 
-Suggested `summary.json` keys:
+The future common summary/result schema should retain these fields in addition
+to the Phase 1 fields above:
 
 ```json
 {
@@ -1474,34 +1755,39 @@ Start here.
 
 ### Milestone 1 — infrastructure
 
-- [ ] Create repository/module structure.
-- [ ] Add config loading.
-- [ ] Add deterministic seed utility.
-- [ ] Add common experiment/result schema.
-- [ ] Add canonical 48-anchor representation.
+- [x] Create the Phase 1 repository/module structure.
+- [x] Add config loading and typed command-line overrides.
+- [x] Add deterministic seed utility.
+- [x] Add the Phase 1 experiment/artifact schema.
+- [x] Add canonical 48-anchor representation.
 
 ### Milestone 2 — Phase 1 data + metrics
 
-- [ ] Load original NUM samples.
-- [ ] Reproduce/verify target-map orientation.
-- [ ] Implement regret, Spearman, NDCG@5.
-- [ ] Add metric unit tests.
+- [x] Implement original NUM sample loading and validation.
+- [x] Reproduce/verify target-map orientation and source-relative anchor zero.
+- [x] Implement regret, Spearman, NDCG@5, and coverage AUC.
+- [x] Add metric unit tests.
+- [ ] Validate the loader over the complete local NUM dataset.
 
 ### Milestone 3 — feature probes
 
-- [ ] Add ImageNet-ViT extractor.
-- [ ] Add DINOv2 extractor.
-- [ ] Add VGGT extractor.
-- [ ] Add feature caching.
-- [ ] Add shared lightweight predictor head.
-- [ ] Verify tiny-set overfitting.
+- [x] Add ImageNet-ViT extractor.
+- [x] Add DINOv2 extractor.
+- [x] Add single-image VGGT extractor.
+- [x] Add raw-RGB and training-mean controls.
+- [x] Add model-download and feature-vector caching.
+- [x] Add shared lightweight predictor head.
+- [x] Verify tiny-set overfitting with ImageNet-ViT.
+- [ ] Record real-checkpoint DINOv2 and VGGT smoke runs.
 
 ### Milestone 4 — Phase 1 result
 
+- [x] Implement the cache-first one-command sweep runner.
+- [x] Implement common validation/test metrics and comparison-table writers.
 - [ ] Run backbone comparison.
 - [ ] Integrate PUN baseline.
-- [ ] Produce comparison table.
-- [ ] Build single-image visualization.
+- [ ] Produce the final populated comparison table.
+- [ ] Build saved-checkpoint prediction-versus-target visualization.
 - [ ] Freeze Phase 1 checkpoint.
 
 ### Milestone 5 — closed-loop geometry

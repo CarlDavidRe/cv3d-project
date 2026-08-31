@@ -6,6 +6,7 @@ from nbv.training.phase1 import (
     combined_probe_loss,
     evaluate_phase1_probe,
     fit_phase1_probe,
+    valid_target_mean,
 )
 from nbv.training.probe import ProbeFitResult, fit_probe, probe_loss
 
@@ -18,4 +19,5 @@ __all__ = [
     "fit_phase1_probe",
     "fit_probe",
     "probe_loss",
+    "valid_target_mean",
 ]

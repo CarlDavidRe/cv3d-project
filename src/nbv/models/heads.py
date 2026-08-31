@@ -60,6 +60,25 @@ class LightweightProbeHead(nn.Module):
         return self.network(features)
 
 
+class FixedMapHead(nn.Module):
+    """Return one fixed anchor map for every sample in a feature batch."""
+
+    def __init__(self, prediction: Tensor) -> None:
+        super().__init__()
+        if prediction.ndim != 1 or prediction.shape[0] < 1:
+            raise ValueError("prediction must have non-empty shape [A]")
+        if not prediction.is_floating_point():
+            raise TypeError("prediction must be floating point")
+        if not torch.isfinite(prediction).all():
+            raise ValueError("prediction must be finite")
+        self.register_buffer("prediction", prediction.detach().float().clone())
+
+    def forward(self, features: Tensor) -> Tensor:
+        if features.ndim != 2:
+            raise ValueError("features must have shape [B, D]")
+        return self.prediction.unsqueeze(0).expand(features.shape[0], -1)
+
+
 def count_trainable_parameters(module: nn.Module) -> int:
     """Count scalar parameters that an optimizer is allowed to update."""
 

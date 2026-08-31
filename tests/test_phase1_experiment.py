@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -10,12 +11,15 @@ from torch import nn
 
 from nbv.config import ConfigError, load_config
 from nbv.experiments.phase1 import (
+    BaselineVariant,
     ProbeVariant,
+    _evaluate_baseline,
     extract_variant_caches,
     parse_phase1_sweep_settings,
 )
 from nbv.features import CachedFeatureDataset, FrozenFeatures
 from nbv.models import LightweightProbeHead
+from nbv.reproducibility import RunContext
 from nbv.training import evaluate_phase1_probe, fit_phase1_probe
 
 
@@ -79,6 +83,7 @@ class Phase1ExperimentTests(unittest.TestCase):
         self.assertEqual(
             tuple(variant.name for variant in settings.variants),
             (
+                "raw_rgb_16x16_mlp",
                 "imagenet_vit_pooled_patch",
                 "imagenet_vit_cls_token",
                 "dinov2_pooled_patch",
@@ -90,7 +95,15 @@ class Phase1ExperimentTests(unittest.TestCase):
                 "vggt_camera_patch",
             ),
         )
+        self.assertEqual(
+            tuple(
+                (baseline.name, baseline.baseline_type)
+                for baseline in settings.baselines
+            ),
+            (("train_mean_map", "train_mean_map"),),
+        )
         self.assertEqual(settings.target_direction, "lower")
+        self.assertEqual(settings.extraction_batch_sizes["raw_rgb"], 256)
         self.assertEqual(settings.extraction_batch_sizes["vggt"], 32)
         self.assertEqual(settings.cache_dtype, torch.float16)
         self.assertEqual(
@@ -135,6 +148,48 @@ class Phase1ExperimentTests(unittest.TestCase):
         self.assertEqual(caches["camera_patch"].features.shape, (3, 6))
         self.assertTrue(torch.all(~caches["patch"].valid_mask[:, 0]))
         self.assertEqual(caches["patch"].sample_ids[-1], "object/2")
+
+    def test_train_mean_baseline_saves_common_evaluation_outputs(self) -> None:
+        config = load_config(
+            REPOSITORY_ROOT / "configs/experiments/phase1_sweep.yaml",
+            ["probe.device=cpu"],
+        )
+        settings = parse_phase1_sweep_settings(config, REPOSITORY_ROOT)
+        train = _cached(
+            torch.zeros(2, 1),
+            torch.tensor([[1.0, 4.0, 9.0], [3.0, 8.0, 5.0]]),
+        )
+        evaluation = _cached(
+            torch.zeros(1, 1), torch.tensor([[2.0, 6.0, 7.0]])
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            context = RunContext(
+                run_id="test",
+                run_dir=run_dir,
+                checkpoint_dir=run_dir / "checkpoints",
+                metrics_dir=run_dir / "metrics",
+                figure_dir=run_dir / "figures",
+                log_path=run_dir / "run.log",
+            )
+
+            row = _evaluate_baseline(
+                BaselineVariant("train_mean_map", "train_mean_map"),
+                {"train": train, "val": evaluation, "test": evaluation},
+                settings,
+                context,
+            )
+            checkpoint = torch.load(
+                run_dir / "variants/train_mean_map/best.pt",
+                map_location="cpu",
+                weights_only=True,
+            )
+
+        torch.testing.assert_close(
+            checkpoint["prediction_map"], torch.tensor([2.0, 6.0, 7.0])
+        )
+        self.assertEqual(row["trainable_parameters"], 0)
+        self.assertEqual(row["normalized_regret_mean"], 0.0)
 
     def test_full_split_training_restores_best_validation_head(self) -> None:
         torch.manual_seed(3)

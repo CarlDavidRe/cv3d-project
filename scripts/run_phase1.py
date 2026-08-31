@@ -53,8 +53,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     run_dir = resolve_run_directory(config, REPOSITORY_ROOT)
     logger = configure_logging(run_dir / "run.log", args.verbose)
     logger.info(
-        "Running %d Phase 1 variants on %s",
-        len(settings.variants),
+        "Running %d Phase 1 entries on %s",
+        len(settings.baselines) + len(settings.variants),
         settings.device,
     )
     try:

@@ -15,6 +15,7 @@ class FeatureSelectionError(ValueError):
 
 
 FEATURE_COMPONENTS_BY_BACKBONE = {
+    "raw_rgb": frozenset({"flattened_rgb"}),
     "imagenet_vit": frozenset(
         {"pooled_patch", "max_pooled_patch", "cls_token"}
     ),
@@ -79,7 +80,9 @@ def select_feature_components(
 
     selected: list[Tensor] = []
     for component in components:
-        if component == "pooled_patch":
+        if component == "flattened_rgb":
+            value = features.pooled_patch
+        elif component == "pooled_patch":
             value = features.pooled_patch
         elif component == "max_pooled_patch":
             value = features.patch_tokens.amax(dim=1)

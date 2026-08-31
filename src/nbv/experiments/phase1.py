@@ -27,9 +27,17 @@ from nbv.features import (
     select_feature_components,
     validate_feature_selection,
 )
-from nbv.models import LightweightProbeHead, count_trainable_parameters
+from nbv.models import (
+    FixedMapHead,
+    LightweightProbeHead,
+    count_trainable_parameters,
+)
 from nbv.reproducibility import RunContext, initialize_run, seed_everything
-from nbv.training import evaluate_phase1_probe, fit_phase1_probe
+from nbv.training import (
+    evaluate_phase1_probe,
+    fit_phase1_probe,
+    valid_target_mean,
+)
 
 
 _SPLITS = ("train", "val", "test")
@@ -47,10 +55,19 @@ class ProbeVariant:
 
 
 @dataclass(frozen=True, slots=True)
+class BaselineVariant:
+    """One prediction baseline that does not train on image features."""
+
+    name: str
+    baseline_type: str
+
+
+@dataclass(frozen=True, slots=True)
 class Phase1SweepSettings:
     """Validated fields consumed by the Phase 1 runner."""
 
     variants: tuple[ProbeVariant, ...]
+    baselines: tuple[BaselineVariant, ...]
     data_root: Path
     split_manifest: Path
     cache_root: Path
@@ -93,6 +110,27 @@ def run_phase1_sweep(
         logger=active_logger,
     )
     comparison_rows: list[dict[str, Any]] = []
+    if settings.baselines:
+        reference_variant = settings.variants[0]
+        reference_caches = {
+            split: load_feature_cache(
+                caches[(reference_variant.name, split)][0],
+                expected_metadata=caches[(reference_variant.name, split)][1],
+            )
+            for split in _SPLITS
+        }
+        for baseline in settings.baselines:
+            active_logger.info("Evaluating Phase 1 baseline %s", baseline.name)
+            comparison_rows.append(
+                _evaluate_baseline(
+                    baseline,
+                    reference_caches,
+                    settings,
+                    context,
+                )
+            )
+        del reference_caches
+
     for variant in settings.variants:
         seed_everything(seed, bool(experiment["deterministic"]))
         active_logger.info("Training Phase 1 variant %s", variant.name)
@@ -161,10 +199,10 @@ def parse_phase1_sweep_settings(
         if name in names:
             raise ValueError(f"Duplicate probe variant name {name!r}")
         backbone = raw.get("backbone")
-        if backbone not in ("imagenet_vit", "dinov2", "vggt"):
+        if backbone not in ("raw_rgb", "imagenet_vit", "dinov2", "vggt"):
             raise ValueError(
-                f"probe.variants[{index}].backbone must be imagenet_vit, "
-                "dinov2, or vggt"
+                f"probe.variants[{index}].backbone must be raw_rgb, "
+                "imagenet_vit, dinov2, or vggt"
             )
         components = validate_feature_selection(
             backbone, raw.get("components")
@@ -173,6 +211,26 @@ def parse_phase1_sweep_settings(
         names.add(name)
     if not variants:
         raise ValueError("probe.variants must contain at least one variant")
+
+    baselines_raw = probe.get("baselines", ())
+    if isinstance(baselines_raw, (str, bytes)) or not isinstance(
+        baselines_raw, Sequence
+    ):
+        raise TypeError("probe.baselines must be a list")
+    baselines: list[BaselineVariant] = []
+    for index, raw in enumerate(baselines_raw):
+        if not isinstance(raw, Mapping):
+            raise TypeError(f"probe.baselines[{index}] must be a mapping")
+        name = _safe_name(raw.get("name"), f"probe.baselines[{index}].name")
+        if name in names:
+            raise ValueError(f"Duplicate sweep entry name {name!r}")
+        baseline_type = raw.get("type")
+        if baseline_type != "train_mean_map":
+            raise ValueError(
+                f"probe.baselines[{index}].type must be train_mean_map"
+            )
+        baselines.append(BaselineVariant(name, baseline_type))
+        names.add(name)
 
     target_name = _nonempty_string(dataset.get("target_name"), "target_name")
     target_direction = _resolve_target_direction(
@@ -225,6 +283,7 @@ def parse_phase1_sweep_settings(
 
     return Phase1SweepSettings(
         variants=tuple(variants),
+        baselines=tuple(baselines),
         data_root=_rooted_path(root, paths.get("data_root"), "paths.data_root"),
         split_manifest=_rooted_path(
             root,
@@ -435,6 +494,93 @@ def _prepare_all_caches(
     return cache_requests
 
 
+def _evaluate_baseline(
+    baseline: BaselineVariant,
+    splits: Mapping[str, CachedFeatureDataset],
+    settings: Phase1SweepSettings,
+    context: RunContext,
+) -> dict[str, Any]:
+    """Evaluate a target-only baseline through the common metric pipeline."""
+
+    if baseline.baseline_type != "train_mean_map":
+        raise ValueError(f"Unknown Phase 1 baseline {baseline.baseline_type!r}")
+    train = splits["train"]
+    validation = splits["val"]
+    test = splits["test"]
+    mean_map = valid_target_mean(train.targets, train.valid_mask)
+    head = FixedMapHead(mean_map)
+    evaluation_kwargs = {
+        "batch_size": settings.evaluation_batch_size,
+        "target_direction": settings.target_direction,
+        "huber_delta": settings.training["huber_delta"],
+        "ranking_weight": settings.training["ranking_weight"],
+        "ranking_margin": settings.training["ranking_margin"],
+        "ndcg_k": settings.ndcg_k,
+        "device": settings.device,
+    }
+    validation_result = evaluate_phase1_probe(
+        head, validation, **evaluation_kwargs
+    )
+    test_result = evaluate_phase1_probe(head, test, **evaluation_kwargs)
+
+    variant_dir = context.run_dir / "variants" / baseline.name
+    variant_dir.mkdir(parents=True, exist_ok=True)
+    torch.save(
+        {
+            "baseline": {
+                "name": baseline.name,
+                "type": baseline.baseline_type,
+                "fit_split": "train",
+                "valid_target_reduction": "per_anchor_mean",
+            },
+            "prediction_map": mean_map.detach().cpu(),
+        },
+        variant_dir / "best.pt",
+    )
+    (variant_dir / "training_history.json").write_text(
+        "[]\n", encoding="utf-8"
+    )
+    _write_per_sample_csv(
+        variant_dir / "test_per_sample.csv", test_result.per_sample
+    )
+    summary = {
+        "variant": baseline.name,
+        "backbone": "none",
+        "feature": baseline.baseline_type,
+        "feature_components": [],
+        "input_dim": 0,
+        "trainable_parameters": 0,
+        "best_epoch": 0,
+        "epochs_completed": 0,
+        "best_validation_loss": validation_result.summary["loss"],
+        "target_name": settings.target_name,
+        "target_direction": settings.target_direction,
+        "train_samples": len(train),
+        "validation": dict(validation_result.summary),
+        "test": dict(test_result.summary),
+    }
+    (variant_dir / "summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+    return {
+        "variant": baseline.name,
+        "backbone": "none",
+        "feature": baseline.baseline_type,
+        "input_dim": 0,
+        "trainable_parameters": 0,
+        "best_epoch": 0,
+        "huber_loss": test_result.summary["huber_loss"],
+        "normalized_regret_mean": test_result.summary[
+            "normalized_regret_mean"
+        ],
+        "spearman_mean": test_result.summary["spearman_mean"],
+        f"ndcg_at_{settings.ndcg_k}_mean": test_result.summary[
+            f"ndcg_at_{settings.ndcg_k}_mean"
+        ],
+    }
+
+
 def _train_and_evaluate_variant(
     variant: ProbeVariant,
     splits: Mapping[str, CachedFeatureDataset],
@@ -585,6 +731,15 @@ def _backbone_metadata(
 ) -> dict[str, Any]:
     probe = _mapping(config, "probe")
     model = dict(_mapping(probe, backbone))
+    if backbone == "raw_rgb":
+        output_size = int(model.get("output_size", 16))
+        return {
+            **model,
+            "input_range": [0.0, 1.0],
+            "pooling": "adaptive_average",
+            "output_size": [output_size, output_size],
+            "feature_dim": 3 * output_size * output_size,
+        }
     if backbone == "imagenet_vit":
         return {
             **model,
@@ -611,6 +766,7 @@ def _backbone_metadata(
 
 def _pooling_metadata(components: Sequence[str]) -> dict[str, str]:
     methods = {
+        "flattened_rgb": "adaptive_average_then_flatten",
         "pooled_patch": "mean",
         "max_pooled_patch": "max",
         "cls_token": "none",
@@ -642,6 +798,7 @@ def _extractor_kwargs(
 ) -> dict[str, Any]:
     model_config = dict(_mapping(_mapping(config, "probe"), backbone))
     allowed = {
+        "raw_rgb": {"output_size"},
         "imagenet_vit": {"pretrained"},
         "dinov2": {"model_name", "repo_or_dir", "source", "pretrained"},
         "vggt": {"model_id", "image_size", "layer_index"},
@@ -651,11 +808,10 @@ def _extractor_kwargs(
         raise ValueError(
             f"Unexpected probe.{backbone} fields: {sorted(unexpected)}"
         )
-    return {
-        "device": settings.device,
-        "model_cache_root": settings.model_cache_root,
-        **model_config,
-    }
+    common = {"device": settings.device, **model_config}
+    if backbone != "raw_rgb":
+        common["model_cache_root"] = settings.model_cache_root
+    return common
 
 
 def _cache_matches(path: Path, metadata: Mapping[str, Any]) -> bool:
@@ -760,7 +916,7 @@ def _extraction_batch_sizes(
             "probe.extraction_batch_size is missing configured backbones: "
             f"{sorted(missing)}"
         )
-    unexpected = set(value) - {"imagenet_vit", "dinov2", "vggt"}
+    unexpected = set(value) - {"raw_rgb", "imagenet_vit", "dinov2", "vggt"}
     if unexpected:
         raise ValueError(
             "probe.extraction_batch_size has unknown backbones: "

@@ -222,6 +222,6 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Project-generated artifacts (the directory documentation remains tracked)
-outputs/*
+#outputs/*
 !outputs/README.md
 data/*tar.gz

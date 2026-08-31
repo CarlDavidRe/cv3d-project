@@ -20,6 +20,7 @@ from nbv.features.cache import (
 )
 from nbv.features.dinov2 import DINOv2Extractor
 from nbv.features.imagenet_vit import ImageNetViTExtractor
+from nbv.features.raw_rgb import RawRGBExtractor
 from nbv.features.selection import (
     FEATURE_COMPONENTS_BY_BACKBONE,
     FeatureSelectionError,
@@ -33,6 +34,7 @@ def create_feature_extractor(name: str, **kwargs: Any) -> FrozenFeatureExtractor
     """Construct one of the three frozen backbones by a stable short name."""
 
     extractors = {
+        "raw_rgb": RawRGBExtractor,
         "imagenet_vit": ImageNetViTExtractor,
         "dinov2": DINOv2Extractor,
         "vggt": VGGTExtractor,
@@ -57,6 +59,7 @@ __all__ = [
     "FrozenFeatureExtractor",
     "FrozenFeatures",
     "ImageNetViTExtractor",
+    "RawRGBExtractor",
     "VGGTExtractor",
     "cache_fingerprint",
     "create_feature_extractor",

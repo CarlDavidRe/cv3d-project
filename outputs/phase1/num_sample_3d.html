@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interactive NUM uncertainty sphere</title>
+<style>
+  :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f5f6f8; color: #17191d; }
+  main { max-width: 1320px; margin: 0 auto; padding: 24px; }
+  h1 { margin: 0 0 6px; font-size: clamp(19px, 2.4vw, 28px); }
+  .subtitle { margin: 0 0 20px; color: #555d68; }
+  .layout { display: grid; grid-template-columns: minmax(260px, 350px) minmax(500px, 1fr); gap: 20px; }
+  .card { background: #fff; border: 1px solid #d8dce2; border-radius: 12px; padding: 16px; box-shadow: 0 2px 10px #1720330d; }
+  h2 { margin: 0 0 12px; font-size: 17px; }
+  #inputImage { display: block; width: 100%; aspect-ratio: 1; object-fit: contain; background: #fff; border: 1px solid #e1e4e8; }
+  .meta { margin: 14px 0 0; display: grid; gap: 7px; font-size: 13px; color: #444b55; }
+  .sphere-card { min-width: 0; }
+  .canvas-wrap { position: relative; width: 100%; aspect-ratio: 1.22; min-height: 480px; background: radial-gradient(circle at 50% 45%, #fff 0, #f7f8fa 65%, #eef0f3 100%); border: 1px solid #e1e4e8; border-radius: 8px; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; outline: none; }
+  canvas:active { cursor: grabbing; }
+  canvas:focus-visible { box-shadow: inset 0 0 0 3px #276ef1; }
+  #readout { position: absolute; left: 12px; top: 12px; min-height: 44px; padding: 8px 10px; border-radius: 7px; background: #ffffffea; border: 1px solid #d8dce2; font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; pointer-events: none; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 14px; margin-top: 12px; }
+  button { border: 1px solid #aeb5bf; border-radius: 7px; padding: 7px 11px; background: #fff; color: #20242a; cursor: pointer; }
+  button:hover { background: #f1f3f5; }
+  label { font-size: 13px; color: #444b55; }
+  .hint { margin-left: auto; font-size: 12px; color: #68717d; }
+  .legend { margin-top: 15px; }
+  .bar { height: 18px; border: 1px solid #777; background: linear-gradient(90deg, #440154, #3b528b 25%, #21918c 50%, #5ec962 75%, #fde725); }
+  .legend-labels { display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; color: #444b55; }
+  .best { margin-top: 10px; color: #b42318; font-size: 13px; font-weight: 600; }
+  @media (max-width: 900px) {
+    main { padding: 14px; }
+    .layout { grid-template-columns: 1fr; }
+    .source-card { max-width: 480px; }
+    .canvas-wrap { min-height: 420px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title"></h1>
+  <p class="subtitle">Source-relative UMap on a rotatable sphere. The initial front-facing point is local anchor 0 (+Z).</p>
+  <div class="layout">
+    <section class="card source-card">
+      <h2>Input RGB image</h2>
+      <img id="inputImage" alt="NUM source view">
+      <div class="meta">
+        <span id="sourceMeta"></span>
+        <span id="rangeMeta"></span>
+        <span id="directionMeta"></span>
+      </div>
+    </section>
+    <section class="card sphere-card">
+      <h2>Interactive 3D uncertainty sphere</h2>
+      <div class="canvas-wrap">
+        <canvas id="sphere" tabindex="0" aria-label="Rotatable three-dimensional uncertainty sphere">Canvas is required for the interactive sphere.</canvas>
+        <div id="readout">Drag to rotate · wheel to zoom</div>
+      </div>
+      <div class="controls">
+        <button id="reset" type="button">Reset view</button>
+        <button id="autoRotate" type="button" aria-pressed="false">Auto-rotate</button>
+        <label><input id="showAnchors" type="checkbox" checked> Show front anchors</label>
+        <span class="hint">Arrow keys rotate · +/− zoom · double-click resets</span>
+      </div>
+      <div class="legend">
+        <div class="bar"></div>
+        <div class="legend-labels"><span>0 — low uncertainty</span><span>normalized uncertainty</span><span>1 — high uncertainty</span></div>
+        <div class="best" id="bestMeta"></div>
+      </div>
+    </section>
+  </div>
+</main>
+<script>
+"use strict";
+const data = {"title":"NUM PSNR UMap: 02691156/10155655850468db78d106ce0a280f87/2 (shape=(48,))","targetName":"PSNR","sourceGlobalAnchorId":2,"sourceImageUri":"data:image/png;base64,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","rawMinimum":11.562679290771484,"rawMaximum":19.019527435302734,"resolvedDirection":"lower","mostUncertainId":22,"anchors":[{"id":0,"direction":[0.0,0.0,1.0],"raw":19.019527435302734,"uncertainty":0.0},{"id":1,"direction":[-0.5416444083745875,0.023549756885851703,0.8402777777777777],"raw":15.261565208435059,"uncertainty":0.5039612054824829},{"id":2,"direction":[-0.5180946514887359,-0.5180946514887359,0.6805555555555554],"raw":13.538585662841797,"uncertainty":0.7350212335586548},{"id":3,"direction":[0.023549756885851536,-0.5416444083745875,0.8402777777777777],"raw":12.455886840820312,"uncertainty":0.8802164793014526},{"id":4,"direction":[0.45964381850812985,0.05626006214656981,0.8863195617352295],"raw":14.076459884643555,"uncertainty":0.6628896594047546},{"id":5,"direction":[0.05626006214656981,0.4596438185081299,0.8863195617352295],"raw":14.579376220703125,"uncertainty":0.5954461097717285},{"id":6,"direction":[-0.4904411011456393,0.48341343430344336,0.7251061838393071],"raw":12.90068244934082,"uncertainty":0.8205671906471252},{"id":7,"direction":[-0.8602095444770694,0.11364499097201336,0.4971160383829149],"raw":13.484326362609863,"uncertainty":0.7422977089881897},{"id":8,"direction":[-0.8364399286817561,-0.4330561723201958,0.3359026604869925],"raw":14.198787689208984,"uncertainty":0.646484911441803},{"id":9,"direction":[-0.4330561723201963,-0.8364399286817559,0.33590266048699247],"raw":12.262727737426758,"uncertainty":0.9061200618743896},{"id":10,"direction":[0.11364499097201336,-0.8602095444770694,0.49711603838291496],"raw":11.679849624633789,"uncertainty":0.984286904335022},{"id":11,"direction":[0.4834134343034432,-0.49044110114563977,0.725106183839307],"raw":12.264860153198242,"uncertainty":0.9058340787887573},{"id":12,"direction":[0.8093263039727374,-0.13348273760932583,0.57199064018404],"raw":13.647136688232422,"uncertainty":0.7204639911651611},{"id":13,"direction":[0.5169120835677046,0.5169120835677046,0.6823516657291817],"raw":15.008383750915527,"uncertainty":0.5379140973091125},{"id":14,"direction":[-0.1334827376093258,0.8093263039727376,0.57199064018404],"raw":12.255269050598145,"uncertainty":0.9071202874183655},{"id":15,"direction":[-0.7608656942100731,0.5724676391232603,0.30555555555555547],"raw":12.140897750854492,"uncertainty":0.9224580526351929},{"id":16,"direction":[-0.9977243590595506,-0.054915317477487076,0.03912047092707105],"raw":13.401910781860352,"uncertainty":0.753350019454956},{"id":17,"direction":[-0.7053101386545177,-0.7053101386545175,-0.0712405546180706],"raw":13.513665199279785,"uncertainty":0.7383632063865662},{"id":18,"direction":[-0.05491531747748738,-0.9977243590595506,0.039120470927070994],"raw":11.981457710266113,"uncertainty":0.9438397288322449},{"id":19,"direction":[0.5724676391232599,-0.7608656942100733,0.30555555555555547],"raw":12.358343124389648,"uncertainty":0.893297553062439},{"id":20,"direction":[0.8694394089747709,0.3282433088285741,0.36923088214675404],"raw":14.89303970336914,"uncertainty":0.5533822774887085},{"id":21,"direction":[0.3282433088285741,0.869439408974771,0.36923088214675404],"raw":12.800729751586914,"uncertainty":0.8339713215827942},{"id":22,"direction":[-0.40523326987118125,0.9013296950051952,0.1529404390321674],"raw":11.562679290771484,"uncertainty":1.0},{"id":23,"direction":[-0.9013296950051951,0.40523326987118147,-0.15294043903216742],"raw":12.381643295288086,"uncertainty":0.8901728987693787},{"id":24,"direction":[-0.869439408974771,-0.328243308828574,-0.3692308821467541],"raw":14.209095001220703,"uncertainty":0.6451026201248169},{"id":25,"direction":[-0.3282433088285746,-0.8694394089747708,-0.36923088214675415],"raw":12.580192565917969,"uncertainty":0.8635464906692505},{"id":26,"direction":[0.4052332698711815,-0.9013296950051951,-0.15294043903216725],"raw":13.238219261169434,"uncertainty":0.7753018736839294},{"id":27,"direction":[0.901329695005195,-0.4052332698711819,0.15294043903216722],"raw":13.872157096862793,"uncertainty":0.6902876496315002},{"id":28,"direction":[0.9977243590595506,0.05491531747748719,-0.039120470927070994],"raw":14.59223747253418,"uncertainty":0.593721330165863},{"id":29,"direction":[0.7053101386545177,0.7053101386545175,0.0712405546180706],"raw":14.35567855834961,"uncertainty":0.6254450678825378},{"id":30,"direction":[0.05491531747748727,0.9977243590595506,-0.03912047092707105],"raw":12.158198356628418,"uncertainty":0.9201379418373108},{"id":31,"direction":[-0.5724676391232602,0.7608656942100732,-0.3055555555555556],"raw":11.853403091430664,"uncertainty":0.9610124826431274},{"id":32,"direction":[-0.8093263039727374,0.13348273760932594,-0.57199064018404],"raw":13.854141235351562,"uncertainty":0.6927036643028259},{"id":33,"direction":[-0.5169120835677048,-0.5169120835677046,-0.6823516657291817],"raw":13.659919738769531,"uncertainty":0.7187497615814209},{"id":34,"direction":[0.1334827376093257,-0.8093263039727376,-0.57199064018404],"raw":13.274345397949219,"uncertainty":0.7704571485519409},{"id":35,"direction":[0.7608656942100731,-0.5724676391232604,-0.3055555555555556],"raw":13.64419174194336,"uncertainty":0.7208589315414429},{"id":36,"direction":[0.836439928681756,0.43305617232019583,-0.3359026604869926],"raw":14.785100936889648,"uncertainty":0.5678573846817017},{"id":37,"direction":[0.43305617232019594,0.8364399286817559,-0.3359026604869926],"raw":13.302927017211914,"uncertainty":0.7666242122650146},{"id":38,"direction":[-0.1136449909720132,0.8602095444770694,-0.4971160383829149],"raw":12.122142791748047,"uncertainty":0.92497318983078},{"id":39,"direction":[-0.4834134343034433,0.4904411011456394,-0.7251061838393071],"raw":12.774039268493652,"uncertainty":0.837550699710846},{"id":40,"direction":[-0.45964381850812996,-0.05626006214656973,-0.8863195617352295],"raw":15.202444076538086,"uncertainty":0.511889636516571},{"id":41,"direction":[-0.056260062146570144,-0.4596438185081298,-0.8863195617352296],"raw":14.37070369720459,"uncertainty":0.6234301328659058},{"id":42,"direction":[0.4904411011456395,-0.48341343430344336,-0.7251061838393071],"raw":13.82955551147461,"uncertainty":0.6960007548332214},{"id":43,"direction":[0.8602095444770693,-0.11364499097201375,-0.49711603838291507],"raw":14.378658294677734,"uncertainty":0.6223633885383606},{"id":44,"direction":[0.5180946514887359,0.5180946514887359,-0.6805555555555554],"raw":15.004596710205078,"uncertainty":0.5384219288825989},{"id":45,"direction":[-0.023549756885851536,0.5416444083745875,-0.8402777777777777],"raw":13.356346130371094,"uncertainty":0.75946044921875},{"id":46,"direction":[0.0,0.0,-1.0],"raw":15.255819320678711,"uncertainty":0.5047317743301392},{"id":47,"direction":[0.5416444083745875,-0.023549756885851758,-0.8402777777777777],"raw":15.024288177490234,"uncertainty":0.53578120470047}]};
+const canvas = document.getElementById("sphere");
+const context = canvas.getContext("2d");
+const readout = document.getElementById("readout");
+const anchorsToggle = document.getElementById("showAnchors");
+let yaw = 0;
+let pitch = 0;
+let zoom = 1;
+let dragging = false;
+let pointerX = 0;
+let pointerY = 0;
+let autoRotate = false;
+let dirty = true;
+let viewWidth = 700;
+let viewHeight = 570;
+
+document.getElementById("title").textContent = data.title;
+document.getElementById("inputImage").src = data.sourceImageUri;
+document.getElementById("sourceMeta").textContent = `Global source anchor: ${data.sourceGlobalAnchorId}; local UMap source: 0 (+Z)`;
+document.getElementById("rangeMeta").textContent = `${data.targetName} range: ${format(data.rawMinimum)}–${format(data.rawMaximum)}`;
+document.getElementById("directionMeta").textContent = data.resolvedDirection === "lower"
+  ? `Low ${data.targetName} → high uncertainty`
+  : `High ${data.targetName} → high uncertainty`;
+const bestAnchor = data.anchors[data.mostUncertainId];
+document.getElementById("bestMeta").textContent = `Red ring: most uncertain local anchor ${bestAnchor.id} (${data.targetName}=${format(bestAnchor.raw)})`;
+
+function format(value) {
+  return Number(value).toPrecision(6).replace(/\.?0+$/, "");
+}
+
+function normalize(vector) {
+  const length = Math.hypot(vector[0], vector[1], vector[2]);
+  return [vector[0] / length, vector[1] / length, vector[2] / length];
+}
+
+function spherePoint(theta, phi) {
+  const sine = Math.sin(theta);
+  return [sine * Math.cos(phi), sine * Math.sin(phi), Math.cos(theta)];
+}
+
+function nearestAnchorId(direction) {
+  let bestId = 0;
+  let bestDot = -Infinity;
+  for (const anchor of data.anchors) {
+    const candidate = anchor.direction;
+    const dot = direction[0] * candidate[0] + direction[1] * candidate[1] + direction[2] * candidate[2];
+    if (dot > bestDot) {
+      bestDot = dot;
+      bestId = anchor.id;
+    }
+  }
+  return bestId;
+}
+
+function viridis(value) {
+  const stops = [
+    [0.00, [68, 1, 84]], [0.25, [59, 82, 139]], [0.50, [33, 145, 140]],
+    [0.75, [94, 201, 98]], [1.00, [253, 231, 37]]
+  ];
+  const clipped = Math.max(0, Math.min(1, value));
+  for (let index = 0; index < stops.length - 1; index += 1) {
+    const left = stops[index];
+    const right = stops[index + 1];
+    if (clipped <= right[0]) {
+      const weight = (clipped - left[0]) / (right[0] - left[0]);
+      const rgb = left[1].map((channel, channelIndex) =>
+        Math.round(channel * (1 - weight) + right[1][channelIndex] * weight));
+      return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+    }
+  }
+  return "rgb(253,231,37)";
+}
+
+const mesh = [];
+const latitudeSteps = 32;
+const longitudeSteps = 64;
+for (let latitude = 0; latitude < latitudeSteps; latitude += 1) {
+  const theta0 = Math.PI * latitude / latitudeSteps;
+  const theta1 = Math.PI * (latitude + 1) / latitudeSteps;
+  for (let longitude = 0; longitude < longitudeSteps; longitude += 1) {
+    const phi0 = 2 * Math.PI * longitude / longitudeSteps;
+    const phi1 = 2 * Math.PI * (longitude + 1) / longitudeSteps;
+    const a = spherePoint(theta0, phi0);
+    const b = spherePoint(theta1, phi0);
+    const c = spherePoint(theta1, phi1);
+    const d = spherePoint(theta0, phi1);
+    for (const vertices of [[a, b, c], [a, c, d]]) {
+      const midpoint = normalize([
+        vertices[0][0] + vertices[1][0] + vertices[2][0],
+        vertices[0][1] + vertices[1][1] + vertices[2][1],
+        vertices[0][2] + vertices[1][2] + vertices[2][2]
+      ]);
+      const anchorId = nearestAnchorId(midpoint);
+      mesh.push({ vertices, color: viridis(data.anchors[anchorId].uncertainty) });
+    }
+  }
+}
+
+function rotate(vector) {
+  const cosYaw = Math.cos(yaw);
+  const sinYaw = Math.sin(yaw);
+  const cosPitch = Math.cos(pitch);
+  const sinPitch = Math.sin(pitch);
+  const x = cosYaw * vector[0] + sinYaw * vector[2];
+  const yawZ = -sinYaw * vector[0] + cosYaw * vector[2];
+  const y = cosPitch * vector[1] - sinPitch * yawZ;
+  const z = sinPitch * vector[1] + cosPitch * yawZ;
+  return [x, y, z];
+}
+
+function resizeCanvas() {
+  const rectangle = canvas.getBoundingClientRect();
+  const ratio = Math.max(1, window.devicePixelRatio || 1);
+  viewWidth = rectangle.width;
+  viewHeight = rectangle.height;
+  canvas.width = Math.round(viewWidth * ratio);
+  canvas.height = Math.round(viewHeight * ratio);
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  dirty = true;
+}
+
+function render() {
+  context.clearRect(0, 0, viewWidth, viewHeight);
+  const centerX = viewWidth / 2;
+  const centerY = viewHeight / 2;
+  const radius = Math.min(viewWidth, viewHeight) * 0.40 * zoom;
+  const transformed = mesh.map(triangle => {
+    const vertices = triangle.vertices.map(rotate);
+    return { vertices, color: triangle.color, depth: vertices.reduce((sum, point) => sum + point[2], 0) / 3 };
+  }).sort((left, right) => left.depth - right.depth);
+
+  context.lineJoin = "round";
+  for (const triangle of transformed) {
+    context.beginPath();
+    triangle.vertices.forEach((point, index) => {
+      const x = centerX + radius * point[0];
+      const y = centerY - radius * point[1];
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    });
+    context.closePath();
+    context.fillStyle = triangle.color;
+    context.strokeStyle = triangle.color;
+    context.lineWidth = 1.25;
+    context.fill();
+    context.stroke();
+  }
+
+  context.beginPath();
+  context.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+  context.strokeStyle = "#20242a";
+  context.lineWidth = 1.5;
+  context.stroke();
+
+  if (anchorsToggle.checked) {
+    const visibleAnchors = data.anchors.map(anchor => ({ anchor, point: rotate(anchor.direction) }))
+      .filter(item => item.point[2] >= 0)
+      .sort((left, right) => left.point[2] - right.point[2]);
+    for (const item of visibleAnchors) {
+      const x = centerX + radius * item.point[0];
+      const y = centerY - radius * item.point[1];
+      const isSource = item.anchor.id === 0;
+      const isBest = item.anchor.id === data.mostUncertainId;
+      context.beginPath();
+      context.arc(x, y, isBest ? 8 : (isSource ? 6 : 3), 0, 2 * Math.PI);
+      context.fillStyle = isSource ? "#ffffff" : "#17191d";
+      context.fill();
+      context.strokeStyle = isBest ? "#ff3b30" : "#ffffff";
+      context.lineWidth = isBest ? 4 : 1.5;
+      context.stroke();
+    }
+  }
+  dirty = false;
+}
+
+function updateReadout(clientX, clientY) {
+  const rectangle = canvas.getBoundingClientRect();
+  const centerX = rectangle.width / 2;
+  const centerY = rectangle.height / 2;
+  const radius = Math.min(rectangle.width, rectangle.height) * 0.40 * zoom;
+  let nearest = null;
+  let distance = 14;
+  for (const anchor of data.anchors) {
+    const point = rotate(anchor.direction);
+    if (point[2] < 0) continue;
+    const x = centerX + radius * point[0];
+    const y = centerY - radius * point[1];
+    const candidateDistance = Math.hypot(clientX - rectangle.left - x, clientY - rectangle.top - y);
+    if (candidateDistance < distance) {
+      distance = candidateDistance;
+      nearest = anchor;
+    }
+  }
+  readout.textContent = nearest
+    ? `local anchor ${nearest.id}\n${data.targetName}: ${format(nearest.raw)} · uncertainty: ${nearest.uncertainty.toFixed(4)}`
+    : "Drag to rotate · wheel to zoom";
+  readout.style.whiteSpace = "pre-line";
+}
+
+function resetView() {
+  yaw = 0;
+  pitch = 0;
+  zoom = 1;
+  dirty = true;
+}
+
+canvas.addEventListener("pointerdown", event => {
+  dragging = true;
+  pointerX = event.clientX;
+  pointerY = event.clientY;
+  canvas.setPointerCapture(event.pointerId);
+});
+canvas.addEventListener("pointermove", event => {
+  if (dragging) {
+    yaw += (event.clientX - pointerX) * 0.010;
+    pitch += (event.clientY - pointerY) * 0.010;
+    pitch = Math.max(-Math.PI, Math.min(Math.PI, pitch));
+    pointerX = event.clientX;
+    pointerY = event.clientY;
+    dirty = true;
+  }
+  updateReadout(event.clientX, event.clientY);
+});
+canvas.addEventListener("pointerup", event => {
+  dragging = false;
+  canvas.releasePointerCapture(event.pointerId);
+});
+canvas.addEventListener("pointercancel", () => { dragging = false; });
+canvas.addEventListener("wheel", event => {
+  event.preventDefault();
+  zoom = Math.max(0.65, Math.min(1.35, zoom * Math.exp(-event.deltaY * 0.001)));
+  dirty = true;
+}, { passive: false });
+canvas.addEventListener("dblclick", resetView);
+canvas.addEventListener("keydown", event => {
+  const rotationStep = 0.10;
+  if (event.key === "ArrowLeft") yaw -= rotationStep;
+  else if (event.key === "ArrowRight") yaw += rotationStep;
+  else if (event.key === "ArrowUp") pitch -= rotationStep;
+  else if (event.key === "ArrowDown") pitch += rotationStep;
+  else if (event.key === "+" || event.key === "=") zoom = Math.min(1.35, zoom + 0.05);
+  else if (event.key === "-" || event.key === "_") zoom = Math.max(0.65, zoom - 0.05);
+  else return;
+  event.preventDefault();
+  dirty = true;
+});
+document.getElementById("reset").addEventListener("click", resetView);
+document.getElementById("autoRotate").addEventListener("click", event => {
+  autoRotate = !autoRotate;
+  event.currentTarget.setAttribute("aria-pressed", String(autoRotate));
+  event.currentTarget.textContent = autoRotate ? "Stop rotation" : "Auto-rotate";
+  dirty = true;
+});
+anchorsToggle.addEventListener("change", () => { dirty = true; });
+window.addEventListener("resize", resizeCanvas);
+
+function animationFrame() {
+  if (autoRotate && !dragging) {
+    yaw += 0.004;
+    dirty = true;
+  }
+  if (dirty) render();
+  window.requestAnimationFrame(animationFrame);
+}
+
+resizeCanvas();
+window.requestAnimationFrame(animationFrame);
+</script>
+</body>
+</html>
