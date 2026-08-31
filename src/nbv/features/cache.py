@@ -13,6 +13,8 @@ from typing import Any, Mapping, Sequence
 import torch
 from torch import Tensor
 
+from nbv.config import validate_artifact_path
+
 
 FEATURE_CACHE_SCHEMA_VERSION = 1
 
@@ -109,6 +111,7 @@ def feature_cache_path(
 ) -> Path:
     """Build a collision-resistant path without trusting config fragments."""
 
+    validate_artifact_path(root, "feature cache root")
     safe_backbone = _safe_component(backbone, "backbone")
     safe_variant = _safe_component(variant, "variant")
     safe_split = _safe_component(split, "split")
@@ -125,6 +128,7 @@ def save_feature_cache(cache: CachedFeatureDataset, path: str | Path) -> None:
     """Atomically save one cache after validating its in-memory schema."""
 
     destination = Path(path)
+    validate_artifact_path(destination.parent, "feature cache destination")
     destination.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "schema_version": FEATURE_CACHE_SCHEMA_VERSION,

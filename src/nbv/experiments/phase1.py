@@ -15,6 +15,7 @@ from typing import Any, Mapping, Sequence
 import numpy as np
 import torch
 
+from nbv.config import validate_artifact_path
 from nbv.data import NUMDataset
 from nbv.features import (
     CachedFeatureDataset,
@@ -53,6 +54,7 @@ class Phase1SweepSettings:
     data_root: Path
     split_manifest: Path
     cache_root: Path
+    model_cache_root: Path
     target_name: str
     target_direction: str
     num_anchors: int
@@ -133,7 +135,7 @@ def run_phase1_sweep(
 def parse_phase1_sweep_settings(
     config: Mapping[str, Any], repository_root: str | Path
 ) -> Phase1SweepSettings:
-    """Validate the Step 7 fields beyond the common config schema."""
+    """Validate the Phase 1 sweep fields beyond the common config schema."""
 
     root = Path(repository_root).resolve()
     paths = _mapping(config, "paths")
@@ -192,6 +194,7 @@ def parse_phase1_sweep_settings(
         raise TypeError("probe.feature_cache.rebuild must be boolean")
     if not isinstance(probe.get("mask_source_view"), bool):
         raise TypeError("probe.mask_source_view must be boolean")
+    validate_artifact_path(cache.get("root"), "probe.feature_cache.root")
 
     validated_training = {
         "epochs": _positive_integer(training.get("epochs"), "training.epochs"),
@@ -230,6 +233,9 @@ def parse_phase1_sweep_settings(
         ),
         cache_root=_rooted_path(
             root, cache.get("root"), "probe.feature_cache.root"
+        ),
+        model_cache_root=_rooted_path(
+            root, paths.get("model_cache_root"), "paths.model_cache_root"
         ),
         target_name=target_name,
         target_direction=target_direction,
@@ -645,7 +651,11 @@ def _extractor_kwargs(
         raise ValueError(
             f"Unexpected probe.{backbone} fields: {sorted(unexpected)}"
         )
-    return {"device": settings.device, **model_config}
+    return {
+        "device": settings.device,
+        "model_cache_root": settings.model_cache_root,
+        **model_config,
+    }
 
 
 def _cache_matches(path: Path, metadata: Mapping[str, Any]) -> bool:

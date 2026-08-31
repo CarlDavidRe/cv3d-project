@@ -21,6 +21,7 @@ SOURCE_ROOT = REPOSITORY_ROOT / "src"
 if str(SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_ROOT))
 
+from nbv.config import validate_artifact_path  # noqa: E402
 from nbv.data import NUMDataset  # noqa: E402
 from nbv.geometry import canonical_anchors  # noqa: E402
 
@@ -61,7 +62,11 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--output", type=Path, default=Path("outputs/phase1/num_sample.svg")
+        "--output",
+        type=Path,
+        default=Path(
+            "outputs/phase1/num_sample/seed_0/figures/num_sample.svg"
+        ),
     )
     parser.add_argument(
         "--interactive-output",
@@ -576,6 +581,7 @@ window.requestAnimationFrame(animationFrame);
 </body>
 </html>
 """.replace("__PAYLOAD__", payload_json)
+    validate_artifact_path(destination.parent, "interactive output directory")
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(document, encoding="utf-8")
 
@@ -704,6 +710,7 @@ def write_target_svg(
 <text x="1125" y="705" text-anchor="end" font-family="sans-serif" font-size="12" fill="#b42318">red ring: local anchor {most_uncertain_id} ({escaped_metric}={most_uncertain_value:.6g})</text>
 </svg>
 """
+    validate_artifact_path(destination.parent, "SVG output directory")
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(svg, encoding="utf-8")
 

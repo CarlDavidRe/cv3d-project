@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Callable
 
 import torch
@@ -13,6 +14,7 @@ from nbv.features.base import (
     FrozenFeatures,
     detached,
 )
+from nbv.features.model_cache import model_cache_directory
 from nbv.features.preprocessing import resize_square
 
 
@@ -34,8 +36,9 @@ class VGGTExtractor(FrozenFeatureExtractor):
         layer_index: int = -1,
         device: str | torch.device | None = None,
         autocast_dtype: torch.dtype | None = None,
+        model_cache_root: str | Path | None = None,
         model: nn.Module | None = None,
-        model_loader: Callable[[str], nn.Module] | None = None,
+        model_loader: Callable[..., nn.Module] | None = None,
     ) -> None:
         self.model_id = model_id
         self.image_size = image_size
@@ -46,7 +49,15 @@ class VGGTExtractor(FrozenFeatureExtractor):
                     from vggt.models.vggt import VGGT
 
                     model_loader = VGGT.from_pretrained
-                full_model = model_loader(model_id)
+                if model_cache_root is None:
+                    full_model = model_loader(model_id)
+                else:
+                    full_model = model_loader(
+                        model_id,
+                        cache_dir=model_cache_directory(
+                            model_cache_root, "huggingface"
+                        ),
+                    )
                 model = full_model.aggregator
             except (ImportError, ModuleNotFoundError) as exc:
                 raise FeatureExtractorError(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Callable, Mapping
 
 import torch
@@ -13,6 +14,7 @@ from nbv.features.base import (
     FrozenFeatures,
     detached,
 )
+from nbv.features.model_cache import torch_hub_cache
 from nbv.features.preprocessing import imagenet_normalize, resize_center_crop
 
 
@@ -30,6 +32,7 @@ class DINOv2Extractor(FrozenFeatureExtractor):
         device: str | torch.device | None = None,
         pretrained: bool = True,
         autocast_dtype: torch.dtype | None = None,
+        model_cache_root: str | Path | None = None,
         model: nn.Module | None = None,
         model_loader: Callable[..., nn.Module] | None = None,
     ) -> None:
@@ -37,13 +40,14 @@ class DINOv2Extractor(FrozenFeatureExtractor):
         if model is None:
             loader = model_loader or torch.hub.load
             try:
-                model = loader(
-                    repo_or_dir,
-                    model_name,
-                    source=source,
-                    pretrained=pretrained,
-                    trust_repo=True,
-                )
+                with torch_hub_cache(model_cache_root):
+                    model = loader(
+                        repo_or_dir,
+                        model_name,
+                        source=source,
+                        pretrained=pretrained,
+                        trust_repo=True,
+                    )
             except Exception as exc:
                 raise FeatureExtractorError(
                     "Could not load DINOv2. The first run needs internet access "

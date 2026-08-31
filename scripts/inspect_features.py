@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run one step-5 backbone on one NUM image and report feature shapes."""
+"""Run one frozen backbone on one NUM image and report feature shapes."""
 
 from __future__ import annotations
 
@@ -32,6 +32,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--dinov2-model", default="dinov2_vitb14", help="Official torch.hub name"
     )
     parser.add_argument("--vggt-model", default="facebook/VGGT-1B")
+    parser.add_argument(
+        "--model-cache-root",
+        type=Path,
+        default=Path("data/cache/models"),
+        help="Common root for Torch Hub and Hugging Face model downloads",
+    )
     return parser
 
 
@@ -43,7 +49,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         split_manifest=args.split_manifest,
     )
     sample = dataset[args.sample_index]
-    kwargs: dict[str, object] = {"device": args.device}
+    kwargs: dict[str, object] = {
+        "device": args.device,
+        "model_cache_root": args.model_cache_root,
+    }
     if args.backbone == "dinov2":
         kwargs["model_name"] = args.dinov2_model
     elif args.backbone == "vggt":

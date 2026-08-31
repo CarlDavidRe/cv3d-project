@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from nbv.config import load_config
+from nbv.config import ConfigError, load_config
 from nbv.experiments.phase1 import (
     ProbeVariant,
     extract_variant_caches,
@@ -93,7 +93,19 @@ class Phase1ExperimentTests(unittest.TestCase):
         self.assertEqual(settings.target_direction, "lower")
         self.assertEqual(settings.extraction_batch_sizes["vggt"], 32)
         self.assertEqual(settings.cache_dtype, torch.float16)
+        self.assertEqual(
+            settings.model_cache_root,
+            REPOSITORY_ROOT / "data" / "cache" / "models",
+        )
         self.assertFalse(settings.rebuild_cache)
+
+    def test_step_numbered_feature_cache_path_is_rejected(self) -> None:
+        config = load_config(
+            REPOSITORY_ROOT / "configs/experiments/phase1_sweep.yaml",
+            ["probe.feature_cache.root=data/step5/features"],
+        )
+        with self.assertRaisesRegex(ConfigError, "step-numbered"):
+            parse_phase1_sweep_settings(config, REPOSITORY_ROOT)
 
     def test_multiple_variants_share_one_backbone_forward_per_batch(self) -> None:
         extractor = _FakeExtractor()

@@ -79,7 +79,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         settings["backbone"],
         "+".join(settings["feature_components"]),
     )
-    extractor_kwargs: dict[str, Any] = {"device": settings["device"]}
+    extractor_kwargs: dict[str, Any] = {
+        "device": settings["device"],
+        "model_cache_root": _repository_path(
+            config["paths"]["model_cache_root"]
+        ),
+    }
     if settings["backbone"] == "imagenet_vit":
         extractor_kwargs["pretrained"] = config["probe"]["imagenet_vit"][
             "pretrained"

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import torch
@@ -71,6 +74,62 @@ class _FakeVGGTAggregator(nn.Module):
 
 
 class FrozenFeatureTests(unittest.TestCase):
+    def test_torch_backbones_use_and_restore_the_common_model_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            cache_root = Path(temporary_directory) / "models"
+            original_hub_dir = torch.hub.get_dir()
+            observed: dict[str, Path] = {}
+
+            def imagenet_loader(pretrained: bool) -> nn.Module:
+                self.assertTrue(pretrained)
+                observed["imagenet"] = Path(torch.hub.get_dir())
+                return _FakeImageNetViT()
+
+            def dinov2_loader(*args: object, **kwargs: object) -> nn.Module:
+                observed["dinov2"] = Path(torch.hub.get_dir())
+                return _FakeDINOv2()
+
+            ImageNetViTExtractor(
+                model_loader=imagenet_loader,
+                model_cache_root=cache_root,
+                device="cpu",
+            )
+            DINOv2Extractor(
+                model_loader=dinov2_loader,
+                model_cache_root=cache_root,
+                device="cpu",
+            )
+
+            expected = cache_root / "torch"
+            self.assertEqual(
+                observed, {"imagenet": expected, "dinov2": expected}
+            )
+            self.assertTrue(expected.is_dir())
+            self.assertEqual(torch.hub.get_dir(), original_hub_dir)
+
+    def test_vggt_uses_the_common_huggingface_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            cache_root = Path(temporary_directory) / "models"
+            observed: dict[str, object] = {}
+
+            def loader(model_id: str, **kwargs: object) -> object:
+                observed["model_id"] = model_id
+                observed.update(kwargs)
+                return SimpleNamespace(aggregator=_FakeVGGTAggregator())
+
+            VGGTExtractor(
+                model_loader=loader,
+                model_cache_root=cache_root,
+                image_size=28,
+                device="cpu",
+            )
+
+            self.assertEqual(observed["model_id"], "facebook/VGGT-1B")
+            self.assertEqual(
+                observed["cache_dir"], cache_root / "huggingface"
+            )
+            self.assertTrue((cache_root / "huggingface").is_dir())
+
     def test_imagenet_vit_returns_common_layout_and_stays_frozen(self) -> None:
         model = _FakeImageNetViT()
         extractor = ImageNetViTExtractor(model=model, device="cpu")

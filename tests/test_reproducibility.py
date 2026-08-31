@@ -30,6 +30,13 @@ class ReproducibilityTests(unittest.TestCase):
             context = initialize_run(config, repository_root)
 
             self.assertEqual(context.run_id, "phase1/infrastructure/seed_0")
+            self.assertEqual(
+                context.run_dir,
+                Path(temporary_directory)
+                / "phase1"
+                / "infrastructure"
+                / "seed_0",
+            )
             self.assertTrue((context.run_dir / "config.yaml").is_file())
             metadata_path = context.run_dir / "metadata.json"
             self.assertTrue(metadata_path.is_file())

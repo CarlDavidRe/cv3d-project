@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from nbv.config import ConfigError
 from scripts.inspect_num_sample import (
     normalize_uncertainty,
     write_interactive_sphere_html,
@@ -16,6 +17,24 @@ from scripts.inspect_num_sample import (
 
 
 class NUMVisualizationTests(unittest.TestCase):
+    def test_step_numbered_output_directory_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source = root / "source.png"
+            output = root / "step5" / "umap.svg"
+            Image.new("RGB", (8, 8)).save(source)
+
+            with self.assertRaisesRegex(ConfigError, "step-numbered"):
+                write_target_svg(
+                    np.arange(48, dtype=np.float32),
+                    source,
+                    output,
+                    title="test sample",
+                    target_name="MSE",
+                    source_global_anchor_id=0,
+                )
+            self.assertFalse(output.exists())
+
     def test_quality_metrics_are_inverted_into_uncertainty(self) -> None:
         target = np.linspace(30.0, 10.0, 48, dtype=np.float32)
 

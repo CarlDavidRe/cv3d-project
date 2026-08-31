@@ -29,6 +29,11 @@ python3 scripts/init_experiment.py \
 This records the resolved configuration, seed, environment metadata, and Git
 commit under `outputs/phase1/infrastructure/seed_0/`. It does not train a model.
 
+Generated files follow two stable roots: run artifacts use
+`outputs/<phase>/<experiment>/seed_<n>/`, while reusable downloads and caches
+use `data/cache/{models,features,sources}/`. Workflow step numbers are never
+used as directory names.
+
 Run the infrastructure tests with:
 
 ```bash
@@ -64,7 +69,7 @@ python3 scripts/prepare_num_split.py \
 
 Inspect one sample and create a standalone PUN-style polar uncertainty-map SVG
 with the input image embedded alongside it, plus a self-contained rotatable 3D
-sphere in `outputs/phase1/num_sample_3d.html`:
+sphere in the same canonical run directory:
 
 ```bash
 python3 scripts/inspect_num_sample.py \
@@ -72,7 +77,7 @@ python3 scripts/inspect_num_sample.py \
   --split train \
   --split-manifest data/splits/num_v1.json \
   --target PSNR \
-  --output outputs/phase1/num_sample.svg
+  --output outputs/phase1/num_sample/seed_0/figures/num_sample.svg
 ```
 
 To view the interactive HTML through a local web server, run this command from
@@ -85,7 +90,7 @@ python3 -m http.server 8000
 Then open the following address in a browser:
 
 ```text
-http://localhost:8000/outputs/phase1/num_sample_3d.html
+http://localhost:8000/outputs/phase1/num_sample/seed_0/figures/num_sample_3d.html
 ```
 
 Stop the server with `Ctrl+C`.
@@ -132,8 +137,8 @@ VGGT is a 1B-parameter model, so use a Colab GPU rather than a CPU-only local
 machine. Install the official package in the same environment first:
 
 ```bash
-git clone https://github.com/facebookresearch/vggt.git ../vggt
-python3 -m pip install -e ../vggt
+git clone https://github.com/facebookresearch/vggt.git data/cache/sources/vggt
+python3 -m pip install -e data/cache/sources/vggt
 python3 scripts/inspect_features.py \
   --backbone vggt \
   --data-root data/NUM \
@@ -340,35 +345,44 @@ than training against thousands of small files directly on Drive.
 
 ### 5. Run tests and frozen-feature smoke tests
 
-Keep generated files under the repository's `outputs/` directory until the
-workflow is complete:
+Keep generated files in a semantic Phase 1 run directory until the workflow is
+complete. Workflow step numbers are not used as directory names. First restore
+the common cache so pretrained models and external sources can be reused. If
+the Drive cache does not exist yet, skip the `rsync` command:
 
 ```bash
 cd /content/cv3d-project
-mkdir -p outputs/step5
+mkdir -p data/cache
+rsync -av /content/drive/MyDrive/cv3d-project/data/cache/ data/cache/
+
+mkdir -p outputs/phase1/feature_smoke/seed_0/metrics
 set -o pipefail
-python -m unittest discover -s tests -v 2>&1 | tee outputs/step5/tests.log
+python -m unittest discover -s tests -v 2>&1 \
+  | tee outputs/phase1/feature_smoke/seed_0/tests.log
 
 python scripts/inspect_features.py \
   --backbone imagenet_vit \
   --data-root data/NUM \
   --device cuda \
-  | tee outputs/step5/imagenet_vit.json
+  | tee outputs/phase1/feature_smoke/seed_0/metrics/imagenet_vit.json
 ```
 
 For VGGT, install the official repository in the runtime and run its smoke
 test:
 
 ```bash
-git clone https://github.com/facebookresearch/vggt.git /content/vggt
-python -m pip install -e /content/vggt
+if [ ! -d /content/cv3d-project/data/cache/sources/vggt/.git ]; then
+  git clone https://github.com/facebookresearch/vggt.git \
+    /content/cv3d-project/data/cache/sources/vggt
+fi
+python -m pip install -e /content/cv3d-project/data/cache/sources/vggt
 
 cd /content/cv3d-project
 python scripts/inspect_features.py \
   --backbone vggt \
   --data-root data/NUM \
   --device cuda \
-  | tee outputs/step5/vggt.json
+  | tee outputs/phase1/feature_smoke/seed_0/metrics/vggt.json
 ```
 
 On Python 3.12, VGGT's NumPy requirement should install from a wheel. If pip
@@ -378,10 +392,12 @@ cancel the install and run:
 ```bash
 python -m pip install --upgrade pip
 python -m pip install --only-binary=:all: "numpy==1.26.4"
-python -m pip install --no-build-isolation -e /content/vggt
+python -m pip install --no-build-isolation \
+  -e /content/cv3d-project/data/cache/sources/vggt
 ```
 
-Model checkpoints are downloaded only on their first use in each runtime.
+Model checkpoints are downloaded only when they are missing from
+`data/cache/models`.
 
 ### 6. Run the probe-head overfit check
 
@@ -400,7 +416,24 @@ checked.
 ### 7. Run the Phase 1 comparison
 
 After the tiny overfit check succeeds, run the complete configured backbone
-comparison. This is the compute-intensive Step 7 command:
+comparison. On a fresh Colab VM, mount Google Drive and restore the previously
+saved frozen-feature files into the repository cache first:
+
+```bash
+cd /content/cv3d-project
+mkdir -p data/cache/features
+
+if [ -d /content/drive/MyDrive/cv3d-project/data/cache/features ]; then
+  rsync -av /content/drive/MyDrive/cv3d-project/data/cache/features/ \
+    data/cache/features/
+else
+  echo "No saved feature cache found; features will be extracted again."
+fi
+```
+
+The trailing slashes copy the contents of the Drive feature directory into the
+local `data/cache/features/` directory without creating an extra nested
+`features` directory. Then run the compute-intensive Step 7 command:
 
 ```bash
 cd /content/cv3d-project
@@ -412,18 +445,8 @@ The command checks compatible files under `data/cache/features/` before it
 loads a backbone. It trains directly from cached variants and extracts only
 the missing variants, sharing the frozen-backbone forward when several missing
 variants use the same backbone. This is the default because
-`probe.feature_cache.rebuild` is `false`. On a fresh Colab VM, restore a
-previously saved feature cache before starting the comparison:
-
-```bash
-mkdir -p /content/cv3d-project/data/cache
-rsync -av /content/drive/MyDrive/cv3d-project/data-cache/ \
-  /content/cv3d-project/data/cache/
-```
-
-If the Drive directory does not exist yet, skip this restoration command and
-let the runner calculate the features. Compatible restored entries are reused
-automatically.
+`probe.feature_cache.rebuild` is `false`. Compatible restored entries are reused
+automatically; missing features are calculated by the runner.
 
 ### 8. Copy generated files to Google Drive
 
@@ -436,17 +459,16 @@ mkdir -p /content/drive/MyDrive/cv3d-project/outputs
 rsync -av /content/cv3d-project/outputs/ \
   /content/drive/MyDrive/cv3d-project/outputs/
 
-mkdir -p /content/drive/MyDrive/cv3d-project/data-cache
+mkdir -p /content/drive/MyDrive/cv3d-project/data/cache
 rsync -av /content/cv3d-project/data/cache/ \
-  /content/drive/MyDrive/cv3d-project/data-cache/
+  /content/drive/MyDrive/cv3d-project/data/cache/
 
 find /content/drive/MyDrive/cv3d-project/outputs -type f | sort
 ```
 
 Colab's `/content` storage is temporary. The final copy preserves test logs,
 feature summaries, checkpoints, metrics, and any other repository outputs in
-`MyDrive/cv3d-project/outputs`; the second copy preserves expensive frozen
-feature caches separately. Run the copy after feature extraction finishes so
-only complete cache files are persisted. These commands do not save model
-downloads under `/root/.cache`; DINOv2 and other backbone weights may need to
-be downloaded again in a new Colab runtime.
+`MyDrive/cv3d-project/outputs`; the second copy preserves feature caches,
+pretrained-model downloads, and cached external sources under the same
+`data/cache` name used locally. Run the copy after feature extraction finishes
+so only complete cache files are persisted.

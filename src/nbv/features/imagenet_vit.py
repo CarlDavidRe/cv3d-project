@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Callable
 
 import torch
@@ -13,6 +14,7 @@ from nbv.features.base import (
     FrozenFeatures,
     detached,
 )
+from nbv.features.model_cache import torch_hub_cache
 from nbv.features.preprocessing import imagenet_normalize, resize_center_crop
 
 
@@ -27,12 +29,14 @@ class ImageNetViTExtractor(FrozenFeatureExtractor):
         device: str | torch.device | None = None,
         pretrained: bool = True,
         autocast_dtype: torch.dtype | None = None,
+        model_cache_root: str | Path | None = None,
         model: nn.Module | None = None,
         model_loader: Callable[[bool], nn.Module] | None = None,
     ) -> None:
         if model is None:
             loader = model_loader or _load_torchvision_vit_b16
-            model = loader(pretrained)
+            with torch_hub_cache(model_cache_root):
+                model = loader(pretrained)
         _validate_torchvision_vit(model)
         super().__init__(model, device=device, autocast_dtype=autocast_dtype)
 

@@ -61,14 +61,10 @@ def initialize_run(
     validate_config(config)
     root = Path(repository_root).resolve()
     experiment = config["experiment"]
-    output_root = Path(config["paths"]["output_root"])
-    if not output_root.is_absolute():
-        output_root = root / output_root
-
     run_id = (
         f"{experiment['phase']}/{experiment['name']}/seed_{experiment['seed']}"
     )
-    run_dir = output_root / run_id
+    run_dir = resolve_run_directory(config, root)
     checkpoint_dir = run_dir / "checkpoints"
     metrics_dir = run_dir / "metrics"
     figure_dir = run_dir / "figures"
@@ -88,6 +84,29 @@ def initialize_run(
         figure_dir=figure_dir,
         log_path=run_dir / "run.log",
     )
+
+
+def resolve_run_directory(
+    config: Mapping[str, Any], repository_root: str | Path
+) -> Path:
+    """Resolve a validated run directory below the configured output root."""
+
+    validate_config(config)
+    root = Path(repository_root).resolve()
+    output_root = Path(config["paths"]["output_root"])
+    if not output_root.is_absolute():
+        output_root = root / output_root
+    output_root = output_root.resolve()
+    experiment = config["experiment"]
+    run_dir = (
+        output_root
+        / experiment["phase"]
+        / experiment["name"]
+        / f"seed_{experiment['seed']}"
+    ).resolve()
+    if not run_dir.is_relative_to(output_root):
+        raise ValueError("Resolved run directory escapes paths.output_root")
+    return run_dir
 
 
 def collect_metadata(repository_root: str | Path, seed: int) -> dict[str, Any]:

@@ -30,7 +30,7 @@ from nbv.features.vggt import VGGTExtractor
 
 
 def create_feature_extractor(name: str, **kwargs: Any) -> FrozenFeatureExtractor:
-    """Construct one of the three step-5 backbones by a stable short name."""
+    """Construct one of the three frozen backbones by a stable short name."""
 
     extractors = {
         "imagenet_vit": ImageNetViTExtractor,

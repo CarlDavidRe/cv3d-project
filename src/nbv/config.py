@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -11,6 +12,10 @@ import yaml
 
 class ConfigError(ValueError):
     """Raised when an experiment configuration is malformed."""
+
+
+_SAFE_OUTPUT_COMPONENT = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+_STEP_DIRECTORY = re.compile(r"^step[ _-]?\d+$", re.IGNORECASE)
 
 
 def load_config(
@@ -48,8 +53,18 @@ def validate_config(config: Mapping[str, Any]) -> None:
 
     experiment = _required_mapping(config, "experiment")
     for key in ("phase", "name"):
-        if not isinstance(experiment.get(key), str) or not experiment[key].strip():
+        value = experiment.get(key)
+        if not isinstance(value, str) or not value.strip():
             raise ConfigError(f"experiment.{key} must be a non-empty string")
+        if not _SAFE_OUTPUT_COMPONENT.fullmatch(value):
+            raise ConfigError(
+                f"experiment.{key} must use lowercase letters, numbers, "
+                "underscores, or hyphens"
+            )
+        if _STEP_DIRECTORY.fullmatch(value):
+            raise ConfigError(
+                f"experiment.{key} must be semantic, not step-numbered"
+            )
     if not isinstance(experiment.get("seed"), int) or isinstance(
         experiment.get("seed"), bool
     ):
@@ -58,9 +73,24 @@ def validate_config(config: Mapping[str, Any]) -> None:
         raise ConfigError("experiment.deterministic must be a boolean")
 
     paths = _required_mapping(config, "paths")
-    for key in ("data_root", "output_root"):
+    for key in ("data_root", "output_root", "model_cache_root"):
         if not isinstance(paths.get(key), str) or not paths[key].strip():
             raise ConfigError(f"paths.{key} must be a non-empty string")
+    validate_artifact_path(paths["output_root"], "paths.output_root")
+    validate_artifact_path(paths["model_cache_root"], "paths.model_cache_root")
+
+
+def validate_artifact_path(path: str | Path, field: str) -> None:
+    """Reject workflow-step directory names in generated-artifact paths."""
+
+    if not isinstance(path, (str, Path)) or not str(path).strip():
+        raise ConfigError(f"{field} must be a non-empty path")
+    for component in Path(path).parts:
+        if _STEP_DIRECTORY.fullmatch(component):
+            raise ConfigError(
+                f"{field} must not contain a step-numbered directory: "
+                f"{component!r}"
+            )
 
 
 def save_config(config: Mapping[str, Any], path: str | Path) -> None:

@@ -20,6 +20,7 @@ from nbv.experiments.phase1 import (  # noqa: E402
     run_phase1_sweep,
 )
 from nbv.logging_utils import configure_logging  # noqa: E402
+from nbv.reproducibility import resolve_run_directory  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -49,16 +50,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 2
 
-    output_root = Path(config["paths"]["output_root"])
-    if not output_root.is_absolute():
-        output_root = REPOSITORY_ROOT / output_root
-    experiment = config["experiment"]
-    run_dir = (
-        output_root
-        / experiment["phase"]
-        / experiment["name"]
-        / f"seed_{experiment['seed']}"
-    )
+    run_dir = resolve_run_directory(config, REPOSITORY_ROOT)
     logger = configure_logging(run_dir / "run.log", args.verbose)
     logger.info(
         "Running %d Phase 1 variants on %s",

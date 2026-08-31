@@ -20,6 +20,9 @@ class ConfigTests(unittest.TestCase):
         config = load_config(self.config_path)
         self.assertEqual(config["experiment"]["phase"], "phase1")
         self.assertEqual(config["paths"]["data_root"], "data/NUM")
+        self.assertEqual(
+            config["paths"]["model_cache_root"], "data/cache/models"
+        )
         self.assertEqual(config["phase1"]["num_anchors"], 48)
         self.assertEqual(
             config["phase1"]["num_dataset"]["target_name"], "PSNR"
@@ -54,6 +57,27 @@ class ConfigTests(unittest.TestCase):
     def test_unknown_override_is_rejected(self) -> None:
         with self.assertRaises(ConfigError):
             load_config(self.config_path, ["model.hidden_size=128"])
+
+    def test_step_numbered_output_components_are_rejected(self) -> None:
+        for override in (
+            "experiment.phase=step5",
+            "experiment.name=step_5",
+            "paths.output_root=outputs/step-5",
+            "paths.model_cache_root=data/step5/models",
+        ):
+            with self.subTest(override=override), self.assertRaisesRegex(
+                ConfigError, "step-numbered"
+            ):
+                load_config(self.config_path, [override])
+
+    def test_unsafe_run_path_components_are_rejected(self) -> None:
+        for override in (
+            "experiment.phase=../outside",
+            "experiment.name=feature/smoke",
+            "experiment.name=FeatureSmoke",
+        ):
+            with self.subTest(override=override), self.assertRaises(ConfigError):
+                load_config(self.config_path, [override])
 
     def test_non_mapping_config_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

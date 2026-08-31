@@ -9,6 +9,7 @@ experiment:
 paths:
   data_root: data/NUM
   output_root: outputs
+  model_cache_root: data/cache/models
 
 phase1:
   num_anchors: 48

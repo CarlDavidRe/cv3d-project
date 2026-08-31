@@ -6,6 +6,7 @@ from pathlib import Path
 
 import torch
 
+from nbv.config import ConfigError
 from nbv.features import (
     CachedFeatureDataset,
     FeatureCacheError,
@@ -71,6 +72,14 @@ class FeatureCacheTests(unittest.TestCase):
             feature_cache_path(
                 "cache",
                 backbone="../fake",
+                variant="probe",
+                split="train",
+                metadata={},
+            )
+        with self.assertRaisesRegex(ConfigError, "step-numbered"):
+            feature_cache_path(
+                "data/step5/features",
+                backbone="fake",
                 variant="probe",
                 split="train",
                 metadata={},
