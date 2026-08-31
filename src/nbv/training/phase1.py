@@ -22,7 +22,7 @@ TargetDirection = Literal["higher", "lower"]
 
 @dataclass(frozen=True, slots=True)
 class Phase1FitResult:
-    """Best validation checkpoint information and per-epoch losses."""
+    """Best validation checkpoint information and per-epoch diagnostics."""
 
     best_epoch: int
     best_validation_loss: float
@@ -103,6 +103,8 @@ def fit_phase1_probe(
     huber_delta: float = 1.0,
     ranking_weight: float = 0.0,
     ranking_margin: float = 0.0,
+    target_direction: TargetDirection = "higher",
+    ndcg_k: int = 5,
     patience: int | None = None,
     device: str | torch.device = "cpu",
     seed: int = 0,
@@ -118,6 +120,9 @@ def fit_phase1_probe(
     _finite_number(weight_decay, "weight_decay", minimum=0.0)
     _finite_number(ranking_weight, "ranking_weight", minimum=0.0)
     _finite_number(ranking_margin, "ranking_margin", minimum=0.0)
+    if target_direction not in ("higher", "lower"):
+        raise ValueError("target_direction must be 'higher' or 'lower'")
+    _positive_integer(ndcg_k, "ndcg_k")
 
     resolved_device = _resolve_device(device)
     head.to(resolved_device)
@@ -130,24 +135,41 @@ def fit_phase1_probe(
     generator.manual_seed(seed)
     loader = _loader(train, batch_size=batch_size, shuffle=True, generator=generator)
 
-    initial_validation = _mean_loss(
+    evaluation_kwargs = {
+        "batch_size": batch_size,
+        "target_direction": target_direction,
+        "huber_delta": huber_delta,
+        "ranking_weight": ranking_weight,
+        "ranking_margin": ranking_margin,
+        "ndcg_k": ndcg_k,
+        "device": resolved_device,
+    }
+    initial_train = _mean_loss_components(
         head,
-        validation,
+        train,
         batch_size=batch_size,
         huber_delta=huber_delta,
         ranking_weight=ranking_weight,
         ranking_margin=ranking_margin,
         device=resolved_device,
     )
-    best_validation_loss = initial_validation
+    initial_validation = evaluate_phase1_probe(
+        head,
+        validation,
+        **evaluation_kwargs,
+    )
+    best_validation_loss = float(initial_validation.summary["loss"])
     best_epoch = 0
     best_state = deepcopy(head.state_dict())
     history: list[Mapping[str, float | int | None]] = [
-        {
-            "epoch": 0,
-            "train_loss": None,
-            "validation_loss": initial_validation,
-        }
+        _history_row(
+            epoch=0,
+            optimization_train_loss=None,
+            learning_rate=float(optimizer.param_groups[0]["lr"]),
+            train=initial_train,
+            validation=initial_validation,
+            ndcg_k=ndcg_k,
+        )
     ]
     epochs_without_improvement = 0
 
@@ -178,22 +200,31 @@ def fit_phase1_probe(
             total_training_loss += float(loss.item()) * features.shape[0]
             sample_count += features.shape[0]
 
-        train_loss = total_training_loss / sample_count
-        validation_loss = _mean_loss(
+        optimization_train_loss = total_training_loss / sample_count
+        train_result = _mean_loss_components(
             head,
-            validation,
+            train,
             batch_size=batch_size,
             huber_delta=huber_delta,
             ranking_weight=ranking_weight,
             ranking_margin=ranking_margin,
             device=resolved_device,
         )
+        validation_result = evaluate_phase1_probe(
+            head,
+            validation,
+            **evaluation_kwargs,
+        )
+        validation_loss = float(validation_result.summary["loss"])
         history.append(
-            {
-                "epoch": epoch,
-                "train_loss": train_loss,
-                "validation_loss": validation_loss,
-            }
+            _history_row(
+                epoch=epoch,
+                optimization_train_loss=optimization_train_loss,
+                learning_rate=float(optimizer.param_groups[0]["lr"]),
+                train=train_result,
+                validation=validation_result,
+                ndcg_k=ndcg_k,
+            )
         )
         if validation_loss < best_validation_loss:
             best_validation_loss = validation_loss
@@ -212,6 +243,37 @@ def fit_phase1_probe(
         epochs_completed=epoch,
         history=tuple(history),
     )
+
+
+def _history_row(
+    *,
+    epoch: int,
+    optimization_train_loss: float | None,
+    learning_rate: float,
+    train: Mapping[str, float],
+    validation: Phase1EvaluationResult,
+    ndcg_k: int,
+) -> Mapping[str, float | int | None]:
+    """Build one stable, JSON-ready training-history record."""
+
+    return {
+        "epoch": epoch,
+        "learning_rate": learning_rate,
+        "optimization_train_loss": optimization_train_loss,
+        "train_loss": train["loss"],
+        "train_huber_loss": train["huber_loss"],
+        "train_ranking_loss": train["ranking_loss"],
+        "validation_loss": validation.summary["loss"],
+        "validation_huber_loss": validation.summary["huber_loss"],
+        "validation_ranking_loss": validation.summary["ranking_loss"],
+        "validation_normalized_regret_mean": validation.summary[
+            "normalized_regret_mean"
+        ],
+        "validation_spearman_mean": validation.summary["spearman_mean"],
+        f"validation_ndcg_at_{ndcg_k}_mean": validation.summary[
+            f"ndcg_at_{ndcg_k}_mean"
+        ],
+    }
 
 
 def evaluate_phase1_probe(
@@ -317,7 +379,7 @@ def evaluate_phase1_probe(
     )
 
 
-def _mean_loss(
+def _mean_loss_components(
     head: nn.Module,
     dataset: CachedFeatureDataset,
     *,
@@ -326,9 +388,13 @@ def _mean_loss(
     ranking_weight: float,
     ranking_margin: float,
     device: torch.device,
-) -> float:
+) -> Mapping[str, float]:
+    """Evaluate comparable total and component losses without ranking metrics."""
+
     head.eval()
-    weighted_loss = 0.0
+    weighted_total = 0.0
+    weighted_huber = 0.0
+    weighted_ranking = 0.0
     sample_count = 0
     with torch.inference_mode():
         for features, targets, valid_mask in _loader(
@@ -338,7 +404,7 @@ def _mean_loss(
             targets = targets.to(device, dtype=torch.float32, non_blocking=True)
             valid_mask = valid_mask.to(device, non_blocking=True)
             predictions = head(features)
-            loss, _, _ = combined_probe_loss(
+            total, huber, ranking = combined_probe_loss(
                 predictions,
                 targets,
                 valid_mask,
@@ -346,9 +412,16 @@ def _mean_loss(
                 ranking_weight=ranking_weight,
                 ranking_margin=ranking_margin,
             )
-            weighted_loss += float(loss.item()) * features.shape[0]
-            sample_count += features.shape[0]
-    return weighted_loss / sample_count
+            count = features.shape[0]
+            weighted_total += float(total.item()) * count
+            weighted_huber += float(huber.item()) * count
+            weighted_ranking += float(ranking.item()) * count
+            sample_count += count
+    return {
+        "loss": weighted_total / sample_count,
+        "huber_loss": weighted_huber / sample_count,
+        "ranking_loss": weighted_ranking / sample_count,
+    }
 
 
 def _loader(

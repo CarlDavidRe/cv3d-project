@@ -250,6 +250,38 @@ best head checkpoint, training history, summary, and per-sample test metrics.
 The common table is emitted as `metrics/comparison.csv`,
 `metrics/comparison.json`, and `metrics/comparison.md`.
 
+Every learned variant's `training_history.json` contains an epoch-zero baseline
+and one row per completed epoch. It records the batch-time
+`optimization_train_loss` separately from the post-epoch, evaluation-mode
+`train_loss`; the latter is directly comparable with `validation_loss` because
+both use fixed end-of-epoch weights with dropout disabled. The history also
+contains train/validation Huber and ranking loss components, learning rate, and
+validation normalized regret, Spearman, and NDCG@5. The target-only mean-map
+baseline has an empty history because it is not optimized.
+
+The runner creates these dependency-free SVG diagnostics under
+`figures/training/`:
+
+```text
+<variant>_losses.svg
+<variant>_validation_metrics.svg
+validation_loss_comparison.svg
+```
+
+The loss figure shows comparable evaluation-mode train and validation curves,
+the separate batch-time optimization curve, and decomposed Huber/ranking
+losses. The metrics figure shows validation ranking behavior. Each per-variant
+figure marks the best epoch selected by validation loss and the last completed
+epoch (identified as an early-stop point when applicable), while the comparison
+figure overlays validation loss for all learned variants.
+
+There is intentionally no test-loss-over-time curve. The test split is
+evaluated only on the restored validation-selected checkpoint, and its final
+loss/ranking metrics are stored in `summary.json` and the comparison table.
+Use validation diagnostics—not test results—for early stopping and tuning. If
+the Step 8 demo uses test examples, fix their sample IDs without inspecting
+per-sample test results.
+
 This step deliberately does not implement PUN integration, qualitative
 visualization, policies, geometry, closed-loop evaluation, or multi-view
 processing.
@@ -452,7 +484,10 @@ loads a backbone. It trains directly from cached variants and extracts only
 the missing variants, sharing the frozen-backbone forward when several missing
 variants use the same backbone. This is the default because
 `probe.feature_cache.rebuild` is `false`. Compatible restored entries are reused
-automatically; missing features are calculated by the runner.
+automatically; missing features are calculated by the runner. Inspect
+`figures/training/validation_loss_comparison.svg` and each variant's loss and
+validation-metric SVGs for underfitting, divergence, or a widening
+train/validation gap.
 
 ### 8. Copy generated files to Google Drive
 

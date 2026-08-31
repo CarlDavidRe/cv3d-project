@@ -249,6 +249,34 @@ Required:
 
 Also report the original PUN/NUM metric if its official evaluation uses a metric not listed above. Keep official-baseline comparability separate from the project's common metric suite.
 
+### Phase 1 training diagnostics
+
+For every learned probe variant, record an epoch-zero baseline and one history
+row after every completed epoch. Each row contains:
+
+- the batch-time optimization training loss,
+- evaluation-mode training and validation total loss,
+- evaluation-mode training and validation Huber and pairwise-ranking losses,
+- validation normalized regret, Spearman correlation, and NDCG@5,
+- epoch and learning rate.
+
+The evaluation-mode training pass uses the final weights from that epoch and
+disables dropout, so its loss is directly comparable with validation loss. The
+batch-time optimization loss is retained as a separate diagnostic because its
+weights change throughout the epoch.
+
+Write per-variant SVGs for the loss components and validation ranking metrics,
+plus one validation-loss overlay across all learned variants. Mark the
+validation-selected best epoch and last completed epoch, identifying the latter
+as an early-stop point when patience ends training. Analytical baselines such
+as the training-set mean map do not have training curves.
+
+Do not compute or plot a test curve. Restore the checkpoint selected only by
+validation loss, then evaluate the test split once for final reporting. Test
+results must not influence early stopping or variant tuning. If Step 8 uses
+test examples, choose their sample IDs without inspecting per-sample test
+results.
+
 ### Phase 1 visualization/demo
 
 Create a notebook or lightweight script that shows:
@@ -285,15 +313,15 @@ Repository audit as of 2026-08-31:
 | Metrics and losses | Implemented and tested | Masked Huber, pairwise ranking, normalized regret, Spearman, NDCG@5, and coverage AUC are available. |
 | Feature extractors | Implemented and unit-tested | Raw RGB, ImageNet-ViT-B/16, DINOv2, and single-image VGGT share one interface. Real-checkpoint smoke validation is recorded for ImageNet; record DINOv2 and VGGT smoke runs before declaring this item complete. |
 | Feature/model caching | Implemented and tested | Model downloads use the shared model-cache root; feature vectors use metadata-fingerprinted, atomically written caches. Compatible caches are reused by default. |
-| Probe training | Implemented and tested | The shared MLP, masked objectives, early stopping, best-state restoration, and common evaluator are implemented. An ImageNet-ViT tiny-set overfit artifact succeeds. |
+| Probe training and diagnostics | Implemented and tested | The shared MLP, masked objectives, early stopping, best-state restoration, comparable post-epoch train/validation diagnostics, validation ranking histories, and dependency-free SVG curves are implemented. An ImageNet-ViT tiny-set overfit artifact succeeds. |
 | Phase 1 controls | Implemented and tested | `train_mean_map` and `raw_rgb_16x16_mlp` are configured and emit the same evaluation/result schema as learned probes. |
-| One-command sweep | Implemented, execution pending | `scripts/run_phase1.py` prepares/reuses caches, trains configured variants, evaluates validation/test splits, and writes JSON/CSV/Markdown comparisons. No complete main-sweep result is currently present. |
+| One-command sweep | Implemented, execution pending | `scripts/run_phase1.py` prepares/reuses caches, trains configured variants, writes histories and training-curve SVGs, evaluates each restored best checkpoint on validation/test splits, and writes JSON/CSV/Markdown comparisons. No complete main-sweep result is currently present. |
 | Runtime/memory profiling | Not implemented | Trainable parameter counts are reported, but inference timing and peak-memory measurement still need a documented common protocol. |
 | PUN comparison | Not implemented | Official PUN behavior/results still need integration into the common comparison table. |
 | Prediction demo | Not implemented | A saved-checkpoint visualization of prediction versus target and top-ranked anchors is still required. |
 | Phase 2/3 code | Not started | No visibility cache, policies, closed-loop simulator, history dataset, or joint VGGT implementation is present. |
 
-The automated suite currently contains 86 passing tests. This number records
+The automated suite currently contains 88 passing tests. This number records
 the audit state rather than replacing the requirement for real-data,
 real-checkpoint, and full-sweep validation.
 
@@ -1359,7 +1387,11 @@ Only after overfitting succeeds, run full Phase 1 training.
 
 ### Step 7 — Phase 1 experiment runner
 
-One command should sweep the selected backbone/feature configurations and write a comparison table.
+One command should sweep the selected backbone/feature configurations and
+write the comparison table, best checkpoints, machine-readable training
+histories, per-variant train/validation diagnostic curves, validation ranking
+curves, and the cross-variant validation-loss overlay. Test metrics are a
+single final-checkpoint evaluation, never an epoch-by-epoch curve.
 
 ### Step 8 — Phase 1 demo
 
@@ -1582,6 +1614,10 @@ outputs/<phase>/<experiment>/seed_<n>/
 │   ├── comparison.json
 │   └── comparison.md
 ├── figures/
+│   └── training/
+│       ├── <variant>_losses.svg
+│       ├── <variant>_validation_metrics.svg
+│       └── validation_loss_comparison.svg
 └── variants/<variant>/
     ├── best.pt
     ├── summary.json
@@ -1592,6 +1628,31 @@ outputs/<phase>/<experiment>/seed_<n>/
 The tiny-overfit command instead stores `checkpoints/best.pt` and
 `metrics/tiny_overfit.json` in the same run root. Later closed-loop work may
 add `rollouts/` and per-step files without changing the Phase 1 contract.
+
+For learned variants, `training_history.json` starts at epoch zero and then has
+one row per completed epoch. Its stable fields are:
+
+```json
+{
+  "epoch": 1,
+  "learning_rate": 0.001,
+  "optimization_train_loss": null,
+  "train_loss": null,
+  "train_huber_loss": null,
+  "train_ranking_loss": null,
+  "validation_loss": null,
+  "validation_huber_loss": null,
+  "validation_ranking_loss": null,
+  "validation_normalized_regret_mean": null,
+  "validation_spearman_mean": null,
+  "validation_ndcg_at_5_mean": null
+}
+```
+
+`train_loss` is measured in evaluation mode after the epoch; it is not the
+same quantity as `optimization_train_loss`. The analytical mean-map baseline
+stores an empty history. No test metric appears in a training history: the test
+split is evaluated only after restoring the validation-selected checkpoint.
 
 The implemented per-variant `summary.json` shape is:
 

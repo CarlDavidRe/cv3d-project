@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from types import SimpleNamespace
 import tempfile
 import unittest
 from pathlib import Path
+from xml.etree import ElementTree
 
 import numpy as np
 import torch
@@ -14,6 +16,7 @@ from nbv.experiments.phase1 import (
     BaselineVariant,
     ProbeVariant,
     _evaluate_baseline,
+    _train_and_evaluate_variant,
     extract_variant_caches,
     parse_phase1_sweep_settings,
 )
@@ -21,6 +24,10 @@ from nbv.features import CachedFeatureDataset, FrozenFeatures
 from nbv.models import LightweightProbeHead
 from nbv.reproducibility import RunContext
 from nbv.training import evaluate_phase1_probe, fit_phase1_probe
+from nbv.visualization import (
+    write_validation_loss_comparison,
+    write_variant_training_curves,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -220,6 +227,146 @@ class Phase1ExperimentTests(unittest.TestCase):
         self.assertIsInstance(initial_validation_loss, float)
         self.assertLess(result.best_validation_loss, initial_validation_loss)
         self.assertLessEqual(result.epochs_completed, 150)
+        first_epoch = result.history[1]
+        self.assertIsInstance(first_epoch["optimization_train_loss"], float)
+        self.assertIsInstance(first_epoch["train_loss"], float)
+        self.assertIsInstance(first_epoch["train_huber_loss"], float)
+        self.assertIsInstance(first_epoch["train_ranking_loss"], float)
+        self.assertIsInstance(first_epoch["validation_huber_loss"], float)
+        self.assertIsInstance(first_epoch["validation_ranking_loss"], float)
+        self.assertIn("validation_normalized_regret_mean", first_epoch)
+        self.assertIn("validation_spearman_mean", first_epoch)
+        self.assertIn("validation_ndcg_at_5_mean", first_epoch)
+        self.assertNotIn("test_loss", first_epoch)
+
+    def test_training_histories_produce_svg_diagnostics_without_test_curves(
+        self,
+    ) -> None:
+        history = (
+            {
+                "epoch": 0,
+                "optimization_train_loss": None,
+                "train_loss": 2.0,
+                "train_huber_loss": 1.5,
+                "train_ranking_loss": 5.0,
+                "validation_loss": 2.2,
+                "validation_huber_loss": 1.7,
+                "validation_ranking_loss": 5.0,
+                "validation_normalized_regret_mean": 0.4,
+                "validation_spearman_mean": 0.1,
+                "validation_ndcg_at_5_mean": 0.6,
+            },
+            {
+                "epoch": 1,
+                "optimization_train_loss": 1.4,
+                "train_loss": 1.1,
+                "train_huber_loss": 0.8,
+                "train_ranking_loss": 3.0,
+                "validation_loss": 1.3,
+                "validation_huber_loss": 1.0,
+                "validation_ranking_loss": 3.0,
+                "validation_normalized_regret_mean": 0.2,
+                "validation_spearman_mean": 0.5,
+                "validation_ndcg_at_5_mean": 0.8,
+            },
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            output_dir = Path(temporary)
+            loss_path, metric_path = write_variant_training_curves(
+                history,
+                output_dir,
+                variant_name="fixture_variant",
+                best_epoch=1,
+                epochs_completed=1,
+                stopped_early=True,
+                ndcg_k=5,
+            )
+            comparison_path = write_validation_loss_comparison(
+                {"fixture_variant": history},
+                output_dir / "validation_loss_comparison.svg",
+                best_epochs={"fixture_variant": 1},
+            )
+            loss_svg = loss_path.read_text(encoding="utf-8")
+            metric_svg = metric_path.read_text(encoding="utf-8")
+            comparison_svg = comparison_path.read_text(encoding="utf-8")
+            ElementTree.parse(loss_path)
+            ElementTree.parse(metric_path)
+            ElementTree.parse(comparison_path)
+
+        self.assertIn('data-series="train_loss"', loss_svg)
+        self.assertIn('data-series="validation_ranking_loss"', loss_svg)
+        self.assertIn('data-best-epoch="1"', loss_svg)
+        self.assertIn('data-last-epoch="1"', loss_svg)
+        self.assertIn('data-stopped-early="true"', loss_svg)
+        self.assertIn("validation_ndcg_at_5_mean", metric_svg)
+        self.assertIn("fixture_variant", comparison_svg)
+        self.assertNotIn('data-series="test_loss"', loss_svg)
+        self.assertNotIn('data-series="test_loss"', metric_svg)
+
+    def test_learned_variant_saves_history_and_training_figures(self) -> None:
+        config = load_config(
+            REPOSITORY_ROOT / "configs/experiments/phase1_sweep.yaml",
+            ["probe.device=cpu"],
+        )
+        parsed = parse_phase1_sweep_settings(config, REPOSITORY_ROOT)
+        settings = replace(
+            parsed,
+            num_anchors=3,
+            hidden_dim=8,
+            training={
+                **parsed.training,
+                "epochs": 2,
+                "batch_size": 2,
+                "patience": None,
+            },
+            evaluation_batch_size=2,
+        )
+        features = torch.tensor(
+            [[0.0, 1.0], [1.0, 0.0], [1.0, 1.0], [0.5, 0.2]]
+        )
+        targets = torch.tensor(
+            [
+                [1.0, 2.0, 3.0],
+                [2.0, 1.0, 3.0],
+                [3.0, 2.0, 1.0],
+                [1.0, 3.0, 2.0],
+            ]
+        )
+        splits = {
+            "train": _cached(features, targets),
+            "val": _cached(features[:2], targets[:2]),
+            "test": _cached(features[2:], targets[2:]),
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            context = RunContext(
+                run_id="test",
+                run_dir=run_dir,
+                checkpoint_dir=run_dir / "checkpoints",
+                metrics_dir=run_dir / "metrics",
+                figure_dir=run_dir / "figures",
+                log_path=run_dir / "run.log",
+            )
+            row = _train_and_evaluate_variant(
+                ProbeVariant("fixture", "raw_rgb", ("flattened_rgb",)),
+                splits,
+                settings,
+                context,
+                seed=0,
+            )
+            history = (
+                run_dir / "variants/fixture/training_history.json"
+            ).read_text(encoding="utf-8")
+            loss_figure = run_dir / "figures/training/fixture_losses.svg"
+            metric_figure = (
+                run_dir / "figures/training/fixture_validation_metrics.svg"
+            )
+
+            self.assertEqual(row["variant"], "fixture")
+            self.assertIn('"optimization_train_loss"', history)
+            self.assertNotIn('"test_loss"', history)
+            self.assertTrue(loss_figure.is_file())
+            self.assertTrue(metric_figure.is_file())
 
     def test_evaluation_orients_lower_is_better_targets(self) -> None:
         targets = torch.tensor(

@@ -38,6 +38,10 @@ from nbv.training import (
     fit_phase1_probe,
     valid_target_mean,
 )
+from nbv.visualization import (
+    write_validation_loss_comparison,
+    write_variant_training_curves,
+)
 
 
 _SPLITS = ("train", "val", "test")
@@ -110,6 +114,10 @@ def run_phase1_sweep(
         logger=active_logger,
     )
     comparison_rows: list[dict[str, Any]] = []
+    training_histories: dict[
+        str, Sequence[Mapping[str, float | int | None]]
+    ] = {}
+    best_epochs: dict[str, int] = {}
     if settings.baselines:
         reference_variant = settings.variants[0]
         reference_caches = {
@@ -149,6 +157,13 @@ def run_phase1_sweep(
             seed=seed,
         )
         comparison_rows.append(result)
+        history_path = (
+            context.run_dir / "variants" / variant.name / "training_history.json"
+        )
+        training_histories[variant.name] = json.loads(
+            history_path.read_text(encoding="utf-8")
+        )
+        best_epochs[variant.name] = int(result["best_epoch"])
         active_logger.info(
             "%s: regret=%.4f Spearman=%s NDCG@%d=%.4f",
             variant.name,
@@ -167,6 +182,11 @@ def run_phase1_sweep(
             torch.cuda.empty_cache()
 
     _write_comparison(context, comparison_rows, ndcg_k=settings.ndcg_k)
+    write_validation_loss_comparison(
+        training_histories,
+        context.figure_dir / "training" / "validation_loss_comparison.svg",
+        best_epochs=best_epochs,
+    )
     return context.run_dir
 
 
@@ -604,6 +624,8 @@ def _train_and_evaluate_variant(
         validation,
         device=settings.device,
         seed=seed,
+        target_direction=settings.target_direction,
+        ndcg_k=settings.ndcg_k,
         **settings.training,
     )
     evaluation_kwargs = {
@@ -645,6 +667,15 @@ def _train_and_evaluate_variant(
     (variant_dir / "training_history.json").write_text(
         json.dumps(list(fit.history), indent=2, allow_nan=False) + "\n",
         encoding="utf-8",
+    )
+    write_variant_training_curves(
+        fit.history,
+        context.figure_dir / "training",
+        variant_name=variant.name,
+        best_epoch=fit.best_epoch,
+        epochs_completed=fit.epochs_completed,
+        stopped_early=fit.epochs_completed < int(settings.training["epochs"]),
+        ndcg_k=settings.ndcg_k,
     )
     _write_per_sample_csv(
         variant_dir / "test_per_sample.csv", test_result.per_sample
