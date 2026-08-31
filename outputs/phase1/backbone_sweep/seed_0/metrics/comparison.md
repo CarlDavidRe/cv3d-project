@@ -1,0 +1,13 @@
+| variant | backbone | feature | input_dim | trainable_parameters | best_epoch | huber_loss | normalized_regret_mean | spearman_mean | ndcg_at_5_mean |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| train_mean_map | none | train_mean_map | 0 | 0 | 0 | 1.69965 | 0.259207 | 0.409823 | 0.754719 |
+| raw_rgb_16x16_mlp | raw_rgb | flattened_rgb | 768 | 106160 | 40 | 1.44287 | 0.274449 | 0.397708 | 0.74767 |
+| imagenet_vit_pooled_patch | imagenet_vit | pooled_patch | 768 | 106160 | 49 | 1.10267 | 0.24058 | 0.466487 | 0.77753 |
+| imagenet_vit_cls_token | imagenet_vit | cls_token | 768 | 106160 | 22 | 1.21963 | 0.251547 | 0.447361 | 0.770148 |
+| dinov2_pooled_patch | dinov2 | pooled_patch | 768 | 106160 | 23 | 1.16351 | 0.215503 | 0.483263 | 0.798024 |
+| dinov2_cls_token | dinov2 | cls_token | 768 | 106160 | 11 | 1.22251 | 0.223479 | 0.482375 | 0.793068 |
+| vggt_pooled_patch | vggt | pooled_patch | 2048 | 272560 | 48 | 1.14565 | 0.23421 | 0.476765 | 0.784532 |
+| vggt_max_pooled_patch | vggt | max_pooled_patch | 2048 | 272560 | 48 | 1.15267 | 0.220639 | 0.506519 | 0.799887 |
+| vggt_camera_token | vggt | pooled_camera | 2048 | 272560 | 50 | 1.14213 | 0.231425 | 0.481313 | 0.788642 |
+| vggt_pooled_register | vggt | pooled_register | 2048 | 272560 | 50 | 1.1364 | 0.233278 | 0.476709 | 0.785298 |
+| vggt_camera_patch | vggt | pooled_camera+pooled_patch | 4096 | 538800 | 44 | 1.12172 | 0.221107 | 0.490138 | 0.796549 |

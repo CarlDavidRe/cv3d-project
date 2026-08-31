@@ -1,0 +1,137 @@
+{
+  "results": [
+    {
+      "backbone": "none",
+      "best_epoch": 0,
+      "feature": "train_mean_map",
+      "huber_loss": 1.6996491034825643,
+      "input_dim": 0,
+      "ndcg_at_5_mean": 0.7547194964393259,
+      "normalized_regret_mean": 0.2592069776524295,
+      "spearman_mean": 0.40982289793155524,
+      "trainable_parameters": 0,
+      "variant": "train_mean_map"
+    },
+    {
+      "backbone": "raw_rgb",
+      "best_epoch": 40,
+      "feature": "flattened_rgb",
+      "huber_loss": 1.442872993681166,
+      "input_dim": 768,
+      "ndcg_at_5_mean": 0.7476703763677127,
+      "normalized_regret_mean": 0.27444928287446524,
+      "spearman_mean": 0.3977076304855228,
+      "trainable_parameters": 106160,
+      "variant": "raw_rgb_16x16_mlp"
+    },
+    {
+      "backbone": "imagenet_vit",
+      "best_epoch": 49,
+      "feature": "pooled_patch",
+      "huber_loss": 1.1026688851250543,
+      "input_dim": 768,
+      "ndcg_at_5_mean": 0.7775302504676812,
+      "normalized_regret_mean": 0.2405802200982417,
+      "spearman_mean": 0.4664866020159377,
+      "trainable_parameters": 106160,
+      "variant": "imagenet_vit_pooled_patch"
+    },
+    {
+      "backbone": "imagenet_vit",
+      "best_epoch": 22,
+      "feature": "cls_token",
+      "huber_loss": 1.2196281645033094,
+      "input_dim": 768,
+      "ndcg_at_5_mean": 0.7701479595683557,
+      "normalized_regret_mean": 0.25154726159078833,
+      "spearman_mean": 0.44736067091876447,
+      "trainable_parameters": 106160,
+      "variant": "imagenet_vit_cls_token"
+    },
+    {
+      "backbone": "dinov2",
+      "best_epoch": 23,
+      "feature": "pooled_patch",
+      "huber_loss": 1.1635068448384602,
+      "input_dim": 768,
+      "ndcg_at_5_mean": 0.7980236290690944,
+      "normalized_regret_mean": 0.21550291721747686,
+      "spearman_mean": 0.483262844807978,
+      "trainable_parameters": 106160,
+      "variant": "dinov2_pooled_patch"
+    },
+    {
+      "backbone": "dinov2",
+      "best_epoch": 11,
+      "feature": "cls_token",
+      "huber_loss": 1.2225071705712212,
+      "input_dim": 768,
+      "ndcg_at_5_mean": 0.7930678449250874,
+      "normalized_regret_mean": 0.22347874546478425,
+      "spearman_mean": 0.4823748343010878,
+      "trainable_parameters": 106160,
+      "variant": "dinov2_cls_token"
+    },
+    {
+      "backbone": "vggt",
+      "best_epoch": 48,
+      "feature": "pooled_patch",
+      "huber_loss": 1.145645686255561,
+      "input_dim": 2048,
+      "ndcg_at_5_mean": 0.7845319907771454,
+      "normalized_regret_mean": 0.234209808848041,
+      "spearman_mean": 0.47676515023914146,
+      "trainable_parameters": 272560,
+      "variant": "vggt_pooled_patch"
+    },
+    {
+      "backbone": "vggt",
+      "best_epoch": 48,
+      "feature": "max_pooled_patch",
+      "huber_loss": 1.1526664733886718,
+      "input_dim": 2048,
+      "ndcg_at_5_mean": 0.7998873983030902,
+      "normalized_regret_mean": 0.2206386989620598,
+      "spearman_mean": 0.5065193735901474,
+      "trainable_parameters": 272560,
+      "variant": "vggt_max_pooled_patch"
+    },
+    {
+      "backbone": "vggt",
+      "best_epoch": 50,
+      "feature": "pooled_camera",
+      "huber_loss": 1.1421315240859986,
+      "input_dim": 2048,
+      "ndcg_at_5_mean": 0.7886422936322931,
+      "normalized_regret_mean": 0.23142453699688847,
+      "spearman_mean": 0.4813131783379474,
+      "trainable_parameters": 272560,
+      "variant": "vggt_camera_token"
+    },
+    {
+      "backbone": "vggt",
+      "best_epoch": 50,
+      "feature": "pooled_register",
+      "huber_loss": 1.13640147474077,
+      "input_dim": 2048,
+      "ndcg_at_5_mean": 0.7852982513855856,
+      "normalized_regret_mean": 0.2332777510765401,
+      "spearman_mean": 0.4767092759541487,
+      "trainable_parameters": 272560,
+      "variant": "vggt_pooled_register"
+    },
+    {
+      "backbone": "vggt",
+      "best_epoch": 44,
+      "feature": "pooled_camera+pooled_patch",
+      "huber_loss": 1.1217189534505208,
+      "input_dim": 4096,
+      "ndcg_at_5_mean": 0.7965489548228718,
+      "normalized_regret_mean": 0.2211067916710734,
+      "spearman_mean": 0.49013826484308604,
+      "trainable_parameters": 538800,
+      "variant": "vggt_camera_patch"
+    }
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,28 @@
+Downloading: "https://download.pytorch.org/models/vit_b_16-c867db91.pth" to data/cache/models/torch/checkpoints/vit_b_16-c867db91.pth
+{
+  "device": "cuda",
+  "features": {
+    "cls_token": [
+      1,
+      768
+    ],
+    "patch_tokens": [
+      1,
+      196,
+      768
+    ],
+    "pooled_patch": [
+      1,
+      768
+    ]
+  },
+  "metadata": {
+    "backbone": "imagenet_vit_b16",
+    "input_size": [
+      224,
+      224
+    ],
+    "layer": "final"
+  },
+  "sample_id": "02691156/10155655850468db78d106ce0a280f87/0"
+}

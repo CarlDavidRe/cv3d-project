@@ -1,0 +1,34 @@
+{
+  "backbone": "vggt",
+  "best_epoch": 50,
+  "best_validation_loss": 1.305337630280661,
+  "epochs_completed": 50,
+  "feature": "pooled_register",
+  "feature_components": [
+    "pooled_register"
+  ],
+  "input_dim": 2048,
+  "target_direction": "lower",
+  "target_name": "PSNR",
+  "test": {
+    "huber_loss": 1.13640147474077,
+    "loss": 1.196420398288303,
+    "ndcg_at_5_mean": 0.7852982513855856,
+    "normalized_regret_mean": 0.2332777510765401,
+    "num_samples": 14400,
+    "ranking_loss": 0.600189135339525,
+    "spearman_mean": 0.4767092759541487
+  },
+  "train_samples": 41760,
+  "trainable_parameters": 272560,
+  "validation": {
+    "huber_loss": 1.2453175130604968,
+    "loss": 1.3053376856929302,
+    "ndcg_at_5_mean": 0.7872674336193064,
+    "normalized_regret_mean": 0.22853612235307683,
+    "num_samples": 5232,
+    "ranking_loss": 0.6002014255669503,
+    "spearman_mean": 0.48022693725704896
+  },
+  "variant": "vggt_pooled_register"
+}

@@ -1,0 +1,34 @@
+{
+  "backbone": "imagenet_vit",
+  "best_epoch": 49,
+  "best_validation_loss": 1.1477312640677169,
+  "epochs_completed": 50,
+  "feature": "pooled_patch",
+  "feature_components": [
+    "pooled_patch"
+  ],
+  "input_dim": 768,
+  "target_direction": "lower",
+  "target_name": "PSNR",
+  "test": {
+    "huber_loss": 1.1026688851250543,
+    "loss": 1.1630436759524876,
+    "ndcg_at_5_mean": 0.7775302504676812,
+    "normalized_regret_mean": 0.2405802200982417,
+    "num_samples": 14400,
+    "ranking_loss": 0.6037479429774815,
+    "spearman_mean": 0.4664866020159377
+  },
+  "train_samples": 41760,
+  "trainable_parameters": 106160,
+  "validation": {
+    "huber_loss": 1.0890195606680821,
+    "loss": 1.147731278649893,
+    "ndcg_at_5_mean": 0.7976333547328872,
+    "normalized_regret_mean": 0.21879611087090878,
+    "num_samples": 5232,
+    "ranking_loss": 0.5871173121513577,
+    "spearman_mean": 0.5047508806385452
+  },
+  "variant": "imagenet_vit_pooled_patch"
+}

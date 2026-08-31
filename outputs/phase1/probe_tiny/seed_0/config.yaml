@@ -5,6 +5,7 @@ experiment:
   seed: 0
 paths:
   data_root: data/NUM
+  model_cache_root: data/cache/models
   output_root: outputs
 phase1:
   num_anchors: 48
@@ -16,21 +17,27 @@ probe:
   device: auto
   dinov2:
     model_name: dinov2_vitb14
-  extraction_batch_size: 2
-  feature: pooled_patch
+  extraction_batch_size: 4
+  feature_selection:
+    dinov2:
+    - pooled_patch
+    imagenet_vit:
+    - pooled_patch
+    vggt:
+    - pooled_patch
   head:
     dropout: 0.0
     hidden_dim: 128
   imagenet_vit:
-    pretrained: false
+    pretrained: true
   mask_source_view: true
-  max_samples: 4
+  max_samples: 8
   training:
     batch_size: 8
-    epochs: 500
+    epochs: 1000
     huber_delta: 1.0
     learning_rate: 0.01
-    required_relative_loss_reduction: 0.95
+    required_relative_loss_reduction: 0.98
     weight_decay: 0.0
   vggt:
     layer_index: -1

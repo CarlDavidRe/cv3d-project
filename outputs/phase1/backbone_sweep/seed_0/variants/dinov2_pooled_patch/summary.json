@@ -1,0 +1,34 @@
+{
+  "backbone": "dinov2",
+  "best_epoch": 23,
+  "best_validation_loss": 1.241457756870748,
+  "epochs_completed": 31,
+  "feature": "pooled_patch",
+  "feature_components": [
+    "pooled_patch"
+  ],
+  "input_dim": 768,
+  "target_direction": "lower",
+  "target_name": "PSNR",
+  "test": {
+    "huber_loss": 1.1635068448384602,
+    "loss": 1.2231474706861707,
+    "ndcg_at_5_mean": 0.7980236290690944,
+    "normalized_regret_mean": 0.21550291721747686,
+    "num_samples": 14400,
+    "ranking_loss": 0.5964062351650662,
+    "spearman_mean": 0.483262844807978
+  },
+  "train_samples": 41760,
+  "trainable_parameters": 106160,
+  "validation": {
+    "huber_loss": 1.1834673640924855,
+    "loss": 1.2414577977008412,
+    "ndcg_at_5_mean": 0.8044098344376144,
+    "normalized_regret_mean": 0.21113264801396592,
+    "num_samples": 5232,
+    "ranking_loss": 0.5799043647010756,
+    "spearman_mean": 0.5172161067393597
+  },
+  "variant": "dinov2_pooled_patch"
+}

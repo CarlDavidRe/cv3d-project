@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="470" viewBox="0 0 1200 470">
+<style>
+text { font-family: ui-sans-serif, system-ui, sans-serif; fill: #111827; }
+.title { font-size: 22px; font-weight: 700; }
+.panel-title { font-size: 15px; font-weight: 650; }
+.tick { font-size: 11px; fill: #475569; }
+.legend { font-size: 11px; }
+.note { font-size: 11px; fill: #64748b; }
+</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="600.00" y="32" class="title" text-anchor="middle">Training diagnostics — raw_rgb_16x16_mlp</text>
+<text x="236.67" y="68" class="panel-title" text-anchor="middle">Combined objective</text>
+<rect x="65.00" y="90.00" width="343.33" height="315.00" fill="#f8fafc" stroke="#cbd5e1"/>
+<line x1="65.00" y1="90.00" x2="65.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="65.00" y="424.00" class="tick" text-anchor="middle">0</text>
+<line x1="65.00" y1="405.00" x2="408.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="57.00" y="409.00" class="tick" text-anchor="end">0.761</text>
+<line x1="133.67" y1="90.00" x2="133.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="133.67" y="424.00" class="tick" text-anchor="middle">10</text>
+<line x1="65.00" y1="342.00" x2="408.33" y2="342.00" stroke="#e2e8f0"/>
+<text x="57.00" y="346.00" class="tick" text-anchor="end">3.85</text>
+<line x1="202.33" y1="90.00" x2="202.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="202.33" y="424.00" class="tick" text-anchor="middle">20</text>
+<line x1="65.00" y1="279.00" x2="408.33" y2="279.00" stroke="#e2e8f0"/>
+<text x="57.00" y="283.00" class="tick" text-anchor="end">6.94</text>
+<line x1="271.00" y1="90.00" x2="271.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="271.00" y="424.00" class="tick" text-anchor="middle">30</text>
+<line x1="65.00" y1="216.00" x2="408.33" y2="216.00" stroke="#e2e8f0"/>
+<text x="57.00" y="220.00" class="tick" text-anchor="end">10</text>
+<line x1="339.67" y1="90.00" x2="339.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="339.67" y="424.00" class="tick" text-anchor="middle">40</text>
+<line x1="65.00" y1="153.00" x2="408.33" y2="153.00" stroke="#e2e8f0"/>
+<text x="57.00" y="157.00" class="tick" text-anchor="end">13.1</text>
+<line x1="408.33" y1="90.00" x2="408.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="408.33" y="424.00" class="tick" text-anchor="middle">50</text>
+<line x1="65.00" y1="90.00" x2="408.33" y2="90.00" stroke="#e2e8f0"/>
+<text x="57.00" y="94.00" class="tick" text-anchor="end">16.2</text>
+<text x="236.67" y="447.00" class="tick" text-anchor="middle">epoch</text>
+<line x1="391.98" y1="90.0" x2="391.98" y2="405.0" stroke="#64748b" stroke-width="1.5" stroke-dasharray="1 4" data-last-epoch="48" data-stopped-early="true"/>
+<line x1="337.49" y1="90.0" x2="337.49" y2="405.0" stroke="#111827" stroke-width="1.5" stroke-dasharray="3 4" data-best-epoch="40"/>
+<polyline points="71.81,345.07 78.62,377.13 85.44,380.25 92.25,383.11 99.06,385.13 105.87,385.99 112.69,386.60 119.50,386.71 126.31,387.08 133.12,387.29 139.93,387.49 146.75,387.87 153.56,387.87 160.37,387.99 167.18,388.17 173.99,388.25 180.81,388.43 187.62,388.38 194.43,388.62 201.24,388.40 208.06,388.66 214.87,388.86 221.68,388.94 228.49,388.85 235.30,388.97 242.12,389.02 248.93,389.09 255.74,389.12 262.55,389.21 269.37,389.24 276.18,389.37 282.99,389.46 289.80,389.37 296.61,389.56 303.43,389.49 310.24,389.69 317.05,389.72 323.86,389.92 330.67,389.90 337.49,389.99 344.30,390.03 351.11,390.09 357.92,390.14 364.74,390.28 371.55,390.26 378.36,390.32 385.17,390.49 391.98,390.28" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 4" data-series="optimization_train_loss"/>
+<line x1="75.00" y1="107.00" x2="95.00" y2="107.00" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="5 4"/>
+<text x="102.00" y="111.00" class="legend">optimization train</text>
+<polyline points="65.00,105.83 71.81,375.69 78.62,378.73 85.44,382.06 92.25,384.29 99.06,385.62 105.87,386.63 112.69,386.87 119.50,386.88 126.31,387.41 133.12,387.04 139.93,388.00 146.75,388.08 153.56,388.16 160.37,387.77 167.18,386.58 173.99,388.59 180.81,388.37 187.62,388.75 194.43,388.58 201.24,389.07 208.06,389.03 214.87,388.83 221.68,388.48 228.49,388.83 235.30,389.22 242.12,389.50 248.93,389.45 255.74,388.69 262.55,389.36 269.37,388.84 276.18,389.61 282.99,389.67 289.80,389.32 296.61,388.96 303.43,389.69 310.24,389.79 317.05,389.80 323.86,390.17 330.67,390.17 337.49,390.31 344.30,390.36 351.11,390.26 357.92,389.76 364.74,390.39 371.55,390.56 378.36,390.68 385.17,390.60 391.98,390.68" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" data-series="train_loss"/>
+<line x1="75.00" y1="126.00" x2="95.00" y2="126.00" stroke="#2563eb" stroke-width="2.5"/>
+<text x="102.00" y="130.00" class="legend">train (eval mode)</text>
+<polyline points="65.00,104.32 71.81,373.94 78.62,377.23 85.44,380.14 92.25,382.03 99.06,383.40 105.87,384.50 112.69,384.79 119.50,384.85 126.31,385.15 133.12,384.32 139.93,385.53 146.75,385.41 153.56,385.51 160.37,385.06 167.18,383.42 173.99,385.73 180.81,385.46 187.62,386.03 194.43,385.30 201.24,386.05 208.06,386.01 214.87,385.56 221.68,384.98 228.49,385.68 235.30,386.13 242.12,386.09 248.93,385.88 255.74,385.42 262.55,386.04 269.37,385.65 276.18,385.98 282.99,386.28 289.80,385.52 296.61,385.13 303.43,386.36 310.24,386.03 317.05,385.90 323.86,386.11 330.67,386.25 337.49,386.66 344.30,386.46 351.11,386.42 357.92,385.60 364.74,386.18 371.55,386.13 378.36,386.37 385.17,386.26 391.98,386.44" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" data-series="validation_loss"/>
+<line x1="75.00" y1="145.00" x2="95.00" y2="145.00" stroke="#dc2626" stroke-width="2.5"/>
+<text x="102.00" y="149.00" class="legend">validation</text>
+<text x="615.00" y="68" class="panel-title" text-anchor="middle">Huber loss</text>
+<rect x="443.33" y="90.00" width="343.33" height="315.00" fill="#f8fafc" stroke="#cbd5e1"/>
+<line x1="443.33" y1="90.00" x2="443.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="443.33" y="424.00" class="tick" text-anchor="middle">0</text>
+<line x1="443.33" y1="405.00" x2="786.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="435.33" y="409.00" class="tick" text-anchor="end">0.7</text>
+<line x1="512.00" y1="90.00" x2="512.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="512.00" y="424.00" class="tick" text-anchor="middle">10</text>
+<line x1="443.33" y1="342.00" x2="786.67" y2="342.00" stroke="#e2e8f0"/>
+<text x="435.33" y="346.00" class="tick" text-anchor="end">3.79</text>
+<line x1="580.67" y1="90.00" x2="580.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="580.67" y="424.00" class="tick" text-anchor="middle">20</text>
+<line x1="443.33" y1="279.00" x2="786.67" y2="279.00" stroke="#e2e8f0"/>
+<text x="435.33" y="283.00" class="tick" text-anchor="end">6.87</text>
+<line x1="649.33" y1="90.00" x2="649.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="649.33" y="424.00" class="tick" text-anchor="middle">30</text>
+<line x1="443.33" y1="216.00" x2="786.67" y2="216.00" stroke="#e2e8f0"/>
+<text x="435.33" y="220.00" class="tick" text-anchor="end">9.96</text>
+<line x1="718.00" y1="90.00" x2="718.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="718.00" y="424.00" class="tick" text-anchor="middle">40</text>
+<line x1="443.33" y1="153.00" x2="786.67" y2="153.00" stroke="#e2e8f0"/>
+<text x="435.33" y="157.00" class="tick" text-anchor="end">13</text>
+<line x1="786.67" y1="90.00" x2="786.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="786.67" y="424.00" class="tick" text-anchor="middle">50</text>
+<line x1="443.33" y1="90.00" x2="786.67" y2="90.00" stroke="#e2e8f0"/>
+<text x="435.33" y="94.00" class="tick" text-anchor="end">16.1</text>
+<text x="615.00" y="447.00" class="tick" text-anchor="middle">epoch</text>
+<line x1="770.32" y1="90.0" x2="770.32" y2="405.0" stroke="#64748b" stroke-width="1.5" stroke-dasharray="1 4" data-last-epoch="48" data-stopped-early="true"/>
+<line x1="715.82" y1="90.0" x2="715.82" y2="405.0" stroke="#111827" stroke-width="1.5" stroke-dasharray="3 4" data-best-epoch="40"/>
+<polyline points="443.33,105.83 450.15,375.72 456.96,378.76 463.77,382.09 470.58,384.32 477.39,385.65 484.21,386.65 491.02,386.90 497.83,386.90 504.64,387.43 511.46,387.07 518.27,388.02 525.08,388.10 531.89,388.19 538.70,387.78 545.52,386.59 552.33,388.61 559.14,388.38 565.95,388.77 572.76,388.59 579.58,389.09 586.39,389.04 593.20,388.85 600.01,388.49 606.83,388.84 613.64,389.23 620.45,389.50 627.26,389.46 634.07,388.69 640.89,389.36 647.70,388.86 654.51,389.62 661.32,389.67 668.13,389.33 674.95,388.97 681.76,389.70 688.57,389.80 695.38,389.81 702.20,390.17 709.01,390.18 715.82,390.31 722.63,390.36 729.44,390.26 736.26,389.76 743.07,390.39 749.88,390.56 756.69,390.68 763.51,390.60 770.32,390.67" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" data-series="train_huber_loss"/>
+<line x1="453.33" y1="107.00" x2="473.33" y2="107.00" stroke="#2563eb" stroke-width="2.5"/>
+<text x="480.33" y="111.00" class="legend">train (eval mode)</text>
+<polyline points="443.33,104.32 450.15,373.99 456.96,377.27 463.77,380.17 470.58,382.07 477.39,383.43 484.21,384.53 491.02,384.82 497.83,384.88 504.64,385.18 511.46,384.35 518.27,385.56 525.08,385.44 531.89,385.55 538.70,385.09 545.52,383.44 552.33,385.75 559.14,385.49 565.95,386.05 572.76,385.32 579.58,386.08 586.39,386.03 593.20,385.58 600.01,385.00 606.83,385.70 613.64,386.15 620.45,386.11 627.26,385.90 634.07,385.44 640.89,386.06 647.70,385.68 654.51,386.00 661.32,386.29 668.13,385.54 674.95,385.15 681.76,386.38 688.57,386.05 695.38,385.92 702.20,386.13 709.01,386.27 715.82,386.68 722.63,386.48 729.44,386.44 736.26,385.61 743.07,386.20 749.88,386.15 756.69,386.39 763.51,386.28 770.32,386.46" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" data-series="validation_huber_loss"/>
+<line x1="453.33" y1="126.00" x2="473.33" y2="126.00" stroke="#dc2626" stroke-width="2.5"/>
+<text x="480.33" y="130.00" class="legend">validation</text>
+<text x="993.33" y="68" class="panel-title" text-anchor="middle">Pairwise ranking loss</text>
+<rect x="821.67" y="90.00" width="343.33" height="315.00" fill="#f8fafc" stroke="#cbd5e1"/>
+<line x1="821.67" y1="90.00" x2="821.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="821.67" y="424.00" class="tick" text-anchor="middle">0</text>
+<line x1="821.67" y1="405.00" x2="1165.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="813.67" y="409.00" class="tick" text-anchor="end">0.602</text>
+<line x1="890.33" y1="90.00" x2="890.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="890.33" y="424.00" class="tick" text-anchor="middle">10</text>
+<line x1="821.67" y1="342.00" x2="1165.00" y2="342.00" stroke="#e2e8f0"/>
+<text x="813.67" y="346.00" class="tick" text-anchor="end">0.623</text>
+<line x1="959.00" y1="90.00" x2="959.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="959.00" y="424.00" class="tick" text-anchor="middle">20</text>
+<line x1="821.67" y1="279.00" x2="1165.00" y2="279.00" stroke="#e2e8f0"/>
+<text x="813.67" y="283.00" class="tick" text-anchor="end">0.645</text>
+<line x1="1027.67" y1="90.00" x2="1027.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="1027.67" y="424.00" class="tick" text-anchor="middle">30</text>
+<line x1="821.67" y1="216.00" x2="1165.00" y2="216.00" stroke="#e2e8f0"/>
+<text x="813.67" y="220.00" class="tick" text-anchor="end">0.666</text>
+<line x1="1096.33" y1="90.00" x2="1096.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="1096.33" y="424.00" class="tick" text-anchor="middle">40</text>
+<line x1="821.67" y1="153.00" x2="1165.00" y2="153.00" stroke="#e2e8f0"/>
+<text x="813.67" y="157.00" class="tick" text-anchor="end">0.687</text>
+<line x1="1165.00" y1="90.00" x2="1165.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="1165.00" y="424.00" class="tick" text-anchor="middle">50</text>
+<line x1="821.67" y1="90.00" x2="1165.00" y2="90.00" stroke="#e2e8f0"/>
+<text x="813.67" y="94.00" class="tick" text-anchor="end">0.709</text>
+<text x="993.33" y="447.00" class="tick" text-anchor="middle">epoch</text>
+<line x1="1148.65" y1="90.0" x2="1148.65" y2="405.0" stroke="#64748b" stroke-width="1.5" stroke-dasharray="1 4" data-last-epoch="48" data-stopped-early="true"/>
+<line x1="1094.15" y1="90.0" x2="1094.15" y2="405.0" stroke="#111827" stroke-width="1.5" stroke-dasharray="3 4" data-best-epoch="40"/>
+<polyline points="821.67,105.11 828.48,319.72 835.29,332.47 842.10,338.18 848.92,342.93 855.73,351.08 862.54,350.69 869.35,348.66 876.16,350.41 882.98,357.48 889.79,350.93 896.60,355.75 903.41,360.63 910.22,349.23 917.04,361.51 923.85,364.74 930.66,369.96 937.47,369.47 944.29,370.82 951.10,366.15 957.91,365.59 964.72,369.33 971.53,367.22 978.35,374.09 985.16,374.79 991.97,376.87 998.78,376.54 1005.60,377.73 1012.41,380.83 1019.22,379.97 1026.03,368.85 1032.84,382.55 1039.66,385.58 1046.47,375.41 1053.28,380.75 1060.09,384.45 1066.90,382.70 1073.72,383.22 1080.53,385.40 1087.34,384.13 1094.15,385.34 1100.97,390.24 1107.78,386.48 1114.59,386.13 1121.40,379.60 1128.21,390.68 1135.03,388.45 1141.84,385.56 1148.65,389.34" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" data-series="train_ranking_loss"/>
+<line x1="831.67" y1="107.00" x2="851.67" y2="107.00" stroke="#2563eb" stroke-width="2.5"/>
+<text x="858.67" y="111.00" class="legend">train (eval mode)</text>
+<polyline points="821.67,104.32 828.48,306.86 835.29,320.05 842.10,326.47 848.92,331.44 855.73,341.47 862.54,340.39 869.35,337.41 876.16,340.05 882.98,346.07 889.79,340.53 896.60,342.09 903.41,347.39 910.22,333.88 917.04,345.37 923.85,349.48 930.66,354.43 937.47,351.91 944.29,354.05 951.10,345.98 957.91,347.48 964.72,351.20 971.53,347.41 978.35,356.17 985.16,354.62 991.97,357.84 998.78,355.66 1005.60,356.19 1012.41,358.41 1019.22,354.81 1026.03,342.01 1032.84,355.19 1039.66,359.41 1046.47,347.86 1053.28,355.19 1060.09,359.55 1066.90,354.33 1073.72,353.03 1080.53,356.70 1087.34,357.12 1094.15,356.25 1100.97,361.24 1107.78,356.49 1114.59,357.16 1121.40,348.35 1128.21,358.93 1135.03,359.26 1141.84,353.81 1148.65,358.83" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" data-series="validation_ranking_loss"/>
+<line x1="831.67" y1="126.00" x2="851.67" y2="126.00" stroke="#dc2626" stroke-width="2.5"/>
+<text x="858.67" y="130.00" class="legend">validation</text>
+<text x="600.00" y="452" class="note" text-anchor="middle">Black dashed: validation-selected best epoch. Gray dotted: early-stop epoch. Test data are evaluated only on the restored best checkpoint.</text>
+</svg>

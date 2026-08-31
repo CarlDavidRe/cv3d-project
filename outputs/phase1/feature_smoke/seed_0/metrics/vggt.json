@@ -1,0 +1,36 @@
+{
+  "device": "cuda",
+  "features": {
+    "camera_tokens": [
+      1,
+      1,
+      2048
+    ],
+    "patch_tokens": [
+      1,
+      1369,
+      2048
+    ],
+    "pooled_patch": [
+      1,
+      2048
+    ],
+    "register_tokens": [
+      1,
+      4,
+      2048
+    ]
+  },
+  "metadata": {
+    "backbone": "vggt",
+    "history_mode": "single_image",
+    "input_size": [
+      518,
+      518
+    ],
+    "layer": 23,
+    "model_id": "facebook/VGGT-1B",
+    "patch_start_idx": 5
+  },
+  "sample_id": "02691156/10155655850468db78d106ce0a280f87/0"
+}
