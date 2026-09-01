@@ -523,14 +523,20 @@ than training against thousands of small files directly on Drive.
 ### 5. Run tests and model smoke tests
 
 Keep generated files in a semantic Phase 1 run directory until the workflow is
-complete. Workflow step numbers are not used as directory names. First restore
-the common cache so pretrained models and external sources can be reused. If
-the Drive cache does not exist yet, skip the `rsync` command:
+complete. Workflow step numbers are not used as directory names. Restore only
+the frozen-feature cache from Drive; model downloads and external-source caches
+remain local to the runtime. If the Drive feature cache does not exist yet, the
+conditional prints a message and continues:
 
 ```bash
 cd /content/cv3d-project
-mkdir -p data/cache
-rsync -av /content/drive/MyDrive/cv3d-project/data/cache/ data/cache/
+mkdir -p data/cache/features
+if [ -d /content/drive/MyDrive/cv3d-project/data/cache/features ]; then
+  rsync -av /content/drive/MyDrive/cv3d-project/data/cache/features/ \
+    data/cache/features/
+else
+  echo "No saved feature cache found; features will be extracted again."
+fi
 
 mkdir -p outputs/phase1/feature_smoke/seed_0/metrics
 set -o pipefail
