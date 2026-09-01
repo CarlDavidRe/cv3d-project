@@ -1,0 +1,37 @@
+schema_version: 1
+
+experiment:
+  phase: phase2
+  name: visibility_cache
+  seed: 0
+  deterministic: true
+
+paths:
+  data_root: data/NUM
+  mesh_root: data/ShapeNetCore.v2
+  visibility_cache_root: data/cache/visibility
+  output_root: outputs
+  model_cache_root: data/cache/models
+
+phase2:
+  visibility:
+    split: test
+    split_manifest: data/splits/num_v1.json
+    limit: null
+    mesh_relative_path: models/model_normalized.obj
+
+    # Official PUN NUM generation uses model_normalized.obj at scale 2.0.
+    n_surface: 100000
+    sampling_seed: 0
+    mesh_scale: 2.0
+
+    # Camera geometry from the pinned PUN generator and Splatter NMR config.
+    camera_radius: 2.73
+    horizontal_fov_degrees: 30.0
+    render_resolution: [256, 256]
+    near: 1.2
+    far: 4.0
+
+    depth_tolerance: 0.01
+    depth_neighborhood_radius: 1
+    cull_backfaces: false

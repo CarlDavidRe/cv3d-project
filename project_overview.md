@@ -335,7 +335,7 @@ Create a notebook or lightweight script that shows:
 
 ### Current Phase 1 repository status
 
-Repository audit as of 2026-08-31:
+Repository audit as of 2026-09-01:
 
 | Area | Status | Current evidence / remaining work |
 |---|---|---|
@@ -352,9 +352,9 @@ Repository audit as of 2026-08-31:
 | Runtime/memory profiling | Not implemented | Trainable parameter counts are reported, but inference timing and peak-memory measurement still need a documented common protocol. |
 | PUN comparison | Implemented and smoke-tested; full row pending | `inspect_pun.py` performs a one-image real-checkpoint smoke alongside the feature-model checks. The runner checksum-verifies and loads the official released PSNR UPNet checkpoint, applies official timm preprocessing, evaluates it last with both official unmasked MSE and common masked metrics, and emits the normal artifact schema. The complete 14,400-sample test row has not yet been generated. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
-| Phase 2/3 code | Not started | No visibility cache, policies, closed-loop simulator, history dataset, or joint VGGT implementation is present. |
+| Phase 2 visibility infrastructure | Implemented and synthetic-tested; real-object run pending meshes | Deterministic OBJ surface sampling, canonical 48-anchor CPU depth visibility, atomic metadata-validated caches, split/subset precompute CLI, and debug SVG output are implemented. The local NUM release does not include its separately distributed ShapeNetCore.v2 meshes, so the required real-object precompute remains pending. No policy, closed-loop simulator, history dataset, or joint VGGT implementation is present. |
 
-The automated suite currently contains 95 passing tests. This number records
+The automated suite currently contains 104 passing tests. This number records
 the audit state rather than replacing the requirement for real-data,
 real-checkpoint, and full-sweep validation.
 
@@ -880,11 +880,11 @@ The implemented Phase 1 separation is:
 
 **data → cached inputs/features → predictor or fixed baseline → evaluator → results → visualization**
 
-At present, the repository stops at the single-image predictor, evaluator, and
-saved-checkpoint qualitative visualization. There is no `policies/`,
-visibility/coverage implementation, history dataset, closed-loop evaluator, or
-joint multi-view model yet; those are Phase 2/3 additions and should be
-introduced only when their development steps begin.
+The repository now also includes the first Phase 2 infrastructure step:
+deterministic mesh-surface sampling and per-anchor visibility caches. There is
+still no `policies/`, coverage/oracle utility abstraction, history dataset,
+closed-loop evaluator, or joint multi-view model; those later Phase 2/3
+additions should be introduced only in their corresponding development steps.
 
 ## Planned full-project tree
 

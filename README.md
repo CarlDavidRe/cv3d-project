@@ -1,10 +1,10 @@
 # Frozen-feature next-best-view study
 
 This repository implements the phased project described in
-[`project_overview.md`](project_overview.md). Development is currently limited
-to Phase 1 (the single-image feature probe). For local work, follow Steps 1–7
-in order. The final section restates the full remote-GPU path as one sequential
-Colab workflow.
+[`project_overview.md`](project_overview.md). Phase 1 is stable. The first
+Phase 2 infrastructure component—deterministic ground-truth surface sampling
+and canonical-anchor visibility caching—is also available. The learned
+policies and closed-loop evaluator remain future work.
 
 ## Steps 1–4: setup and dataset verification
 
@@ -105,6 +105,139 @@ MSE and LPIPS increase directly with uncertainty. Use
 The loader preserves official Phase 1 targets exactly; it does not reinterpret
 PSNR/SSIM/MSE/LPIPS arrays as Phase 2 surface-gain utilities. The common metric
 library is available in `nbv.eval`.
+
+## Phase 2: surface visibility cache
+
+The NUM download contains RGB images and uncertainty targets, but not its
+ShapeNet meshes. Place the matching ShapeNetCore.v2 release at
+`data/ShapeNetCore.v2`, retaining this layout:
+
+```text
+ShapeNetCore.v2/<category_id>/<object_id>/models/model_normalized.obj
+```
+
+### Download the correct ShapeNet release
+
+Use the official gated
+[`ShapeNet/ShapeNetCore`](https://huggingface.co/datasets/ShapeNet/ShapeNetCore)
+dataset on Hugging Face. Its dataset card identifies it as **ShapeNetCore v2**
+and provides the original per-category ZIP archives containing
+`model_normalized.obj`. Do not substitute ShapeNetCore v1 or the separate
+GLB/GLTF conversions: the PUN object IDs and this repository's mesh loader
+expect the v2 OBJ layout above.
+
+ShapeNet access is licensed for approved research/educational use. Before
+downloading:
+
+1. Sign in to Hugging Face and open the official dataset page linked above.
+2. Review the terms, provide your real full name, PI/advisor, and affiliation,
+   and request access. Approval is controlled by ShapeNet, not this project.
+3. Install the current Hugging Face CLI and authenticate locally. Use a
+   read-only user token if the browser login flow asks for one:
+
+```bash
+python3 -m pip install --upgrade huggingface_hub
+hf auth login
+hf auth whoami
+```
+
+The frozen NUM split uses only the following 13 ShapeNet synsets. Downloading
+these archives is sufficient for every object referenced by
+`data/splits/num_v1.json` and avoids downloading unrelated ShapeNet classes:
+
+```bash
+mkdir -p data/downloads/shapenetcore
+
+hf download ShapeNet/ShapeNetCore \
+  02691156.zip \
+  02828884.zip \
+  02933112.zip \
+  02958343.zip \
+  03001627.zip \
+  03211117.zip \
+  03636649.zip \
+  03691459.zip \
+  04090263.zip \
+  04256520.zip \
+  04379243.zip \
+  04401088.zip \
+  04530566.zip \
+  --repo-type dataset \
+  --local-dir data/downloads/shapenetcore
+```
+
+To download all ShapeNetCore v2 categories instead, use the following command.
+The official repository is approximately 24 GB before extraction, so confirm
+that substantially more free disk space is available first.
+
+```bash
+hf download ShapeNet/ShapeNetCore \
+  --repo-type dataset \
+  --include '*.zip' \
+  --local-dir data/downloads/shapenetcore
+```
+
+Extract the downloaded category archives directly into the configured mesh
+root:
+
+```bash
+mkdir -p data/ShapeNetCore.v2
+
+for archive in data/downloads/shapenetcore/*.zip; do
+  unzip -q -n "$archive" -d data/ShapeNetCore.v2
+done
+```
+
+After extraction, verify a NUM object and the expected OBJ layout:
+
+```bash
+test -f \
+  data/ShapeNetCore.v2/02691156/10155655850468db78d106ce0a280f87/models/model_normalized.obj \
+  && echo "ShapeNetCore.v2 layout verified"
+```
+
+If that command fails, inspect the ZIP structure with
+`unzip -l data/downloads/shapenetcore/02691156.zip | head`; the directory passed
+as `paths.mesh_root` must be the directory immediately containing synset
+folders such as `02691156/`, not a parent download/cache directory.
+
+The defaults in `configs/experiments/phase2_visibility.yaml` reproduce the
+official PUN generation geometry: normalized OBJ scale 2.0, camera radius
+2.73, 30-degree pinhole field of view, near/far 1.2/4.0, and the existing
+canonical 48-anchor order. The depth cache renders at 256×256 by default for
+more stable depth consistency than the released 64×64 RGB images; this is a
+configurable cache parameter and is recorded in metadata.
+
+Generate one object and a debug SVG:
+
+```bash
+python3 scripts/precompute_visibility.py \
+  --object 02691156/10155655850468db78d106ce0a280f87 \
+  --debug-anchor 0
+```
+
+Generate a deterministic subset or complete configured split:
+
+```bash
+python3 scripts/precompute_visibility.py --split test --limit 10
+python3 scripts/precompute_visibility.py --split test
+```
+
+Compatible `.npz` caches are skipped. A metadata or mesh-checksum mismatch is
+reported as an error; pass `--overwrite` only when intentionally rebuilding.
+All relevant parameters support the normal repeatable `--set KEY=VALUE`
+overrides. Cache files are loaded without knowledge of the rendering backend:
+
+```python
+from nbv.data import load_visibility_cache
+
+cache = load_visibility_cache(
+    "02691156/10155655850468db78d106ce0a280f87",
+    cache_root="data/cache/visibility",
+)
+seen = cache.visibility[[0, 12]].any(axis=0)
+coverage = seen.mean()
+```
 
 ## Step 5: model smoke tests
 
@@ -658,9 +791,9 @@ mkdir -p /content/drive/MyDrive/cv3d-project/outputs
 rsync -av /content/cv3d-project/outputs/ \
   /content/drive/MyDrive/cv3d-project/outputs/
 
-mkdir -p /content/drive/MyDrive/cv3d-project/data/cache
-rsync -av /content/cv3d-project/data/cache/ \
-  /content/drive/MyDrive/cv3d-project/data/cache/
+mkdir -p /content/drive/MyDrive/cv3d-project/data/cache/features
+rsync -av /content/cv3d-project/data/cache/features \
+  /content/drive/MyDrive/cv3d-project/data/cache/features
 
 find /content/drive/MyDrive/cv3d-project/outputs -type f | sort
 ```

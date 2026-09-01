@@ -159,6 +159,7 @@ venv.bak/
 
 # Large local datasets
 data/NUM/
+data/ShapeNetCore.v2/
 data/cache/
 
 # Spyder project settings

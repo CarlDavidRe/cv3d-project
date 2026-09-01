@@ -28,6 +28,14 @@ class ConfigTests(unittest.TestCase):
             config["phase1"]["num_dataset"]["target_name"], "PSNR"
         )
 
+    def test_phase2_visibility_config_loads(self) -> None:
+        config = load_config(self.config_path.with_name("phase2_visibility.yaml"))
+        self.assertEqual(config["experiment"]["phase"], "phase2")
+        self.assertEqual(config["phase2"]["visibility"]["n_surface"], 100000)
+        self.assertEqual(
+            config["phase2"]["visibility"]["render_resolution"], [256, 256]
+        )
+
     def test_tiny_probe_config_loads_and_supports_training_overrides(self) -> None:
         path = self.config_path.with_name("phase1_probe_tiny.yaml")
         config = load_config(
