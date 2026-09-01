@@ -319,6 +319,12 @@ best head checkpoint, training history, summary, and per-sample test metrics.
 The common table is emitted as `metrics/comparison.csv`,
 `metrics/comparison.json`, and `metrics/comparison.md`.
 
+The runner is resumable at the entry level. If a variant or baseline directory
+already contains `best.pt`, `training_history.json`, `summary.json`, and
+`test_per_sample.csv` matching the configured entry and target, its saved
+metrics are reused and that entry is not trained or evaluated again. Incomplete
+or incompatible artifact sets are recomputed.
+
 The checked-in seed-0 artifacts predate PUN integration: they contain 41,760
 training, 5,232 validation, and 14,400 test samples; one analytical baseline
 plus ten locally trained variants; eleven artifact sets; and twenty-one
@@ -592,12 +598,19 @@ checked.
 ### 7. Run the Phase 1 comparison
 
 After the tiny overfit check succeeds, run the complete configured backbone
-comparison. On a fresh Colab VM, mount Google Drive and restore the previously
-saved frozen-feature files into the repository cache first:
+comparison. On a fresh Colab VM, mount Google Drive and manually restore both
+previous experiment outputs and the saved frozen-feature files before starting
+the runner:
 
 ```bash
 cd /content/cv3d-project
-mkdir -p data/cache/features
+mkdir -p outputs data/cache/features
+
+if [ -d /content/drive/MyDrive/cv3d-project/outputs ]; then
+  rsync -av /content/drive/MyDrive/cv3d-project/outputs/ outputs/
+else
+  echo "No saved experiment outputs found; all variants will run."
+fi
 
 if [ -d /content/drive/MyDrive/cv3d-project/data/cache/features ]; then
   rsync -av /content/drive/MyDrive/cv3d-project/data/cache/features/ \
@@ -607,9 +620,10 @@ else
 fi
 ```
 
-The trailing slashes copy the contents of the Drive feature directory into the
-local `data/cache/features/` directory without creating an extra nested
-`features` directory. Then run the compute-intensive Step 7 command:
+The trailing slashes copy directory contents without creating an extra nested
+`outputs` or `features` directory. The runner reuses each complete restored
+variant and trains only variants whose required result artifacts are missing or
+incompatible. Then run the compute-intensive Step 7 command:
 
 ```bash
 cd /content/cv3d-project

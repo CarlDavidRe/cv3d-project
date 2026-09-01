@@ -122,11 +122,6 @@ def run_phase1_sweep(
     context = initialize_run(config, root)
     active_logger = logger or logging.getLogger(__name__)
 
-    caches = _prepare_all_caches(
-        settings,
-        config,
-        logger=active_logger,
-    )
     comparison_rows: list[dict[str, Any]] = []
     training_histories: dict[
         str, Sequence[Mapping[str, float | int | None]]
@@ -142,7 +137,39 @@ def run_phase1_sweep(
         for baseline in settings.baselines
         if baseline.baseline_type == "pun"
     )
-    if fixed_baselines:
+    completed: dict[str, tuple[dict[str, Any], list[Mapping[str, Any]]]] = {}
+    for entry in (*fixed_baselines, *settings.variants, *pun_baselines):
+        result = _load_completed_entry(entry, context, settings)
+        if result is not None:
+            completed[entry.name] = result
+            active_logger.info(
+                "Reusing completed Phase 1 entry %s", entry.name
+            )
+
+    pending_variants = tuple(
+        variant
+        for variant in settings.variants
+        if variant.name not in completed
+    )
+    pending_fixed_baselines = tuple(
+        baseline
+        for baseline in fixed_baselines
+        if baseline.name not in completed
+    )
+    cache_variants = list(pending_variants)
+    if pending_fixed_baselines and settings.variants[0] not in cache_variants:
+        cache_variants.append(settings.variants[0])
+    caches = _prepare_all_caches(
+        settings,
+        config,
+        variants=cache_variants,
+        logger=active_logger,
+    )
+
+    for baseline in fixed_baselines:
+        if baseline.name in completed:
+            comparison_rows.append(completed[baseline.name][0])
+    if pending_fixed_baselines:
         reference_variant = settings.variants[0]
         reference_caches = {
             split: load_feature_cache(
@@ -151,7 +178,7 @@ def run_phase1_sweep(
             )
             for split in _SPLITS
         }
-        for baseline in fixed_baselines:
+        for baseline in pending_fixed_baselines:
             active_logger.info("Evaluating Phase 1 baseline %s", baseline.name)
             comparison_rows.append(
                 _evaluate_baseline(
@@ -164,6 +191,12 @@ def run_phase1_sweep(
         del reference_caches
 
     for variant in settings.variants:
+        if variant.name in completed:
+            result, history = completed[variant.name]
+            comparison_rows.append(result)
+            training_histories[variant.name] = history
+            best_epochs[variant.name] = int(result["best_epoch"])
+            continue
         seed_everything(seed, bool(experiment["deterministic"]))
         active_logger.info("Training Phase 1 variant %s", variant.name)
         split_caches = {
@@ -208,6 +241,9 @@ def run_phase1_sweep(
     # PUN is deliberately last and evaluated from the official released
     # checkpoint; it neither consumes a feature cache nor trains locally.
     for baseline in pun_baselines:
+        if baseline.name in completed:
+            comparison_rows.append(completed[baseline.name][0])
+            continue
         active_logger.info(
             "Evaluating official pretrained PUN baseline %s", baseline.name
         )
@@ -539,11 +575,17 @@ def _prepare_all_caches(
     settings: Phase1SweepSettings,
     config: Mapping[str, Any],
     *,
+    variants: Sequence[ProbeVariant] | None = None,
     logger: logging.Logger,
 ) -> dict[tuple[str, str], tuple[Path, Mapping[str, Any]]]:
     cache_requests: dict[
         tuple[str, str], tuple[Path, Mapping[str, Any]]
     ] = {}
+    requested_variants = tuple(
+        settings.variants if variants is None else variants
+    )
+    if not requested_variants:
+        return cache_requests
     datasets = {
         split: NUMDataset(
             settings.data_root,
@@ -554,7 +596,7 @@ def _prepare_all_caches(
         for split in _SPLITS
     }
     by_backbone: dict[str, list[ProbeVariant]] = {}
-    for variant in settings.variants:
+    for variant in requested_variants:
         by_backbone.setdefault(variant.backbone, []).append(variant)
 
     for backbone, variants in by_backbone.items():
@@ -625,6 +667,79 @@ def _prepare_all_caches(
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
     return cache_requests
+
+
+def _load_completed_entry(
+    entry: ProbeVariant | BaselineVariant,
+    context: RunContext,
+    settings: Phase1SweepSettings,
+) -> tuple[dict[str, Any], list[Mapping[str, Any]]] | None:
+    """Load a complete entry's saved comparison row, or request a rerun."""
+
+    variant_dir = context.run_dir / "variants" / entry.name
+    required = (
+        variant_dir / "best.pt",
+        variant_dir / "training_history.json",
+        variant_dir / "summary.json",
+        variant_dir / "test_per_sample.csv",
+    )
+    if not all(path.is_file() for path in required):
+        return None
+    try:
+        summary = json.loads(required[2].read_text(encoding="utf-8"))
+        history = json.loads(required[1].read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(summary, dict) or not isinstance(history, list):
+        return None
+    if not all(isinstance(item, Mapping) for item in history):
+        return None
+    if (
+        summary.get("variant") != entry.name
+        or summary.get("target_name") != settings.target_name
+        or summary.get("target_direction") != settings.target_direction
+        or not isinstance(summary.get("test"), Mapping)
+    ):
+        return None
+    if isinstance(entry, ProbeVariant):
+        if (
+            summary.get("backbone") != entry.backbone
+            or summary.get("feature_components") != list(entry.components)
+            or not isinstance(summary.get("best_epoch"), int)
+        ):
+            return None
+    elif entry.baseline_type == "train_mean_map":
+        if summary.get("feature") != entry.baseline_type:
+            return None
+    elif entry.baseline_type == "pun":
+        if summary.get("backbone") != "pun_upnet":
+            return None
+    else:
+        return None
+
+    test = summary["test"]
+    metric_keys = (
+        "huber_loss",
+        "normalized_regret_mean",
+        "spearman_mean",
+        f"ndcg_at_{settings.ndcg_k}_mean",
+    )
+    if any(key not in test for key in metric_keys):
+        return None
+    row = {
+        "variant": entry.name,
+        "backbone": summary.get("backbone"),
+        "feature": summary.get("feature"),
+        "input_dim": summary.get("input_dim"),
+        "trainable_parameters": summary.get("trainable_parameters"),
+        "best_epoch": summary.get("best_epoch"),
+        **{key: test[key] for key in metric_keys},
+    }
+    if "official_unmasked_mse_loss" in test:
+        row["official_unmasked_mse_loss"] = test[
+            "official_unmasked_mse_loss"
+        ]
+    return row, history
 
 
 def _evaluate_baseline(

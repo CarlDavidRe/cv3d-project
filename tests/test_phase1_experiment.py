@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import json
 from types import SimpleNamespace
 import tempfile
 import unittest
@@ -16,6 +17,7 @@ from nbv.experiments.phase1 import (
     BaselineVariant,
     ProbeVariant,
     _evaluate_baseline,
+    _load_completed_entry,
     _train_and_evaluate_variant,
     extract_variant_caches,
     parse_phase1_sweep_settings,
@@ -81,6 +83,68 @@ def _cached(features: torch.Tensor, targets: torch.Tensor) -> CachedFeatureDatas
 
 
 class Phase1ExperimentTests(unittest.TestCase):
+    def test_complete_saved_variant_is_loaded_for_resume(self) -> None:
+        config = load_config(
+            REPOSITORY_ROOT / "configs/experiments/phase1_sweep.yaml",
+            ["probe.device=cpu"],
+        )
+        settings = parse_phase1_sweep_settings(config, REPOSITORY_ROOT)
+        variant = settings.variants[0]
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            context = RunContext(
+                run_id="test",
+                run_dir=run_dir,
+                checkpoint_dir=run_dir / "checkpoints",
+                metrics_dir=run_dir / "metrics",
+                figure_dir=run_dir / "figures",
+                log_path=run_dir / "run.log",
+            )
+            variant_dir = run_dir / "variants" / variant.name
+            variant_dir.mkdir(parents=True)
+            (variant_dir / "best.pt").write_bytes(b"saved checkpoint")
+            (variant_dir / "test_per_sample.csv").write_text(
+                "sample_id\nfixture\n", encoding="utf-8"
+            )
+            (variant_dir / "training_history.json").write_text(
+                '[{"epoch": 0}]\n', encoding="utf-8"
+            )
+            (variant_dir / "summary.json").write_text(
+                json.dumps(
+                    {
+                        "variant": variant.name,
+                        "backbone": variant.backbone,
+                        "feature": "+".join(variant.components),
+                        "feature_components": list(variant.components),
+                        "input_dim": 12,
+                        "trainable_parameters": 34,
+                        "best_epoch": 2,
+                        "target_name": settings.target_name,
+                        "target_direction": settings.target_direction,
+                        "test": {
+                            "huber_loss": 1.0,
+                            "normalized_regret_mean": 0.2,
+                            "spearman_mean": 0.3,
+                            f"ndcg_at_{settings.ndcg_k}_mean": 0.4,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            loaded = _load_completed_entry(variant, context, settings)
+            self.assertIsNotNone(loaded)
+            assert loaded is not None
+            row, history = loaded
+            self.assertEqual(row["variant"], variant.name)
+            self.assertEqual(row["best_epoch"], 2)
+            self.assertEqual(history, [{"epoch": 0}])
+
+            (variant_dir / "test_per_sample.csv").unlink()
+            self.assertIsNone(
+                _load_completed_entry(variant, context, settings)
+            )
+
     def test_sweep_config_resolves_variants_and_psnr_direction(self) -> None:
         config = load_config(
             REPOSITORY_ROOT / "configs/experiments/phase1_sweep.yaml"
