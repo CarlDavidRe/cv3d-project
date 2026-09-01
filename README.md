@@ -109,22 +109,23 @@ library is available in `nbv.eval`.
 ## Phase 2: surface visibility cache
 
 The NUM download contains RGB images and uncertainty targets, but not its
-ShapeNet meshes. Place the matching ShapeNetCore.v2 release at
+ShapeNet meshes. Place the matching prepared ShapeNetCore.v2 subset at
 `data/ShapeNetCore.v2`, retaining this layout:
 
 ```text
-ShapeNetCore.v2/<category_id>/<object_id>/models/model_normalized.obj
+ShapeNetCore.v2/<category_id>/<object_id>/models/model_normalized.ply
 ```
 
 ### Download the correct ShapeNet release
 
 Use the official gated
 [`ShapeNet/ShapeNetCore`](https://huggingface.co/datasets/ShapeNet/ShapeNetCore)
-dataset on Hugging Face. Its dataset card identifies it as **ShapeNetCore v2**
-and provides the original per-category ZIP archives containing
-`model_normalized.obj`. Do not substitute ShapeNetCore v1 or the separate
-GLB/GLTF conversions: the PUN object IDs and this repository's mesh loader
-expect the v2 OBJ layout above.
+dataset on Hugging Face. Its dataset card identifies it as **ShapeNetCore v2**.
+The prepared subset used by this repository contains ASCII
+`model_normalized.ply` meshes. The loader also supports original
+`model_normalized.obj` geometry, but the default Phase 2 configuration targets
+the checked dataset's PLY layout. Do not substitute ShapeNetCore v1 or GLB/GLTF
+conversions: the PUN object IDs must match ShapeNetCore v2.
 
 ShapeNet access is licensed for approved research/educational use. Before
 downloading:
@@ -188,21 +189,30 @@ for archive in data/downloads/shapenetcore/*.zip; do
 done
 ```
 
-After extraction, verify a NUM object and the expected OBJ layout:
+After extraction, verify a NUM object and the default PLY layout:
 
 ```bash
 test -f \
-  data/ShapeNetCore.v2/02691156/10155655850468db78d106ce0a280f87/models/model_normalized.obj \
+  data/ShapeNetCore.v2/02691156/10155655850468db78d106ce0a280f87/models/model_normalized.ply \
   && echo "ShapeNetCore.v2 layout verified"
 ```
 
 If that command fails, inspect the ZIP structure with
 `unzip -l data/downloads/shapenetcore/02691156.zip | head`; the directory passed
 as `paths.mesh_root` must be the directory immediately containing synset
-folders such as `02691156/`, not a parent download/cache directory.
+folders such as `02691156/`, not a parent download/cache directory. If your
+release contains OBJ rather than PLY, retain its filenames and override the
+configured relative path when precomputing:
+
+```bash
+python3 scripts/precompute_visibility.py \
+  --set phase2.visibility.mesh_relative_path=models/model_normalized.obj \
+  --object 02691156/10155655850468db78d106ce0a280f87 \
+  --debug-anchor 0
+```
 
 The defaults in `configs/experiments/phase2_visibility.yaml` reproduce the
-official PUN generation geometry: normalized OBJ scale 2.0, camera radius
+official PUN generation geometry: normalized mesh scale 2.0, camera radius
 2.73, 30-degree pinhole field of view, near/far 1.2/4.0, and the existing
 canonical 48-anchor order. The depth cache renders at 256×256 by default for
 more stable depth consistency than the released 64×64 RGB images; this is a
@@ -661,7 +671,7 @@ tar -xzf \
   -C /content/cv3d-project/data
 ls /content/cv3d-project/data/NUM
 find /content/cv3d-project/data/ShapeNetCore.v2 \
-  -path '*/models/model_normalized.*' | head
+  -type f -path '*/models/model_normalized.ply' | head
 ```
 
 Reading the archive once and extracting it into `/content` is normally faster

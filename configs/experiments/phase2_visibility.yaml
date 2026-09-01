@@ -18,9 +18,9 @@ phase2:
     split: test
     split_manifest: data/splits/num_v1.json
     limit: null
-    mesh_relative_path: models/model_normalized.obj
+    mesh_relative_path: models/model_normalized.ply
 
-    # Official PUN NUM generation uses model_normalized.obj at scale 2.0.
+    # The prepared ShapeNet subset uses model_normalized.ply at scale 2.0.
     n_surface: 100000
     sampling_seed: 0
     mesh_scale: 2.0

@@ -18,9 +18,12 @@ from nbv.geometry import (
     TriangleMesh,
     canonical_anchors,
     compute_anchor_visibility,
+    load_mesh,
     load_obj_mesh,
+    load_ply_mesh,
     point_visibility_from_depth,
     render_depth_map,
+    sample_mesh_file,
     sample_mesh_surface,
 )
 
@@ -70,6 +73,40 @@ class MeshSamplingTests(unittest.TestCase):
         self.assertEqual(mesh.vertices.shape, (4, 3))
         self.assertEqual(mesh.faces.shape, (2, 3))
         np.testing.assert_array_equal(mesh.faces, [[0, 1, 2], [0, 2, 3]])
+
+    def test_ascii_ply_loader_uses_named_coordinates_and_triangulates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "model_normalized.ply"
+            path.write_text(
+                "ply\n"
+                "format ascii 1.0\n"
+                "comment synthetic fixture\n"
+                "element vertex 4\n"
+                "property uchar red\n"
+                "property float z\n"
+                "property float x\n"
+                "property float y\n"
+                "element face 1\n"
+                "property list uchar int vertex_indices\n"
+                "end_header\n"
+                "255 0 0 0\n"
+                "255 0 1 0\n"
+                "255 0 1 1\n"
+                "255 0 0 1\n"
+                "4 0 1 2 3\n",
+                encoding="ascii",
+            )
+            mesh = load_ply_mesh(path)
+            generic = load_mesh(path)
+            _, sample = sample_mesh_file(path, n_surface=8, seed=3)
+
+        np.testing.assert_array_equal(
+            mesh.vertices,
+            [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
+        )
+        np.testing.assert_array_equal(mesh.faces, [[0, 1, 2], [0, 2, 3]])
+        np.testing.assert_array_equal(generic.vertices, mesh.vertices)
+        self.assertEqual(sample.metadata["mesh_format"], "ply")
 
     def test_surface_sampling_is_deterministic_for_mesh_and_seed(self) -> None:
         mesh = cube_mesh()

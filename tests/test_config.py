@@ -35,6 +35,10 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(
             config["phase2"]["visibility"]["render_resolution"], [256, 256]
         )
+        self.assertEqual(
+            config["phase2"]["visibility"]["mesh_relative_path"],
+            "models/model_normalized.ply",
+        )
 
     def test_tiny_probe_config_loads_and_supports_training_overrides(self) -> None:
         path = self.config_path.with_name("phase1_probe_tiny.yaml")

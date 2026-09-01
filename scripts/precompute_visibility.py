@@ -36,7 +36,7 @@ from nbv.geometry import (  # noqa: E402
     SURFACE_SAMPLING_ALGORITHM,
     canonical_anchors,
     compute_anchor_visibility,
-    sample_obj_surface,
+    sample_mesh_file,
 )
 from nbv.geometry.mesh_sampling import sha256_file  # noqa: E402
 from nbv.reproducibility import seed_everything  # noqa: E402
@@ -154,7 +154,7 @@ def main() -> int:
 
         try:
             started = time.perf_counter()
-            mesh, sample = sample_obj_surface(
+            mesh, sample = sample_mesh_file(
                 mesh_path,
                 n_surface=settings["n_surface"],
                 seed=settings["sampling_seed"],
