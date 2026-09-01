@@ -611,43 +611,57 @@ Authentication and the clone under `/content` are lost when the Colab runtime
 is recycled, so repeat this step in a new runtime. Commit and push source-code
 changes before recycling a runtime if they need to be retained.
 
-### 3. Upload and mount the NUM dataset
+### 3. Upload and mount the NUM and ShapeNet datasets
 
 Colab cannot directly mount a directory from the local computer. In a **local**
-terminal at the repository root, archive and verify the dataset:
+terminal at the repository root, archive and verify both datasets:
 
 ```bash
 cd data
 tar -czf NUM.tar.gz NUM
-ls -lh NUM.tar.gz
+tar --exclude=ShapeNetCore.v2/archive.zip \
+  -czf ShapeNetCore.v2-num-subset.tar.gz ShapeNetCore.v2
+ls -lh NUM.tar.gz ShapeNetCore.v2-num-subset.tar.gz
 tar -tzf NUM.tar.gz | head
+tar -tzf ShapeNetCore.v2-num-subset.tar.gz | head
 ```
 
-Do not use VS Code's `Upload to Colab` action for the NUM archive. That action
-uses the extension's file API and large archives may exceed its memory, request,
-or timeout limits. It remains useful for small files only.
+The ShapeNet command keeps the extracted NUM-relevant object subset but omits
+the original `data/ShapeNetCore.v2/archive.zip`; retaining it in the tarball
+would upload a second, unnecessary copy of the full source archive.
+
+Do not use VS Code's `Upload to Colab` action for these dataset archives. That
+action uses the extension's file API and large archives may exceed its memory,
+request, or timeout limits. It remains useful for small files only.
 
 In a browser, create `MyDrive/cv3d-datasets` in Google Drive and upload
-`data/NUM.tar.gz` there. In VS Code, run
+`data/NUM.tar.gz` and `data/ShapeNetCore.v2-num-subset.tar.gz` there. In VS Code, run
 `Colab: Mount Google Drive to Server` from the command palette and execute the
 cell it creates. Back in the Colab terminal, verify the archive and temporary
 disk space:
 
 ```bash
-ls -lh /content/drive/MyDrive/cv3d-datasets/NUM.tar.gz
+ls -lh \
+  /content/drive/MyDrive/cv3d-datasets/NUM.tar.gz \
+  /content/drive/MyDrive/cv3d-datasets/ShapeNetCore.v2-num-subset.tar.gz
 df -h /content
 ```
 
 ### 4. Extract the dataset to temporary storage
 
-Extract the archive onto Colab's faster temporary disk, then verify the NUM
-directory:
+Extract both archives onto Colab's faster temporary disk, then verify their
+directories:
 
 ```bash
 mkdir -p /content/cv3d-project/data
 tar -xzf /content/drive/MyDrive/cv3d-datasets/NUM.tar.gz \
   -C /content/cv3d-project/data
+tar -xzf \
+  /content/drive/MyDrive/cv3d-datasets/ShapeNetCore.v2-num-subset.tar.gz \
+  -C /content/cv3d-project/data
 ls /content/cv3d-project/data/NUM
+find /content/cv3d-project/data/ShapeNetCore.v2 \
+  -path '*/models/model_normalized.*' | head
 ```
 
 Reading the archive once and extracting it into `/content` is normally faster
