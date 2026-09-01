@@ -350,11 +350,11 @@ Repository audit as of 2026-08-31:
 | Phase 1 controls | Implemented and tested | `train_mean_map` and `raw_rgb_16x16_mlp` are configured and emit the same evaluation/result schema as learned probes. |
 | One-command sweep | Implemented; pre-PUN seed-0 run completed | The checked-in run contains the mean-map baseline and ten locally trained variants (11 rows). The current config appends official pretrained PUN as row 12 on rerun. Additional seeds remain desirable for final reporting. |
 | Runtime/memory profiling | Not implemented | Trainable parameter counts are reported, but inference timing and peak-memory measurement still need a documented common protocol. |
-| PUN comparison | Implemented and smoke-tested; full row pending | The runner checksum-verifies and loads the official released PSNR UPNet checkpoint, applies official timm preprocessing, evaluates it last with both official unmasked MSE and common masked metrics, and emits the normal artifact schema. The complete 14,400-sample test row has not yet been generated. |
+| PUN comparison | Implemented and smoke-tested; full row pending | `inspect_pun.py` performs a one-image real-checkpoint smoke alongside the feature-model checks. The runner checksum-verifies and loads the official released PSNR UPNet checkpoint, applies official timm preprocessing, evaluates it last with both official unmasked MSE and common masked metrics, and emits the normal artifact schema. The complete 14,400-sample test row has not yet been generated. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
 | Phase 2/3 code | Not started | No visibility cache, policies, closed-loop simulator, history dataset, or joint VGGT implementation is present. |
 
-The automated suite currently contains 94 passing tests. This number records
+The automated suite currently contains 95 passing tests. This number records
 the audit state rather than replacing the requirement for real-data,
 real-checkpoint, and full-sweep validation.
 
@@ -850,6 +850,7 @@ project_root/
 │   ├── init_experiment.py
 │   ├── inspect_features.py
 │   ├── inspect_num_sample.py
+│   ├── inspect_pun.py
 │   ├── prepare_num_split.py
 │   ├── run_phase1.py
 │   ├── train_probe.py

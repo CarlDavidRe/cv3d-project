@@ -106,7 +106,7 @@ The loader preserves official Phase 1 targets exactly; it does not reinterpret
 PSNR/SSIM/MSE/LPIPS arrays as Phase 2 surface-gain utilities. The common metric
 library is available in `nbv.eval`.
 
-## Step 5: frozen feature smoke tests
+## Step 5: model smoke tests
 
 Step 5 implements the shared frozen-feature interface and the supervised
 ImageNet ViT-B/16, DINOv2, and VGGT extractors. It does **not** implement a
@@ -148,6 +148,17 @@ python3 scripts/inspect_features.py \
 The VGGT smoke test processes each NUM image as a one-frame sequence, which is
 the required independent single-image behavior for Phase 1. It does not perform
 the joint multi-view processing reserved for Phase 3.
+
+PUN is an end-to-end 48-value predictor rather than a frozen feature extractor,
+so it has a separate but equivalent one-image smoke command. This verifies the
+official checkpoint checksum, official preprocessing, output shape and finite
+values, and reports the unmasked MSE against the selected NUM target:
+
+```bash
+python3 scripts/inspect_pun.py \
+  --data-root data/NUM \
+  --device auto
+```
 
 ## Step 6: lightweight probe-head overfit check
 
@@ -503,7 +514,7 @@ ls /content/cv3d-project/data/NUM
 Reading the archive once and extracting it into `/content` is normally faster
 than training against thousands of small files directly on Drive.
 
-### 5. Run tests and frozen-feature smoke tests
+### 5. Run tests and model smoke tests
 
 Keep generated files in a semantic Phase 1 run directory until the workflow is
 complete. Workflow step numbers are not used as directory names. First restore
@@ -525,6 +536,11 @@ python scripts/inspect_features.py \
   --data-root data/NUM \
   --device cuda \
   | tee outputs/phase1/feature_smoke/seed_0/metrics/imagenet_vit.json
+
+python scripts/inspect_pun.py \
+  --data-root data/NUM \
+  --device cuda \
+  | tee outputs/phase1/feature_smoke/seed_0/metrics/pun_upnet.json
 ```
 
 For VGGT, install the official repository in the runtime and run its smoke

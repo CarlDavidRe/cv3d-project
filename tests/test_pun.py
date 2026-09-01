@@ -11,6 +11,7 @@ import torch
 from torch import nn
 
 from nbv.models import (
+    PUN_CHECKPOINT_SHA256,
     PUNModelError,
     PUNUPNet,
     count_trainable_parameters,
@@ -18,6 +19,7 @@ from nbv.models import (
     load_pun_checkpoint,
 )
 from nbv.training import PUNImageDataset, evaluate_pun_upnet
+from scripts.inspect_pun import summarize_pun_smoke
 
 
 class _TinyBackbone(nn.Module):
@@ -66,6 +68,27 @@ class _TinyNUM:
 
 
 class PUNTests(unittest.TestCase):
+    def test_one_image_smoke_summary_verifies_prediction_contract(self) -> None:
+        summary = summarize_pun_smoke(
+            sample_id="fixture/object/0",
+            source_anchor_id=7,
+            image=torch.zeros(1, 3, 224, 224),
+            prediction=torch.linspace(10.0, 20.0, 48),
+            target=np.linspace(11.0, 19.0, 48, dtype=np.float32),
+            device=torch.device("cpu"),
+            checkpoint=Path("official.pth"),
+            data_config={"input_size": [3, 224, 224]},
+            model_name="vit_small_patch16_224",
+        )
+
+        self.assertEqual(summary["prediction_shape"], [48])
+        self.assertTrue(summary["prediction_is_finite"])
+        self.assertEqual(summary["predicted_best_local_anchor_id"], 47)
+        self.assertGreater(summary["official_unmasked_mse_loss"], 0.0)
+        self.assertEqual(
+            summary["checkpoint"]["sha256"], PUN_CHECKPOINT_SHA256
+        )
+
     def test_upnet_matches_official_backbone_plus_linear_regressor(self) -> None:
         backbone = _TinyBackbone()
         model = PUNUPNet(
