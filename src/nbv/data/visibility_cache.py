@@ -1,10 +1,11 @@
-"""Compact, validated, and atomically written surface-visibility caches."""
+"""Validated, atomic caches for PUN mesh-face visibility."""
 
 from __future__ import annotations
 
 import json
 import os
 import tempfile
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -13,9 +14,15 @@ import numpy as np
 from numpy.typing import NDArray
 
 from nbv.geometry.anchors import CANONICAL_ANCHOR_COUNT, CANONICAL_ORDERING
+from nbv.geometry.coverage import (
+    VISIBILITY_TARGETS,
+    candidate_visibility_gains,
+    visibility_coverage,
+    visibility_metrics,
+)
 
 
-VISIBILITY_CACHE_SCHEMA_VERSION = 1
+VISIBILITY_CACHE_SCHEMA_VERSION = 2
 
 
 class VisibilityCacheError(ValueError):
@@ -28,40 +35,40 @@ class IncompatibleVisibilityCacheError(VisibilityCacheError):
 
 @dataclass(frozen=True, slots=True)
 class VisibilityCache:
-    """Fixed surface samples and per-anchor masks for one object."""
+    """Per-anchor visible-face masks and areas for one ground-truth mesh."""
 
-    surface_points: NDArray[np.float32]
-    visibility: NDArray[np.bool_]
+    face_visibility: NDArray[np.bool_]
+    face_areas: NDArray[np.float64]
     anchor_ids: NDArray[np.int16]
-    sample_face_indices: NDArray[np.int32]
-    sample_barycentric: NDArray[np.float32]
     metadata: dict[str, Any]
 
     def __post_init__(self) -> None:
-        if np.asarray(self.visibility).dtype != np.bool_:
-            raise VisibilityCacheError("visibility dtype must be bool")
+        if np.asarray(self.face_visibility).dtype != np.bool_:
+            raise VisibilityCacheError("face_visibility dtype must be bool")
         if not np.issubdtype(np.asarray(self.anchor_ids).dtype, np.integer):
             raise VisibilityCacheError("anchor_ids dtype must be integer")
-        if not np.issubdtype(
-            np.asarray(self.sample_face_indices).dtype, np.integer
-        ):
-            raise VisibilityCacheError("sample_face_indices dtype must be integer")
-        points = np.ascontiguousarray(self.surface_points, dtype=np.float32)
-        visibility = np.ascontiguousarray(self.visibility, dtype=np.bool_)
+        face_visibility = np.ascontiguousarray(
+            self.face_visibility, dtype=np.bool_
+        )
+        face_areas = np.ascontiguousarray(self.face_areas, dtype=np.float64)
         anchor_ids = np.ascontiguousarray(self.anchor_ids, dtype=np.int16)
-        face_indices = np.ascontiguousarray(
-            self.sample_face_indices, dtype=np.int32
-        )
-        barycentric = np.ascontiguousarray(
-            self.sample_barycentric, dtype=np.float32
-        )
-        count = len(points)
-        if points.shape != (count, 3):
-            raise VisibilityCacheError("surface_points must have shape [N, 3]")
-        if visibility.shape != (CANONICAL_ANCHOR_COUNT, count):
+        if face_visibility.ndim != 2:
             raise VisibilityCacheError(
-                f"visibility must have shape [{CANONICAL_ANCHOR_COUNT}, N]"
+                "face_visibility must have shape [48, number_of_faces]"
             )
+        face_count = face_visibility.shape[1]
+        if face_count == 0 or face_visibility.shape[0] != CANONICAL_ANCHOR_COUNT:
+            raise VisibilityCacheError(
+                "face_visibility must have shape [48, number_of_faces > 0]"
+            )
+        if face_areas.shape != (face_count,):
+            raise VisibilityCacheError(
+                "face_areas must match the face_visibility face dimension"
+            )
+        if not np.all(np.isfinite(face_areas)) or np.any(face_areas < 0):
+            raise VisibilityCacheError("face_areas must be finite and non-negative")
+        if float(face_areas.sum(dtype=np.float64)) <= 0:
+            raise VisibilityCacheError("face_areas must have positive total area")
         if anchor_ids.shape != (CANONICAL_ANCHOR_COUNT,):
             raise VisibilityCacheError(
                 f"anchor_ids must have shape [{CANONICAL_ANCHOR_COUNT}]"
@@ -71,41 +78,75 @@ class VisibilityCache:
             raise VisibilityCacheError(
                 "anchor_ids must equal canonical row order [0, ..., 47]"
             )
-        if face_indices.shape != (count,):
-            raise VisibilityCacheError("sample_face_indices must have shape [N]")
-        if barycentric.shape != (count, 3):
-            raise VisibilityCacheError("sample_barycentric must have shape [N, 3]")
-        if not np.all(np.isfinite(points)) or not np.all(np.isfinite(barycentric)):
-            raise VisibilityCacheError("sample arrays must contain finite values")
         if not isinstance(self.metadata, dict):
             raise VisibilityCacheError("metadata must be a dictionary")
         if self.metadata.get("schema_version") != VISIBILITY_CACHE_SCHEMA_VERSION:
             raise VisibilityCacheError(
-                f"metadata.schema_version must be {VISIBILITY_CACHE_SCHEMA_VERSION}"
+                "metadata.schema_version must be "
+                f"{VISIBILITY_CACHE_SCHEMA_VERSION}"
             )
-        if self.metadata.get("n_surface") != count:
-            raise VisibilityCacheError("metadata.n_surface does not match arrays")
         required_metadata = {
             "object_id",
-            "n_surface",
-            "sampling_seed",
+            "n_faces",
             "anchor_ordering",
             "render_resolution",
-            "depth_tolerance",
+            "visibility_target",
+            "visibility_definition",
         }
         missing_metadata = required_metadata - set(self.metadata)
         if missing_metadata:
             raise VisibilityCacheError(
                 f"metadata is missing required fields: {sorted(missing_metadata)}"
             )
+        if self.metadata["n_faces"] != face_count:
+            raise VisibilityCacheError("metadata.n_faces does not match arrays")
         if self.metadata["anchor_ordering"] != CANONICAL_ORDERING:
             raise VisibilityCacheError("metadata.anchor_ordering is not canonical")
+        if self.metadata["visibility_target"] not in VISIBILITY_TARGETS:
+            raise VisibilityCacheError(
+                f"metadata.visibility_target must be one of {VISIBILITY_TARGETS}"
+            )
 
-        object.__setattr__(self, "surface_points", points)
-        object.__setattr__(self, "visibility", visibility)
+        object.__setattr__(self, "face_visibility", face_visibility)
+        object.__setattr__(self, "face_areas", face_areas)
         object.__setattr__(self, "anchor_ids", anchor_ids)
-        object.__setattr__(self, "sample_face_indices", face_indices)
-        object.__setattr__(self, "sample_barycentric", barycentric)
+
+    @property
+    def visibility_target(self) -> str:
+        """Return the configured default target (``vis`` or ``vis_a``)."""
+
+        return str(self.metadata["visibility_target"])
+
+    def coverage(
+        self, selected_anchor_ids: Iterable[int], *, target: str | None = None
+    ) -> float:
+        """Compute accumulated coverage with the configured or given target."""
+
+        return visibility_coverage(
+            self.face_visibility,
+            self.face_areas,
+            selected_anchor_ids,
+            target=self.visibility_target if target is None else target,
+        )
+
+    def metrics(self, selected_anchor_ids: Iterable[int]) -> dict[str, float]:
+        """Compute both paper metrics explicitly for the selected views."""
+
+        return visibility_metrics(
+            self.face_visibility, self.face_areas, selected_anchor_ids
+        )
+
+    def candidate_gains(
+        self, selected_anchor_ids: Iterable[int], *, target: str | None = None
+    ) -> NDArray[np.float64]:
+        """Compute marginal coverage gain under the selected target."""
+
+        return candidate_visibility_gains(
+            self.face_visibility,
+            self.face_areas,
+            selected_anchor_ids,
+            target=self.visibility_target if target is None else target,
+        )
 
 
 def visibility_cache_path(cache_root: str | Path, object_id: str) -> Path:
@@ -138,11 +179,9 @@ def save_visibility_cache(cache: VisibilityCache, path: str | Path) -> None:
             temporary_path = Path(handle.name)
             np.savez_compressed(
                 handle,
-                surface_points=cache.surface_points,
-                visibility=cache.visibility,
+                face_visibility=cache.face_visibility,
+                face_areas=cache.face_areas,
                 anchor_ids=cache.anchor_ids,
-                sample_face_indices=cache.sample_face_indices,
-                sample_barycentric=cache.sample_barycentric,
                 metadata_json=np.asarray(metadata_json),
             )
             handle.flush()
@@ -169,11 +208,9 @@ def load_visibility_cache(
     try:
         with np.load(path, allow_pickle=False) as payload:
             required = {
-                "surface_points",
-                "visibility",
+                "face_visibility",
+                "face_areas",
                 "anchor_ids",
-                "sample_face_indices",
-                "sample_barycentric",
                 "metadata_json",
             }
             missing = required - set(payload.files)
@@ -186,11 +223,9 @@ def load_visibility_cache(
                 raise VisibilityCacheError("metadata_json must be a scalar")
             metadata = json.loads(str(metadata_raw.item()))
             cache = VisibilityCache(
-                surface_points=payload["surface_points"],
-                visibility=payload["visibility"],
+                face_visibility=payload["face_visibility"],
+                face_areas=payload["face_areas"],
                 anchor_ids=payload["anchor_ids"],
-                sample_face_indices=payload["sample_face_indices"],
-                sample_barycentric=payload["sample_barycentric"],
                 metadata=metadata,
             )
     except FileNotFoundError as exc:

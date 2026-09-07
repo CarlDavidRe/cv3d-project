@@ -20,9 +20,11 @@ phase2:
     limit: null
     mesh_relative_path: models/model_normalized.ply
 
+    # PUN metrics: vis = equal weight per visible face;
+    # vis_a = visible-face area / total mesh area.
+    target: vis_a
+
     # The prepared ShapeNet subset uses model_normalized.ply at scale 2.0.
-    n_surface: 100000
-    sampling_seed: 0
     mesh_scale: 2.0
 
     # Camera geometry from the pinned PUN generator and Splatter NMR config.
@@ -32,6 +34,4 @@ phase2:
     near: 1.2
     far: 4.0
 
-    depth_tolerance: 0.01
-    depth_neighborhood_radius: 1
     cull_backfaces: false

@@ -1,4 +1,4 @@
-"""Deterministic loading and uniform surface sampling for ShapeNet meshes."""
+"""Deterministic loading of triangular ShapeNet meshes."""
 
 from __future__ import annotations
 
@@ -12,11 +12,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-SURFACE_SAMPLING_ALGORITHM = "triangle_area_cdf_sqrt_barycentric_pcg64_v1"
-
-
 class MeshError(ValueError):
-    """Raised when a mesh cannot be loaded or sampled safely."""
+    """Raised when a mesh cannot be loaded safely."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,33 +51,6 @@ class TriangleMesh:
         if not math.isfinite(scale) or scale <= 0:
             raise ValueError("scale must be finite and greater than zero")
         return TriangleMesh(self.vertices * scale, self.faces)
-
-
-@dataclass(frozen=True, slots=True)
-class SurfaceSample:
-    """One fixed mesh-surface sample and its exact sampling trace."""
-
-    points: NDArray[np.float32]
-    face_indices: NDArray[np.int32]
-    barycentric: NDArray[np.float32]
-    metadata: dict[str, Any]
-
-    def __post_init__(self) -> None:
-        points = np.ascontiguousarray(self.points, dtype=np.float32)
-        face_indices = np.ascontiguousarray(self.face_indices, dtype=np.int32)
-        barycentric = np.ascontiguousarray(self.barycentric, dtype=np.float32)
-        count = len(points)
-        if points.shape != (count, 3):
-            raise MeshError("sample points must have shape [N, 3]")
-        if face_indices.shape != (count,):
-            raise MeshError("sample face_indices must have shape [N]")
-        if barycentric.shape != (count, 3):
-            raise MeshError("sample barycentric coordinates must have shape [N, 3]")
-        if not np.all(np.isfinite(points)) or not np.all(np.isfinite(barycentric)):
-            raise MeshError("surface sample arrays must be finite")
-        object.__setattr__(self, "points", points)
-        object.__setattr__(self, "face_indices", face_indices)
-        object.__setattr__(self, "barycentric", barycentric)
 
 
 def load_obj_mesh(path: str | Path) -> TriangleMesh:
@@ -263,109 +233,6 @@ def load_mesh(path: str | Path) -> TriangleMesh:
     if suffix == ".ply":
         return load_ply_mesh(source)
     raise MeshError(f"Unsupported mesh extension {source.suffix!r}: {source}")
-
-
-def sample_mesh_surface(
-    mesh: TriangleMesh,
-    n_surface: int,
-    seed: int,
-) -> SurfaceSample:
-    """Sample points uniformly by triangle area using a deterministic RNG."""
-
-    if isinstance(n_surface, bool) or not isinstance(n_surface, (int, np.integer)):
-        raise TypeError("n_surface must be an integer")
-    if n_surface <= 0:
-        raise ValueError("n_surface must be greater than zero")
-    if isinstance(seed, bool) or not isinstance(seed, (int, np.integer)):
-        raise TypeError("seed must be an integer")
-
-    triangles = mesh.triangles
-    cross = np.cross(
-        triangles[:, 1] - triangles[:, 0],
-        triangles[:, 2] - triangles[:, 0],
-    )
-    areas = np.linalg.norm(cross, axis=1) * 0.5
-    valid = np.isfinite(areas) & (areas > 0)
-    if not np.any(valid):
-        raise MeshError("mesh has no positive-area triangles")
-
-    valid_indices = np.flatnonzero(valid)
-    valid_areas = areas[valid]
-    probabilities = valid_areas / valid_areas.sum(dtype=np.float64)
-    generator = np.random.Generator(np.random.PCG64(int(seed)))
-    selected_local = generator.choice(
-        len(valid_indices), size=int(n_surface), replace=True, p=probabilities
-    )
-    face_indices = valid_indices[selected_local]
-
-    random_pairs = generator.random((int(n_surface), 2), dtype=np.float64)
-    sqrt_first = np.sqrt(random_pairs[:, 0])
-    barycentric = np.column_stack(
-        (
-            1.0 - sqrt_first,
-            sqrt_first * (1.0 - random_pairs[:, 1]),
-            sqrt_first * random_pairs[:, 1],
-        )
-    )
-    selected_triangles = triangles[face_indices]
-    points = np.einsum("ni,nij->nj", barycentric, selected_triangles)
-    metadata: dict[str, Any] = {
-        "sampling_algorithm": SURFACE_SAMPLING_ALGORITHM,
-        "sampling_seed": int(seed),
-        "n_surface": int(n_surface),
-        "rng": "numpy.random.PCG64",
-        "numpy_version": np.__version__,
-        "mesh_triangle_count": int(len(mesh.faces)),
-        "positive_area_triangle_count": int(len(valid_indices)),
-        "mesh_surface_area": float(valid_areas.sum(dtype=np.float64)),
-    }
-    return SurfaceSample(
-        points=points.astype(np.float32),
-        face_indices=face_indices.astype(np.int32),
-        barycentric=barycentric.astype(np.float32),
-        metadata=metadata,
-    )
-
-
-def sample_mesh_file(
-    path: str | Path,
-    n_surface: int,
-    seed: int,
-    *,
-    mesh_scale: float = 1.0,
-) -> tuple[TriangleMesh, SurfaceSample]:
-    """Load, scale, and sample one supported mesh with addressed metadata."""
-
-    source = Path(path)
-    raw_mesh = load_mesh(source)
-    mesh = raw_mesh.scaled(mesh_scale)
-    sample = sample_mesh_surface(mesh, n_surface=n_surface, seed=seed)
-    metadata = dict(sample.metadata)
-    metadata.update(
-        {
-            "mesh_format": source.suffix.lower().removeprefix("."),
-            "mesh_sha256": sha256_file(source),
-            "mesh_scale": float(mesh_scale),
-            "mesh_raw_bounds": raw_mesh.bounds.tolist(),
-            "mesh_render_bounds": mesh.bounds.tolist(),
-        }
-    )
-    sample = SurfaceSample(
-        sample.points, sample.face_indices, sample.barycentric, metadata
-    )
-    return mesh, sample
-
-
-def sample_obj_surface(
-    path: str | Path,
-    n_surface: int,
-    seed: int,
-    *,
-    mesh_scale: float = 1.0,
-) -> tuple[TriangleMesh, SurfaceSample]:
-    """Backward-compatible alias for sampling a mesh file."""
-
-    return sample_mesh_file(path, n_surface, seed, mesh_scale=mesh_scale)
 
 
 def sha256_file(path: str | Path) -> str:

@@ -1,9 +1,14 @@
-"""Depth-consistent visibility for sampled mesh-surface points.
+"""Rasterized mesh-face visibility matching the PUN evaluation metric.
 
 The renderer is a small deterministic CPU z-buffer. It uses OpenGL/Blender
 look-at poses (camera looks along local -Z), perspective-correct depth, pixel
 centres, and a top-left image origin. Faces are two-sided by default, matching
 the PUN Blender generation path's lack of explicit back-face culling.
+
+PUN defines a face as visible when it appears without occlusion in at least one
+selected view. The face-index buffer implemented here records exactly which
+triangle wins the z-buffer at every pixel. ``Vis`` and ``VisA`` differ only in
+how those visible faces are aggregated; see :mod:`nbv.geometry.coverage`.
 """
 
 from __future__ import annotations
@@ -16,10 +21,10 @@ import numpy as np
 from numpy.typing import NDArray
 
 from nbv.geometry.anchors import AnchorSet, canonical_anchors
-from nbv.geometry.mesh_sampling import TriangleMesh
+from nbv.geometry.mesh import TriangleMesh
 
 
-DEPTH_RENDERER = "numpy_cpu_triangle_zbuffer_perspective_v1"
+FACE_VISIBILITY_RENDERER = "numpy_cpu_triangle_id_zbuffer_perspective_v1"
 CAMERA_CONVENTION = "opengl_camera_minus_z_y_up_image_y_down_pixel_centers_v1"
 
 
@@ -91,19 +96,42 @@ def project_camera_points(
     return u, v, depth
 
 
-def render_depth_map(
+def render_face_index_map(
     mesh: TriangleMesh,
     camera_to_world: NDArray[np.floating],
     camera: PerspectiveCamera,
     *,
     cull_backfaces: bool = False,
-) -> NDArray[np.float32]:
-    """Rasterize metric forward depth for a triangular mesh on the CPU."""
+) -> NDArray[np.int32]:
+    """Rasterize the nearest, unoccluded mesh-face index at every pixel.
 
+    Pixels not covered by the mesh contain ``-1``. A face is directly visible
+    from the view iff its index occurs at least once in this map.
+    """
+
+    _, face_index_buffer = _render_mesh_buffers(
+        mesh,
+        camera_to_world,
+        camera,
+        cull_backfaces=cull_backfaces,
+    )
+    return face_index_buffer
+
+
+def _render_mesh_buffers(
+    mesh: TriangleMesh,
+    camera_to_world: NDArray[np.floating],
+    camera: PerspectiveCamera,
+    *,
+    cull_backfaces: bool,
+) -> tuple[NDArray[np.float64], NDArray[np.int32]]:
     camera_vertices = world_to_camera(mesh.vertices, camera_to_world)
     depth_buffer = np.full((camera.height, camera.width), np.inf, dtype=np.float64)
+    face_index_buffer = np.full(
+        (camera.height, camera.width), -1, dtype=np.int32
+    )
 
-    for face in mesh.faces:
+    for face_index, face in enumerate(mesh.faces):
         polygon = camera_vertices[face]
         polygon = _clip_depth_polygon(polygon, camera.near, keep_greater=True)
         polygon = _clip_depth_polygon(polygon, camera.far, keep_greater=False)
@@ -112,107 +140,51 @@ def render_depth_map(
         for index in range(1, len(polygon) - 1):
             triangle = np.stack((polygon[0], polygon[index], polygon[index + 1]))
             _rasterize_camera_triangle(
-                triangle, depth_buffer, camera, cull_backfaces=cull_backfaces
+                triangle,
+                depth_buffer,
+                camera,
+                cull_backfaces=cull_backfaces,
+                face_index_buffer=face_index_buffer,
+                face_index=face_index,
             )
-    return depth_buffer.astype(np.float32)
-
-
-def point_visibility_from_depth(
-    surface_points: NDArray[np.floating],
-    camera_to_world: NDArray[np.floating],
-    camera: PerspectiveCamera,
-    depth_map: NDArray[np.floating],
-    *,
-    depth_tolerance: float,
-    depth_neighborhood_radius: int = 1,
-) -> NDArray[np.bool_]:
-    """Classify points by consistency with a rendered depth map."""
-
-    if not math.isfinite(depth_tolerance) or depth_tolerance < 0:
-        raise ValueError("depth_tolerance must be finite and non-negative")
-    if depth_neighborhood_radius < 0:
-        raise ValueError("depth_neighborhood_radius must be non-negative")
-    rendered = np.asarray(depth_map)
-    if rendered.shape != (camera.height, camera.width):
-        raise ValueError("depth_map shape does not match camera resolution")
-
-    camera_points = world_to_camera(surface_points, camera_to_world)
-    u, v, depth = project_camera_points(camera_points, camera)
-    valid = (
-        np.isfinite(u)
-        & np.isfinite(v)
-        & np.isfinite(depth)
-        & (depth >= camera.near)
-        & (depth <= camera.far)
-        & (u >= 0)
-        & (u < camera.width)
-        & (v >= 0)
-        & (v < camera.height)
-    )
-    visibility = np.zeros(len(camera_points), dtype=np.bool_)
-    valid_indices = np.flatnonzero(valid)
-    if valid_indices.size == 0:
-        return visibility
-    pixel_x = np.floor(u[valid_indices]).astype(np.int64)
-    pixel_y = np.floor(v[valid_indices]).astype(np.int64)
-    best_difference = np.full(len(valid_indices), np.inf, dtype=np.float64)
-    radius = depth_neighborhood_radius
-    for offset_y in range(-radius, radius + 1):
-        neighbor_y = pixel_y + offset_y
-        valid_y = (neighbor_y >= 0) & (neighbor_y < camera.height)
-        for offset_x in range(-radius, radius + 1):
-            neighbor_x = pixel_x + offset_x
-            in_bounds = valid_y & (neighbor_x >= 0) & (neighbor_x < camera.width)
-            selected = np.flatnonzero(in_bounds)
-            if selected.size == 0:
-                continue
-            neighbor_depth = rendered[
-                neighbor_y[selected], neighbor_x[selected]
-            ]
-            difference = np.abs(neighbor_depth - depth[valid_indices[selected]])
-            best_difference[selected] = np.minimum(
-                best_difference[selected], difference
-            )
-    visibility[valid_indices] = best_difference <= depth_tolerance
-    return visibility
+    return depth_buffer, face_index_buffer
 
 
 def compute_anchor_visibility(
     mesh: TriangleMesh,
-    surface_points: NDArray[np.floating],
     *,
     camera: PerspectiveCamera,
     camera_radius: float,
-    depth_tolerance: float,
-    depth_neighborhood_radius: int = 1,
     cull_backfaces: bool = False,
     anchors: AnchorSet | None = None,
     progress: Callable[[int, int, int], None] | None = None,
 ) -> NDArray[np.bool_]:
-    """Compute rows in the exact supplied/canonical anchor sequence."""
+    """Return a PUN-style ``[anchors, faces]`` direct-visibility mask.
+
+    A face is visible in a row when at least one pixel-centre ray reaches that
+    face as the nearest mesh intersection. Rows follow the exact supplied or
+    canonical anchor sequence.
+    """
 
     if not math.isfinite(camera_radius) or camera_radius <= 0:
         raise ValueError("camera_radius must be finite and greater than zero")
     anchor_set = anchors if anchors is not None else canonical_anchors()
-    points = np.asarray(surface_points)
-    visibility = np.zeros((len(anchor_set), len(points)), dtype=np.bool_)
+    visibility = np.zeros((len(anchor_set), len(mesh.faces)), dtype=np.bool_)
     for row_index, anchor in enumerate(anchor_set):
         if row_index != anchor.anchor_id:
             raise ValueError("anchor sequence index and anchor_id must be identical")
         camera_to_world = anchor.camera_to_world(camera_radius)
-        depth_map = render_depth_map(
+        face_index_map = render_face_index_map(
             mesh, camera_to_world, camera, cull_backfaces=cull_backfaces
         )
-        visibility[row_index] = point_visibility_from_depth(
-            points,
-            camera_to_world,
-            camera,
-            depth_map,
-            depth_tolerance=depth_tolerance,
-            depth_neighborhood_radius=depth_neighborhood_radius,
-        )
+        visible_face_indices = np.unique(face_index_map[face_index_map >= 0])
+        visibility[row_index, visible_face_indices] = True
         if progress is not None:
-            progress(anchor.anchor_id, int(visibility[row_index].sum()), len(points))
+            progress(
+                anchor.anchor_id,
+                int(visibility[row_index].sum()),
+                len(mesh.faces),
+            )
     return visibility
 
 
@@ -252,6 +224,8 @@ def _rasterize_camera_triangle(
     camera: PerspectiveCamera,
     *,
     cull_backfaces: bool,
+    face_index_buffer: NDArray[np.int32],
+    face_index: int = -1,
 ) -> None:
     if cull_backfaces:
         normal = np.cross(triangle[1] - triangle[0], triangle[2] - triangle[0])
@@ -292,4 +266,7 @@ def _rasterize_camera_triangle(
     inverse_depth = weight0 / depth[0] + weight1 / depth[1] + weight2 / depth[2]
     candidate_depth = np.where(inside, 1.0 / inverse_depth, np.inf)
     target = depth_buffer[min_y : max_y + 1, min_x : max_x + 1]
-    np.minimum(target, candidate_depth, out=target)
+    nearer = candidate_depth < target
+    target[nearer] = candidate_depth[nearer]
+    face_target = face_index_buffer[min_y : max_y + 1, min_x : max_x + 1]
+    face_target[nearer] = face_index

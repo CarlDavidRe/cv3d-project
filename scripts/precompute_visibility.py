@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Precompute deterministic mesh-surface visibility for canonical anchors."""
+"""Precompute deterministic PUN mesh-face visibility for canonical anchors."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ if str(SOURCE_ROOT) not in sys.path:
 
 from nbv.config import ConfigError, load_config  # noqa: E402
 from nbv.data import (  # noqa: E402
+    VISIBILITY_CACHE_SCHEMA_VERSION,
     IncompatibleVisibilityCacheError,
     VisibilityCache,
     VisibilityCacheError,
@@ -31,14 +32,16 @@ from nbv.data import (  # noqa: E402
 from nbv.geometry import (  # noqa: E402
     CAMERA_CONVENTION,
     CANONICAL_ORDERING,
-    DEPTH_RENDERER,
+    FACE_VISIBILITY_RENDERER,
     PerspectiveCamera,
-    SURFACE_SAMPLING_ALGORITHM,
+    TriangleMesh,
+    VISIBILITY_TARGETS,
     canonical_anchors,
     compute_anchor_visibility,
-    sample_mesh_file,
+    load_mesh,
+    triangle_areas,
 )
-from nbv.geometry.mesh_sampling import sha256_file  # noqa: E402
+from nbv.geometry.mesh import sha256_file  # noqa: E402
 from nbv.reproducibility import seed_everything  # noqa: E402
 from nbv.visualization import write_visibility_debug_svg  # noqa: E402
 
@@ -80,7 +83,7 @@ def parse_args() -> argparse.Namespace:
         "--debug-anchor",
         type=int,
         default=None,
-        help="Write an SVG showing visible points for this anchor.",
+        help="Write an SVG showing raster-visible faces for this anchor.",
     )
     return parser.parse_args()
 
@@ -128,7 +131,15 @@ def main() -> int:
             failures += 1
             continue
         mesh_sha256 = sha256_file(mesh_path)
-        expected = _expected_metadata(object_id, mesh_sha256, settings)
+        try:
+            mesh = load_mesh(mesh_path).scaled(settings["mesh_scale"])
+        except (OSError, ValueError) as exc:
+            print(f"ERROR {object_id}: {exc}", file=sys.stderr)
+            failures += 1
+            continue
+        expected = _expected_metadata(
+            object_id, mesh_sha256, len(mesh.faces), settings
+        )
         if destination.exists() and not args.overwrite:
             try:
                 cache = load_visibility_cache(
@@ -149,17 +160,13 @@ def main() -> int:
                 failures += 1
                 continue
             print(f"SKIP {object_id}: compatible cache {destination}")
-            _maybe_write_debug(cache, object_id, args.debug_anchor, debug_root)
+            _maybe_write_debug(
+                cache, mesh, object_id, args.debug_anchor, debug_root
+            )
             continue
 
         try:
             started = time.perf_counter()
-            mesh, sample = sample_mesh_file(
-                mesh_path,
-                n_surface=settings["n_surface"],
-                seed=settings["sampling_seed"],
-                mesh_scale=settings["mesh_scale"],
-            )
             camera = PerspectiveCamera(
                 height=settings["render_resolution"][0],
                 width=settings["render_resolution"][1],
@@ -177,23 +184,17 @@ def main() -> int:
 
             visibility = compute_anchor_visibility(
                 mesh,
-                sample.points,
                 camera=camera,
                 camera_radius=settings["camera_radius"],
-                depth_tolerance=settings["depth_tolerance"],
-                depth_neighborhood_radius=settings["depth_neighborhood_radius"],
                 cull_backfaces=settings["cull_backfaces"],
                 progress=progress,
             )
             metadata = dict(expected)
-            metadata.update(sample.metadata)
             metadata["mesh_relative_path"] = mesh_relative_path.as_posix()
             cache = VisibilityCache(
-                surface_points=sample.points,
-                visibility=visibility,
+                face_visibility=visibility,
+                face_areas=triangle_areas(mesh.vertices, mesh.faces),
                 anchor_ids=np.arange(48, dtype=np.int16),
-                sample_face_indices=sample.face_indices,
-                sample_barycentric=sample.barycentric,
                 metadata=metadata,
             )
             save_visibility_cache(cache, destination)
@@ -204,7 +205,9 @@ def main() -> int:
                 f"{elapsed:.1f}s)"
             )
             _print_sanity_statistics(cache)
-            _maybe_write_debug(cache, object_id, args.debug_anchor, debug_root)
+            _maybe_write_debug(
+                cache, mesh, object_id, args.debug_anchor, debug_root
+            )
         except (OSError, ValueError) as exc:
             print(f"ERROR {object_id}: {exc}", file=sys.stderr)
             failures += 1
@@ -227,17 +230,14 @@ def _visibility_settings(config: Mapping[str, Any]) -> dict[str, Any]:
         "split",
         "split_manifest",
         "mesh_relative_path",
-        "n_surface",
-        "sampling_seed",
         "mesh_scale",
         "camera_radius",
         "horizontal_fov_degrees",
         "render_resolution",
         "near",
         "far",
-        "depth_tolerance",
-        "depth_neighborhood_radius",
         "cull_backfaces",
+        "target",
     }
     missing = required - set(raw)
     if missing:
@@ -254,22 +254,12 @@ def _visibility_settings(config: Mapping[str, Any]) -> dict[str, Any]:
         )
     ):
         raise ValueError("render_resolution must be [positive_height, positive_width]")
-    for key in ("n_surface", "sampling_seed", "depth_neighborhood_radius"):
-        if isinstance(raw[key], bool) or not isinstance(raw[key], int):
-            raise ValueError(f"{key} must be an integer")
-    if raw["n_surface"] <= 0 or raw["depth_neighborhood_radius"] < 0:
-        raise ValueError(
-            "n_surface must be positive and neighborhood radius non-negative"
-        )
-    if raw["sampling_seed"] < 0:
-        raise ValueError("sampling_seed must be non-negative")
     numeric_fields = (
         "mesh_scale",
         "camera_radius",
         "horizontal_fov_degrees",
         "near",
         "far",
-        "depth_tolerance",
     )
     for key in numeric_fields:
         value = raw[key]
@@ -281,8 +271,6 @@ def _visibility_settings(config: Mapping[str, Any]) -> dict[str, Any]:
             raise ValueError(f"{key} must be a finite number")
     if raw["mesh_scale"] <= 0 or raw["camera_radius"] <= 0:
         raise ValueError("mesh_scale and camera_radius must be positive")
-    if raw["depth_tolerance"] < 0:
-        raise ValueError("depth_tolerance must be non-negative")
     PerspectiveCamera(
         height=resolution[0],
         width=resolution[1],
@@ -292,6 +280,10 @@ def _visibility_settings(config: Mapping[str, Any]) -> dict[str, Any]:
     )
     if not isinstance(raw["cull_backfaces"], bool):
         raise ValueError("cull_backfaces must be a boolean")
+    if raw["target"] not in VISIBILITY_TARGETS:
+        raise ValueError(
+            f"target must be one of {VISIBILITY_TARGETS}, got {raw['target']!r}"
+        )
     return raw
 
 
@@ -326,15 +318,16 @@ def _select_objects(
 
 
 def _expected_metadata(
-    object_id: str, mesh_sha256: str, settings: Mapping[str, Any]
+    object_id: str,
+    mesh_sha256: str,
+    n_faces: int,
+    settings: Mapping[str, Any],
 ) -> dict[str, Any]:
     return {
-        "schema_version": 1,
+        "schema_version": VISIBILITY_CACHE_SCHEMA_VERSION,
         "object_id": object_id,
         "mesh_sha256": mesh_sha256,
-        "n_surface": settings["n_surface"],
-        "sampling_seed": settings["sampling_seed"],
-        "sampling_algorithm": SURFACE_SAMPLING_ALGORITHM,
+        "n_faces": n_faces,
         "numpy_version": np.__version__,
         "mesh_scale": float(settings["mesh_scale"]),
         "anchor_ordering": CANONICAL_ORDERING,
@@ -344,11 +337,12 @@ def _expected_metadata(
         "camera_radius": float(settings["camera_radius"]),
         "near": float(settings["near"]),
         "far": float(settings["far"]),
-        "depth_tolerance": float(settings["depth_tolerance"]),
-        "depth_neighborhood_radius": settings["depth_neighborhood_radius"],
         "cull_backfaces": settings["cull_backfaces"],
-        "renderer": DEPTH_RENDERER,
+        "renderer": FACE_VISIBILITY_RENDERER,
         "camera_convention": CAMERA_CONVENTION,
+        "visibility_definition": "pun_unoccluded_rasterized_mesh_faces_v1",
+        "visibility_target": settings["target"],
+        "available_visibility_targets": list(VISIBILITY_TARGETS),
         "pun_source_revision": PUN_SOURCE_REVISION,
     }
 
@@ -359,14 +353,19 @@ def _repository_path(value: str | Path) -> Path:
 
 
 def _print_sanity_statistics(cache: VisibilityCache) -> None:
-    total = len(cache.surface_points)
     for anchor_id in (0, 12, 24, 36, 46):
-        count = int(cache.visibility[anchor_id].sum())
-        print(f"  anchor {anchor_id:02d}: {count}/{total} ({100 * count / total:.2f}%)")
+        metrics = cache.metrics([anchor_id])
+        count = int(cache.face_visibility[anchor_id].sum())
+        print(
+            f"  anchor {anchor_id:02d}: faces={count}/{len(cache.face_areas)}, "
+            f"Vis={100 * metrics['vis']:.2f}%, "
+            f"VisA={100 * metrics['vis_a']:.2f}%"
+        )
 
 
 def _maybe_write_debug(
     cache: VisibilityCache,
+    mesh: TriangleMesh,
     object_id: str,
     anchor_id: int | None,
     debug_root: Path,
@@ -376,7 +375,7 @@ def _maybe_write_debug(
     canonical_anchors().by_id(anchor_id)
     category, instance = object_id.split("/")
     path = debug_root / category / instance / f"anchor_{anchor_id}.svg"
-    write_visibility_debug_svg(cache, anchor_id, path)
+    write_visibility_debug_svg(cache, mesh, anchor_id, path)
     print(f"  debug visualization: {path}")
 
 

@@ -31,7 +31,7 @@ class ConfigTests(unittest.TestCase):
     def test_phase2_visibility_config_loads(self) -> None:
         config = load_config(self.config_path.with_name("phase2_visibility.yaml"))
         self.assertEqual(config["experiment"]["phase"], "phase2")
-        self.assertEqual(config["phase2"]["visibility"]["n_surface"], 100000)
+        self.assertEqual(config["phase2"]["visibility"]["target"], "vis_a")
         self.assertEqual(
             config["phase2"]["visibility"]["render_resolution"], [256, 256]
         )
@@ -39,6 +39,12 @@ class ConfigTests(unittest.TestCase):
             config["phase2"]["visibility"]["mesh_relative_path"],
             "models/model_normalized.ply",
         )
+
+        vis_config = load_config(
+            self.config_path.with_name("phase2_visibility.yaml"),
+            ["phase2.visibility.target=vis"],
+        )
+        self.assertEqual(vis_config["phase2"]["visibility"]["target"], "vis")
 
     def test_tiny_probe_config_loads_and_supports_training_overrides(self) -> None:
         path = self.config_path.with_name("phase1_probe_tiny.yaml")

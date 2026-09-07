@@ -2,8 +2,8 @@
 
 This repository implements the phased project described in
 [`project_overview.md`](project_overview.md). Phase 1 is stable. The first
-Phase 2 infrastructure component—deterministic ground-truth surface sampling
-and canonical-anchor visibility caching—is also available. The learned
+Phase 2 infrastructure component—deterministic PUN-style ground-truth mesh-face
+visibility caching—is also available. The learned
 policies and closed-loop evaluator remain future work.
 
 ## Steps 1–4: setup and dataset verification
@@ -106,7 +106,7 @@ The loader preserves official Phase 1 targets exactly; it does not reinterpret
 PSNR/SSIM/MSE/LPIPS arrays as Phase 2 surface-gain utilities. The common metric
 library is available in `nbv.eval`.
 
-## Phase 2: surface visibility cache
+## Phase 2: PUN mesh-face visibility cache
 
 The NUM download contains RGB images and uncertainty targets, but not its
 ShapeNet meshes. Place the matching prepared ShapeNetCore.v2 subset at
@@ -214,9 +214,26 @@ python3 scripts/precompute_visibility.py \
 The defaults in `configs/experiments/phase2_visibility.yaml` reproduce the
 official PUN generation geometry: normalized mesh scale 2.0, camera radius
 2.73, 30-degree pinhole field of view, near/far 1.2/4.0, and the existing
-canonical 48-anchor order. The depth cache renders at 256×256 by default for
-more stable depth consistency than the released 64×64 RGB images; this is a
-configurable cache parameter and is recorded in metadata.
+canonical 48-anchor order. A 256×256 triangle-ID z-buffer records every mesh
+face that wins at least one pixel and is therefore directly visible without
+occlusion, matching PUN's rasterized face-set definition.
+
+The configured `phase2.visibility.target` selects which explicit PUN target is
+used by `cache.coverage(...)` and `cache.candidate_gains(...)`:
+
+- `vis`: number of visible faces divided by the total number of faces; every
+  face has equal weight.
+- `vis_a`: summed area of visible faces divided by total mesh area; each face
+  has its full triangle-area weight.
+
+Both metrics are always retained and can be requested regardless of the
+configured default. To generate caches whose default target is `Vis`, use:
+
+```bash
+python3 scripts/precompute_visibility.py \
+  --set phase2.visibility.target=vis \
+  --split test
+```
 
 Generate one object and a debug SVG:
 
@@ -236,7 +253,8 @@ python3 scripts/precompute_visibility.py --split test
 Compatible `.npz` caches are skipped. A metadata or mesh-checksum mismatch is
 reported as an error; pass `--overwrite` only when intentionally rebuilding.
 All relevant parameters support the normal repeatable `--set KEY=VALUE`
-overrides. Cache files are loaded without knowledge of the rendering backend:
+overrides. Both paper metrics and target-specific marginal gains are available
+from a loaded cache:
 
 ```python
 from nbv.data import load_visibility_cache
@@ -245,8 +263,11 @@ cache = load_visibility_cache(
     "02691156/10155655850468db78d106ce0a280f87",
     cache_root="data/cache/visibility",
 )
-seen = cache.visibility[[0, 12]].any(axis=0)
-coverage = seen.mean()
+both = cache.metrics([0, 12])
+selected_coverage = cache.coverage([0, 12])  # uses configured target
+vis_coverage = cache.coverage([0, 12], target="vis")
+vis_a_coverage = cache.coverage([0, 12], target="vis_a")
+candidate_gains = cache.candidate_gains([0, 12])
 ```
 
 ## Step 5: model smoke tests

@@ -356,7 +356,7 @@ Repository audit as of 2026-09-07:
 | Runtime/memory profiling | Deferred to Phase 2 | Trainable parameter counts are reported. A common inference-time and peak-memory protocol remains useful for the closed-loop system but does not block the frozen Phase 1 feature-probe result. |
 | PUN comparison | Complete | The official released PSNR UPNet checkpoint was checksum-verified, evaluated last with official timm preprocessing, and recorded with both official unmasked MSE and common masked metrics. The full row covers all 5,232 validation and 14,400 test samples. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
-| Phase 2 visibility infrastructure | Implemented and synthetic-tested; full real-object run pending | Deterministic PLY/OBJ surface sampling, canonical 48-anchor CPU depth visibility, atomic metadata-validated caches, split/subset precompute CLI, and debug SVG output are implemented. The prepared local ShapeNetCore.v2 subset uses `model_normalized.ply`; a complete real-object precompute is still pending. No policy, closed-loop simulator, history dataset, or joint VGGT implementation is present. |
+| Phase 2 visibility infrastructure | Implemented and synthetic-tested; full real-object run pending | PUN-style rasterized face visibility, explicit `Vis`/`VisA` aggregation, configurable utility target, canonical 48-anchor CPU triangle-ID z-buffering, schema-2 metadata-validated caches, split/subset precompute CLI, and debug SVG output are implemented. The prepared local ShapeNetCore.v2 subset uses `model_normalized.ply`; a complete real-object precompute is still pending. No policy, closed-loop simulator, history dataset, or joint VGGT implementation is present. |
 
 The automated suite currently contains 104 passing tests. This number records
 the audit state rather than replacing the requirement for real-data,
@@ -436,7 +436,7 @@ At time `t`:
 
 Every policy must run through the **same evaluator**.
 
-### Surface visibility representation
+### PUN face-visibility representation
 
 The proposal defines utility using ground-truth mesh surface coverage:
 
@@ -446,14 +446,23 @@ u_t,j = Coverage(P_t ∪ z(v_j), W) - Coverage(P_t, W)
 
 Implementation recommendation:
 
-Precompute, per object and anchor view, a visibility mask over a fixed set of uniformly sampled mesh-surface points.
+Precompute, per object and anchor view, the ground-truth mesh faces that survive
+occlusion in a triangle-ID rasterizer. This follows PUN's evaluation definition.
+Keep both PUN targets explicit:
+
+```text
+Vis  = number of visible faces / total number of faces
+VisA = total area of visible faces / total mesh area
+```
+
+Select `vis` or `vis_a` as the experiment's coverage/utility target in config.
 
 Then:
 
 ```text
-seen_mask_t = OR of visibility masks for acquired views
-candidate_gain(j) = count(visibility[j] AND NOT seen_mask_t) / N_surface
-coverage_t = count(seen_mask_t) / N_surface
+seen_faces_t = OR of face-visibility masks for acquired views
+candidate_gain(j) = weighted_sum(visibility[j] AND NOT seen_faces_t, target)
+coverage_t = weighted_sum(seen_faces_t, target)
 ```
 
 Benefits:
@@ -463,13 +472,12 @@ Benefits:
 - reproducible oracle utilities,
 - easier unit testing.
 
-Visibility must still be based on the proposal's depth-consistency rule.
+Visibility is the set of nearest, unoccluded face IDs produced by rasterization.
 
 Keep these configurable:
 
-- number of sampled surface points,
-- rendering/depth resolution,
-- depth consistency tolerance,
+- `vis` versus `vis_a` target,
+- triangle-ID render resolution,
 - back-face/culling policy if applicable.
 
 Do not silently change them between experiments.
@@ -885,7 +893,8 @@ The implemented Phase 1 separation is:
 **data → cached inputs/features → predictor or fixed baseline → evaluator → results → visualization**
 
 The repository now also includes the first Phase 2 infrastructure step:
-deterministic mesh-surface sampling and per-anchor visibility caches. There is
+deterministic PUN-style per-anchor mesh-face visibility caches with explicit
+`Vis` and `VisA` aggregation. There is
 still no `policies/`, coverage/oracle utility abstraction, history dataset,
 closed-loop evaluator, or joint multi-view model; those later Phase 2/3
 additions should be introduced only in their corresponding development steps.
@@ -943,7 +952,7 @@ project_root/
 │   │
 │   ├── geometry/
 │   │   ├── anchors.py
-│   │   ├── mesh_sampling.py
+│   │   ├── mesh.py
 │   │   ├── visibility.py
 │   │   └── coverage.py
 │   │
@@ -1061,13 +1070,13 @@ Recommended state fields:
 object_id
 acquired_anchor_ids
 observation_images / image references
-seen_surface_mask
+seen_face_mask
 current_coverage
 step_index
 candidate_mask
 ```
 
-The learned model should not receive ground-truth `seen_surface_mask`; that belongs only to the simulator/evaluator unless explicitly running a geometry upper bound.
+The learned model should not receive ground-truth `seen_face_mask`; that belongs only to the simulator/evaluator unless explicitly running a geometry upper bound.
 
 ---
 
@@ -1466,7 +1475,8 @@ before running a missing pretrained backbone in memory.
 
 ### Step 9 — geometry visibility cache
 
-Sample mesh points, compute anchor-view visibility, and validate on one object.
+Rasterize per-anchor visible mesh-face sets, compute both `Vis` and `VisA`, and
+validate on one object.
 
 ### Step 10 — closed-loop simulator
 
@@ -1659,8 +1669,8 @@ For every final table/figure:
 - [ ] Loss weights documented.
 - [ ] Candidate masking behavior documented.
 - [ ] View budget documented.
-- [ ] Number of surface samples documented.
-- [ ] Visibility rule/tolerance documented.
+- [ ] Triangle-ID render resolution documented.
+- [ ] Visibility rasterization and culling policy documented.
 - [ ] Runtime hardware documented.
 - [ ] Number of evaluation objects documented.
 
