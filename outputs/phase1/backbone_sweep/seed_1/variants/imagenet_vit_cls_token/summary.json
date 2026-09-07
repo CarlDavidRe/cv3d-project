@@ -1,0 +1,34 @@
+{
+  "backbone": "imagenet_vit",
+  "best_epoch": 20,
+  "best_validation_loss": 1.2115853427017864,
+  "epochs_completed": 28,
+  "feature": "cls_token",
+  "feature_components": [
+    "cls_token"
+  ],
+  "input_dim": 768,
+  "target_direction": "lower",
+  "target_name": "PSNR",
+  "test": {
+    "huber_loss": 1.224266014099121,
+    "loss": 1.2856443304485745,
+    "ndcg_at_5_mean": 0.7709258265381674,
+    "normalized_regret_mean": 0.25190457486865164,
+    "num_samples": 14400,
+    "ranking_loss": 0.6137833378050063,
+    "spearman_mean": 0.4478428060728413
+  },
+  "train_samples": 41760,
+  "trainable_parameters": 106160,
+  "validation": {
+    "huber_loss": 1.152504854246017,
+    "loss": 1.211585374782574,
+    "ndcg_at_5_mean": 0.79600483215821,
+    "normalized_regret_mean": 0.2222295264146745,
+    "num_samples": 5232,
+    "ranking_loss": 0.5908052430969495,
+    "spearman_mean": 0.5035562753509747
+  },
+  "variant": "imagenet_vit_cls_token"
+}

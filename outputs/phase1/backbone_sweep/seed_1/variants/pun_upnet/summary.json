@@ -1,0 +1,70 @@
+{
+  "backbone": "pun_upnet",
+  "best_epoch": null,
+  "best_validation_loss": null,
+  "checkpoint_selection": "official_release",
+  "epochs_completed": 0,
+  "feature": "vit_small_patch16_224_official_pretrained",
+  "feature_components": [],
+  "input_dim": 384,
+  "official_pun": {
+    "checkpoint_path": "/content/cv3d-project/data/cache/models/pun/vit_small_patch16_224_PSNR_250425172703/best_vit_regressor.pth",
+    "checkpoint_sha256": "91b2065f7652aac0c84386d4af10cd0c1ae723c049c91e45ccc78722f70907ae",
+    "checkpoint_url": "https://drive.usercontent.google.com/download?id=1vpVFy2LQMjN0jTJ_o1chZ6B4nJNfNVKP&export=download&confirm=t",
+    "differences": {
+      "common_evaluation": "source-relative anchor 0 masked; normalized regret, Spearman, NDCG@5, and project Huber/ranking losses added",
+      "training_data": "official release does not publish a machine-readable training-split manifest; overlap with this project's test objects/categories cannot be ruled out"
+    },
+    "model_name": "vit_small_patch16_224",
+    "preprocessing": {
+      "crop_mode": "center",
+      "crop_pct": 0.9,
+      "input_size": [
+        3,
+        224,
+        224
+      ],
+      "interpolation": "bicubic",
+      "mean": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "std": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    "release_name": "vit_small_patch16_224_PSNR_250425172703",
+    "source_commit": "aa6f8f4f12154854a4c1867209725c80475af102",
+    "source_repository": "https://github.com/ZhangLab-DeepNeuroCogLab/PUN",
+    "target_name": "PSNR",
+    "timm_version": "1.0.28"
+  },
+  "target_direction": "lower",
+  "target_name": "PSNR",
+  "test": {
+    "huber_loss": 0.8488410165574816,
+    "loss": 0.9026111178927951,
+    "ndcg_at_5_mean": 0.8463033200669995,
+    "normalized_regret_mean": 0.16942784240893755,
+    "num_samples": 14400,
+    "official_unmasked_mse_loss": 2.7168278630574543,
+    "ranking_loss": 0.5377009839481778,
+    "spearman_mean": 0.6018496714470776
+  },
+  "train_samples": null,
+  "trainable_parameters": 21684144,
+  "validation": {
+    "huber_loss": 0.18240780668156592,
+    "loss": 0.2134297605410264,
+    "ndcg_at_5_mean": 0.9683499699401278,
+    "normalized_regret_mean": 0.036701144775940324,
+    "num_samples": 5232,
+    "official_unmasked_mse_loss": 0.5283284675819794,
+    "ranking_loss": 0.3102195478907419,
+    "spearman_mean": 0.91654843050854
+  },
+  "variant": "pun_upnet"
+}

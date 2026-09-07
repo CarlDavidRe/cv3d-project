@@ -1,0 +1,34 @@
+{
+  "backbone": "raw_rgb",
+  "best_epoch": 29,
+  "best_validation_loss": 1.6603577924430917,
+  "epochs_completed": 37,
+  "feature": "flattened_rgb",
+  "feature_components": [
+    "flattened_rgb"
+  ],
+  "input_dim": 768,
+  "target_direction": "lower",
+  "target_name": "PSNR",
+  "test": {
+    "huber_loss": 1.4275850327809652,
+    "loss": 1.4904863378736708,
+    "ndcg_at_5_mean": 0.7525078125071049,
+    "normalized_regret_mean": 0.27491918216626854,
+    "num_samples": 14400,
+    "ranking_loss": 0.629013082186381,
+    "spearman_mean": 0.401598557572814
+  },
+  "train_samples": 41760,
+  "trainable_parameters": 106160,
+  "validation": {
+    "huber_loss": 1.5985964387199565,
+    "loss": 1.6603577661951747,
+    "ndcg_at_5_mean": 0.7631918475478259,
+    "normalized_regret_mean": 0.2615327306308201,
+    "num_samples": 5232,
+    "ranking_loss": 0.61761315572517,
+    "spearman_mean": 0.4367062416391044
+  },
+  "variant": "raw_rgb_16x16_mlp"
+}

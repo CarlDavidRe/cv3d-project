@@ -1,0 +1,34 @@
+{
+  "backbone": "vggt",
+  "best_epoch": 50,
+  "best_validation_loss": 1.3251616433490672,
+  "epochs_completed": 50,
+  "feature": "max_pooled_patch",
+  "feature_components": [
+    "max_pooled_patch"
+  ],
+  "input_dim": 2048,
+  "target_direction": "lower",
+  "target_name": "PSNR",
+  "test": {
+    "huber_loss": 1.1517303567462498,
+    "loss": 1.2102908356984456,
+    "ndcg_at_5_mean": 0.8064525832987983,
+    "normalized_regret_mean": 0.21135479541527022,
+    "num_samples": 14400,
+    "ranking_loss": 0.5856047863430447,
+    "spearman_mean": 0.5092353519640972
+  },
+  "train_samples": 41760,
+  "trainable_parameters": 272560,
+  "validation": {
+    "huber_loss": 1.2675122365309923,
+    "loss": 1.3251616083518445,
+    "ndcg_at_5_mean": 0.8162279300675508,
+    "normalized_regret_mean": 0.19978568182609183,
+    "num_samples": 5232,
+    "ranking_loss": 0.5764937271401058,
+    "spearman_mean": 0.5362805584431293
+  },
+  "variant": "vggt_max_pooled_patch"
+}

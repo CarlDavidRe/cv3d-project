@@ -327,15 +327,19 @@ Create a notebook or lightweight script that shows:
 - [x] Feature caching works.
 - [x] The same lightweight head can train on every backbone.
 - [x] Evaluation produces one common metrics JSON/table.
-- [ ] PUN baseline results are available in the same comparison table.
+- [x] PUN baseline results are available in the same comparison table.
 - [x] Official pretrained PUN is configured as the final inference-only sweep entry.
 - [x] At least one qualitative visualization is reproducible from a saved checkpoint.
 - [x] Experiment config, seed, checkpoint, and metrics are saved together.
 - [x] A single command can reproduce the main Phase 1 comparison.
 
-### Current Phase 1 repository status
+### Current Phase 1 repository status — complete
 
-Repository audit as of 2026-09-01:
+Phase 1 was marked complete on 2026-09-07. The frozen primary result is the
+complete seed-1 sweep under `outputs/phase1/backbone_sweep/seed_1`, with all 12
+configured entries evaluated through the common validation/test pipeline.
+
+Repository audit as of 2026-09-07:
 
 | Area | Status | Current evidence / remaining work |
 |---|---|---|
@@ -348,9 +352,9 @@ Repository audit as of 2026-09-01:
 | Feature/model caching | Implemented and tested | Model downloads use the shared model-cache root; feature vectors use metadata-fingerprinted, atomically written caches. Compatible caches are reused by default. |
 | Probe training and diagnostics | Implemented and tested | The shared MLP, masked objectives, early stopping, best-state restoration, comparable post-epoch train/validation diagnostics, validation ranking histories, and dependency-free SVG curves are implemented. An ImageNet-ViT tiny-set overfit artifact succeeds. |
 | Phase 1 controls | Implemented and tested | `train_mean_map` and `raw_rgb_16x16_mlp` are configured and emit the same evaluation/result schema as learned probes. |
-| One-command sweep | Implemented; pre-PUN seed-0 run completed | The checked-in run contains the mean-map baseline and ten locally trained variants (11 rows). The current config appends official pretrained PUN as row 12 on rerun. Additional seeds remain desirable for final reporting. |
-| Runtime/memory profiling | Not implemented | Trainable parameter counts are reported, but inference timing and peak-memory measurement still need a documented common protocol. |
-| PUN comparison | Implemented and smoke-tested; full row pending | `inspect_pun.py` performs a one-image real-checkpoint smoke alongside the feature-model checks. The runner checksum-verifies and loads the official released PSNR UPNet checkpoint, applies official timm preprocessing, evaluates it last with both official unmasked MSE and common masked metrics, and emits the normal artifact schema. The complete 14,400-sample test row has not yet been generated. |
+| One-command sweep | Implemented; complete seed-1 run frozen | The primary result contains the mean-map baseline, ten locally trained variants, and official pretrained PUN as the final row (12 rows total). Seed 0 remains available as an earlier supporting run. |
+| Runtime/memory profiling | Deferred to Phase 2 | Trainable parameter counts are reported. A common inference-time and peak-memory protocol remains useful for the closed-loop system but does not block the frozen Phase 1 feature-probe result. |
+| PUN comparison | Complete | The official released PSNR UPNet checkpoint was checksum-verified, evaluated last with official timm preprocessing, and recorded with both official unmasked MSE and common masked metrics. The full row covers all 5,232 validation and 14,400 test samples. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
 | Phase 2 visibility infrastructure | Implemented and synthetic-tested; full real-object run pending | Deterministic PLY/OBJ surface sampling, canonical 48-anchor CPU depth visibility, atomic metadata-validated caches, split/subset precompute CLI, and debug SVG output are implemented. The prepared local ShapeNetCore.v2 subset uses `model_normalized.ply`; a complete real-object precompute is still pending. No policy, closed-loop simulator, history dataset, or joint VGGT implementation is present. |
 
@@ -1347,7 +1351,7 @@ Before final experiments, use this checklist:
 | `vggt_camera_token` | VGGT camera token | shared lightweight head | implemented |
 | `vggt_pooled_register` | VGGT mean-pooled registers | shared lightweight head | implemented |
 | `vggt_camera_patch` | VGGT camera + mean-pooled patches | shared lightweight head | implemented |
-| `pun_upnet` | official released PUN ViT-S/16 checkpoint | inference only; official preprocessing + common evaluator | implemented; full sweep pending |
+| `pun_upnet` | official released PUN ViT-S/16 checkpoint | inference only; official preprocessing + common evaluator | complete in the frozen seed-1 sweep |
 
 “Implemented” here means the entry is configured and covered by the Phase 1
 runner/tests; it does not mean the complete dataset sweep has already been run.
@@ -1916,9 +1920,9 @@ Start here.
 - [x] Implement common validation/test metrics and comparison-table writers.
 - [x] Run backbone comparison.
 - [x] Integrate official pretrained PUN baseline.
-- [x] Produce the populated seed-0 comparison table.
+- [x] Produce the populated seed-1 comparison table, including official PUN.
 - [x] Build saved-checkpoint prediction-versus-target visualization.
-- [ ] Freeze Phase 1 checkpoint.
+- [x] Freeze Phase 1 checkpoint.
 
 ### Milestone 5 — closed-loop geometry
 

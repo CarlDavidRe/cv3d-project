@@ -1,0 +1,35 @@
+{
+  "backbone": "vggt",
+  "best_epoch": 50,
+  "best_validation_loss": 1.2689977716597578,
+  "epochs_completed": 50,
+  "feature": "pooled_camera+pooled_patch",
+  "feature_components": [
+    "pooled_camera",
+    "pooled_patch"
+  ],
+  "input_dim": 4096,
+  "target_direction": "lower",
+  "target_name": "PSNR",
+  "test": {
+    "huber_loss": 1.1118443992402818,
+    "loss": 1.1707654900021023,
+    "ndcg_at_5_mean": 0.7967892438290063,
+    "normalized_regret_mean": 0.22111795679192345,
+    "num_samples": 14400,
+    "ranking_loss": 0.5892107735739814,
+    "spearman_mean": 0.49767844816783813
+  },
+  "train_samples": 41760,
+  "trainable_parameters": 538800,
+  "validation": {
+    "huber_loss": 1.2104847201513589,
+    "loss": 1.2689977687433225,
+    "ndcg_at_5_mean": 0.8062194739994283,
+    "normalized_regret_mean": 0.21023033200019384,
+    "num_samples": 5232,
+    "ranking_loss": 0.5851306583538697,
+    "spearman_mean": 0.5152552029826807
+  },
+  "variant": "vggt_camera_patch"
+}
