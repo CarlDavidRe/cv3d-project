@@ -2,11 +2,13 @@
 
 ## 1. Purpose of this document
 
-This file is the implementation reference for the project. It reorganizes the original proposal around the instructor's recommended three-phase execution plan so that each phase ends with a complete, usable checkpoint.
+This file is the implementation reference for the project. It integrates the revised PUN-compatible Phase 2 and direct surface-gain Phase 3 plan while retaining the completed Phase 1 study. Each phase ends with a complete, usable checkpoint.
+
+The revision separates **single-image NUM supervision**, **aggregated policy scores**, and **ground-truth geometric evaluation**. Phase 2 reuses the Phase 1 image-target pairs; a new supervised history dataset is introduced only in Phase 3. Per the project decision, retain the current rasterized mesh-face visibility implementation and its explicit `Vis`/`VisA` metrics. The attachment's sampled-surface-point proposal does not apply.
 
 The core research goal remains:
 
-> Determine how accurately frozen VGGT representations can rank unobserved camera poses by incremental surface coverage, and whether joint multi-view processing improves over independent per-view aggregation.
+> Determine whether frozen VGGT predictions of the original single-image NUM target transfer to effective sequential surface coverage, then test whether joint multi-view processing improves direct history-dependent surface-gain prediction over a capacity-matched independent model.
 
 The project should be implemented so that:
 
@@ -44,8 +46,8 @@ The proposed approach asks whether **frozen VGGT latent features themselves alre
 
 - **H1 — Feature decodability:** NBV-relevant information is directly decodable from frozen VGGT features.
 - **H2 — Geometry-aware advantage:** VGGT features outperform generic frozen visual features such as ImageNet-ViT and DINOv2 for the single-image prediction task.
-- **H3 — End-to-end NBV usefulness:** A VGGT-based view-by-view predictor can be competitive with PUN and simple NBV baselines in closed-loop evaluation.
-- **H4 — Joint multi-view advantage:** Joint VGGT processing of the observation history improves candidate-view ranking over independent-view processing followed by aggregation.
+- **H3 — End-to-end NBV usefulness:** Independently predicting the original NUM/PUN target with VGGT and combining maps using PUN-style aggregation produces a competitive closed-loop coverage policy. Better proxy prediction may or may not improve geometric coverage.
+- **H4 — Joint multi-view advantage:** When both models train on identical history-dependent surface-gain targets, joint VGGT processing improves prediction and ranking over capacity-matched independent VGGT feature aggregation.
 
 H4 is the main novel/high-risk hypothesis and belongs in Phase 3.
 
@@ -260,7 +262,7 @@ L = L_huber + lambda_rank * L_rank
 
 Where:
 
-- `L_huber` regresses the target utility/uncertainty values.
+- `L_huber` regresses the original NUM/PUN target values, preserving their dataset semantics; these are not direct surface-gain labels.
 - `L_rank` encourages correct ordering of candidate views.
 
 Make `lambda_rank` configurable.
@@ -356,372 +358,711 @@ Repository audit as of 2026-09-07:
 | Runtime/memory profiling | Deferred to Phase 2 | Trainable parameter counts are reported. A common inference-time and peak-memory protocol remains useful for the closed-loop system but does not block the frozen Phase 1 feature-probe result. |
 | PUN comparison | Complete | The official released PSNR UPNet checkpoint was checksum-verified, evaluated last with official timm preprocessing, and recorded with both official unmasked MSE and common masked metrics. The full row covers all 5,232 validation and 14,400 test samples. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
-| Phase 2 visibility infrastructure | Implemented and synthetic-tested; full real-object run pending | PUN-style rasterized face visibility, explicit `Vis`/`VisA` aggregation, configurable utility target, canonical 48-anchor CPU triangle-ID z-buffering, schema-2 metadata-validated caches, split/subset precompute CLI, and debug SVG output are implemented. The prepared local ShapeNetCore.v2 subset uses `model_normalized.ply`; a complete real-object precompute is still pending. No policy, closed-loop simulator, history dataset, or joint VGGT implementation is present. |
+| Phase 2 visibility infrastructure | Implemented and synthetic-tested; full real-object run pending | Mesh loading, canonical 48-anchor CPU triangle-ID z-buffering, `Vis`/`VisA` coverage and marginal-gain helpers, schema-2 face caches, split/subset precompute CLI, and debug SVG output exist and remain the geometry foundation for Phases 2/3. The prepared local ShapeNetCore.v2 subset uses `model_normalized.ply`; a complete real-object precompute is still pending. No policy, closed-loop simulator, history dataset, or joint VGGT implementation is present. |
 
-The automated suite currently contains 104 passing tests. This number records
-the audit state rather than replacing the requirement for real-data,
-real-checkpoint, and full-sweep validation.
+The Phase 1 audit recorded 104 passing tests. This historical count does not
+validate the planned Phase 2/3 changes or replace real-data, real-checkpoint,
+and full-sweep validation.
 
 ### Phase 1 expected report result
 
 A controlled statement such as:
 
-> Frozen VGGT features are / are not more predictive of future-view utility than generic frozen image features under the same predictor capacity.
+> Frozen VGGT features are / are not more predictive of the original single-image NUM target than generic frozen image features under the same predictor capacity. Whether this translates into increased surface coverage is tested in Phase 2.
 
 Even if the later phases fail, this can already be a meaningful result.
 
 ---
 
-## Phase 2 — Independent Per-View VGGT + Complete Closed-Loop NBV Pipeline
+## Phase 2 — PUN-Compatible Independent Per-View VGGT + Complete Closed-Loop NBV Pipeline
 
 ### Goal
 
-Build a complete NBV system using frozen VGGT **without joint history processing**.
+Build the complete closed-loop next-best-view system using frozen VGGT **without joint history processing**, while keeping the learned prediction problem as close as possible to the original PUN/NUM formulation.
 
-This is the main project fallback and should be treated as a final-quality implementation.
+The main Phase 2 question is:
 
-The key question is:
+> If frozen VGGT features are trained to predict the same single-image 48-anchor target used by PUN/NUM, does independently applying that predictor to every acquired observation and aggregating the resulting maps produce an effective closed-loop NBV policy?
 
-> When observations are processed independently and combined across time, how well does a VGGT-based predictor perform in the full PUN-style closed-loop setting?
+Phase 2 is the main project fallback and should be treated as a final-quality deliverable.
 
-### Recommended independent-history design
+The important distinction is:
 
-To match the instructor's suggestion and PUN as closely as possible, the safest primary Phase 2 baseline is:
+* **training target:** original PUN/NUM single-image target,
+* **policy score:** aggregated PUN/NUM-style prediction,
+* **final evaluation:** true incremental surface coverage.
 
-```text
-I_1 ─→ frozen VGGT ─→ head ─→ per-view 48-anchor map ─┐
-I_2 ─→ frozen VGGT ─→ head ─→ per-view 48-anchor map ─┼─→ history aggregation ─→ final map
-...                                                    │
-I_t ─→ frozen VGGT ─→ head ─→ per-view 48-anchor map ─┘
-```
+Phase 2 does **not** require a new supervised history dataset.
 
-Use the official PUN post-prediction combination rule when known.
+---
 
-Possible controlled aggregation variants:
+### Phase 2 data and training target
 
-- mean,
-- max,
-- learned permutation-invariant aggregation.
+Reuse the original PUN Neural Uncertainty Map (NUM) ShapeNet image-target pairs from Phase 1.
 
-If time is limited, prioritize the aggregation rule that most directly matches PUN, then add mean/max as small ablations.
-
-A feature-level independent aggregation variant may also be useful:
+For every single image:
 
 ```text
-independent per-image VGGT features
+RGB image
     ↓
-permutation-invariant feature aggregation
+original NUM target
     ↓
-shared predictor head
-    ↓
-48-anchor utility map
+48-anchor target map
 ```
 
-Treat this as an ablation unless it is required for the final capacity-matched Phase 3 comparison.
+The 48 target values retain exactly the semantics of the original NUM/PUN dataset.
 
-### Closed-loop evaluator
+Do not reinterpret these values as direct surface-coverage gains.
 
-The evaluator must simulate sequential acquisition.
+The same object-disjoint train/validation/test split and canonical 48-anchor ordering used in Phase 1 should be retained.
 
-At time `t`:
+Reuse the validation-selected Phase 1 VGGT feature variant and saved head as
+the default Phase 2 predictor. Pin its experiment path, feature metadata,
+checkpoint checksum, target name, and target direction in the Phase 2 config.
+Change the variant only when validation results justify it; do not choose it
+using Phase 2 test coverage.
 
-1. Gather the observation history `I_1:t`.
-2. Predict utility for all 48 anchor views.
-3. Mask already acquired/invalid candidates.
-4. Select `argmax` under the evaluated policy.
-5. Acquire that view in the simulator.
-6. Update visible surface state.
-7. Compute coverage and per-step metrics.
-8. Repeat until the view budget is exhausted.
+---
 
-Every policy must run through the **same evaluator**.
+### VGGT per-view predictor
 
-### PUN face-visibility representation
-
-The proposal defines utility using ground-truth mesh surface coverage:
+Each observed image is processed independently:
 
 ```text
-u_t,j = Coverage(P_t ∪ z(v_j), W) - Coverage(P_t, W)
+RGB image
+    ↓
+frozen VGGT
+    ↓
+selected frozen feature representation
+    ↓
+lightweight predictor
+    ↓
+48-value NUM/PUN-style prediction map
 ```
 
-Implementation recommendation:
+The predictor is trained exactly as a single-image model.
 
-Precompute, per object and anchor view, the ground-truth mesh faces that survive
-occlusion in a triangle-ID rasterizer. This follows PUN's evaluation definition.
-Keep both PUN targets explicit:
+VGGT never receives multiple acquired images in the same forward pass during Phase 2.
+
+Because processing is independent, frozen VGGT features and optionally complete per-image prediction maps can be cached.
+
+---
+
+### Official PUN baseline
+
+Use the official released PUN/UPNet checkpoint as the primary published-method baseline.
+
+Do **not** retrain official PUN to predict direct surface gain.
+
+PUN should preserve:
+
+* its released checkpoint,
+* its original preprocessing,
+* its original per-image output semantics,
+* its official history-combination behavior as closely as possible.
+
+The purpose of PUN in Phase 2 is to answer:
+
+> How does the published PUN policy perform under the project's common closed-loop surface-coverage evaluator?
+
+Any mismatch between the original PUN/NUM target semantics and direct incremental surface coverage must be reported explicitly.
+
+A separately retrained PUN-like architecture using direct surface-gain supervision may be added later as an ablation, but it must not be presented as the official PUN baseline.
+
+---
+
+### Independent history processing
+
+At time `t`, each acquired image produces its own 48-anchor prediction:
+
+```text
+I_1 → frozen VGGT → head → map_1 ┐
+I_2 → frozen VGGT → head → map_2 ├→ history aggregation → final 48 scores
+...                              │
+I_t → frozen VGGT → head → map_t ┘
+```
+
+The primary aggregation rule should match the official PUN post-prediction combination rule whenever that rule can be reproduced reliably.
+
+Possible secondary ablations:
+
+* mean aggregation,
+* max aggregation,
+* other simple deterministic PUN-compatible aggregation rules.
+
+The primary Phase 2 experiment should avoid adding a large learned history
+module because that would change the research question and make the comparison
+with PUN less direct. Feature-level history aggregation trained on surface gain
+belongs to the Phase 3 independent control.
+
+Before combining maps, reproduce the official conversion from each source-view
+map frame into the common rollout anchor frame. The Phase 1 source-relative
+anchor-zero convention is not a global already-acquired mask. Pin any rotation,
+resampling, normalization, and combination behavior after checking the official
+implementation; do not assume all frame conversions are exact permutations.
+
+Preserve raw target predictions separately from final policy scores. The
+adapter returns higher-is-better scores while respecting the original target
+direction and the official order of operations. The current PSNR target is
+lower-is-more-uncertain, so an unconditional argmax of raw PSNR predictions
+would reverse its intended ranking. Mean/max ablations must specify whether
+they aggregate raw maps or oriented scores.
+
+---
+
+### Interpretation of the Phase 2 scores
+
+The final 48 values after history aggregation are **policy scores**.
+
+They should not automatically be described as predicted surface gain.
+
+Instead:
+
+```text
+aggregated PUN/NUM-style scores
+            ↓
+rank currently valid candidate views
+            ↓
+select next view
+```
+
+The policy is successful if those rankings cause the system to acquire views that reveal useful new geometry.
+
+This separates:
+
+```text
+what the model is trained to predict
+            ≠
+what the evaluator ultimately measures
+```
+
+---
+
+### Surface-coverage evaluator
+
+Although Phase 2 models are trained on PUN/NUM targets, all policies are evaluated using the same ground-truth geometric criterion.
+
+For observation history `P_t` and candidate view `v_j`:
+
+```text
+u_t,j =
+    Coverage(P_t ∪ z(v_j), W)
+    -
+    Coverage(P_t, W)
+```
+
+where:
+
+* `P_t` is the surface already visible from acquired views,
+* `z(v_j)` is the surface visible from candidate anchor `j`,
+* `W` is the complete ground-truth mesh surface, represented by its faces under the configured `Vis` or `VisA` coverage definition.
+
+These ground-truth gains are evaluator quantities.
+
+They are **not Phase 2 VGGT training labels**.
+
+---
+
+### Surface visibility cache
+
+Retain the existing per-object, per-anchor rasterized mesh-face visibility
+cache. A face is visible when it survives occlusion in the triangle-ID z-buffer
+for at least one pixel. Keep both existing coverage definitions explicit:
 
 ```text
 Vis  = number of visible faces / total number of faces
 VisA = total area of visible faces / total mesh area
 ```
 
-Select `vis` or `vis_a` as the experiment's coverage/utility target in config.
-
-Then:
-
-```text
-seen_faces_t = OR of face-visibility masks for acquired views
-candidate_gain(j) = weighted_sum(visibility[j] AND NOT seen_faces_t, target)
-coverage_t = weighted_sum(seen_faces_t, target)
-```
-
-Benefits:
-
-- exact consistency between labels and evaluation,
-- much faster history-label generation,
-- reproducible oracle utilities,
-- easier unit testing.
-
-Visibility is the set of nearest, unoccluded face IDs produced by rasterization.
-
-Keep these configurable:
-
-- `vis` versus `vis_a` target,
-- triangle-ID render resolution,
-- back-face/culling policy if applicable.
-
-Do not silently change them between experiments.
-
-### Required Phase 2 policies/baselines
-
-From the proposal:
-
-- Random policy
-- Farthest-view heuristic
-- PUN
-- VGGT independent per-view aggregation
-- Explicit geometry pipeline using VGGT-predicted depth
-- Ground-truth-depth geometry upper bound
-- Oracle one-step policy
-
-If the explicit-geometry baselines threaten completion, implement them after the core Random / Farthest / PUN / VGGT / Oracle comparison is stable, but before declaring the final experiment suite frozen.
-
-### One-step metrics
-
-#### Normalized utility regret
-
-For selected candidate `j_hat` and oracle candidate `j*`:
+Select `vis` or `vis_a` in config before evaluation; the current configuration
+uses `vis_a`. The selected definition must be identical for all policies,
+oracle gains, and subsequent Phase 3 training labels.
 
 ```text
-R_t =
-    (u_t,j* - u_t,j_hat)
-    /
-    (u_t,j* - min_j u_t,j + epsilon)
+seen_face_mask_t = OR of face_visibility masks for acquired views
+
+weight[f] = 1 / N_faces                         # Vis
+         or face_area[f] / total_mesh_area       # VisA
+
+candidate_gain(j) = sum_f(
+    weight[f] * (face_visibility[j, f] AND NOT seen_face_mask_t[f])
+)
+
+coverage_t = sum_f(weight[f] * seen_face_mask_t[f])
 ```
 
-Lower is better.
+The same cache supports closed-loop coverage, oracle selection, one-step
+regret, ranking against true geometric gain, and later Phase 3 history labels.
+The same visibility definition must be reused everywhere.
 
-#### Ranking metrics
+#### Existing implementation and remaining validation
 
-- Spearman correlation
-- NDCG@5
+Reuse `src/nbv/geometry/visibility.py`, `src/nbv/geometry/coverage.py`,
+`src/nbv/data/visibility_cache.py`, `scripts/precompute_visibility.py`, and
+`configs/experiments/phase2_visibility.yaml`. Preserve the current face-mask
+representation, schema-2 metadata validation, and `Vis`/`VisA` helpers.
 
-Important:
+Keep mesh checksum/scale, anchor ordering, camera geometry, triangle-ID render
+resolution, clipping, culling, and visibility definition in cache provenance.
+Do not change the geometry definition between experiments or introduce a
+surface-point sampler. The remaining Step 9 work is real-object validation
+and complete split precomputation using this existing implementation.
 
-- Mask already observed candidate views before computing policy selection.
-- Define consistently whether ranking metrics include or exclude invalid/already-seen anchors.
-- Prefer evaluating over the valid candidate set.
-
-### Closed-loop metrics
-
-Required:
-
-- surface coverage vs. number of acquired views,
-- area under the coverage-vs-view curve,
-- final coverage at the maximum view budget,
-- median inference time,
-- peak memory,
-- trainable parameter count.
-
-Recommended reporting points:
-
-- early budget,
-- medium budget,
-- final budget.
-
-The exact reported view counts should match the experiment horizon and be fixed before final evaluation.
-
-### Phase 2 demo
-
-Extend the visualization so a full rollout shows:
-
-- acquired RGB views,
-- current predicted spherical utility map,
-- selected NBV,
-- accumulated visible surface,
-- coverage curve,
-- optional policy comparison on the same object.
-
-The demo should load saved checkpoints and results. It should not contain hidden training/evaluation logic that exists only inside the notebook.
-
-### Phase 2 definition of done
-
-- [ ] Closed-loop simulator works on a single object.
-- [ ] Surface visibility/coverage cache is reproducible.
-- [ ] Oracle candidate utility exactly matches the same coverage state used by evaluation.
-- [ ] All policies share one evaluator.
-- [ ] Already-seen views are masked consistently.
-- [ ] PUN and VGGT can both run in the same history protocol.
-- [ ] Coverage curves can be produced for the entire test split.
-- [ ] One-step ranking metrics and closed-loop metrics are saved together.
-- [ ] Runtime, memory, and parameter counts are reported.
-- [ ] Demo can replay at least one saved rollout.
-- [ ] Main results can be regenerated from config files without editing source code.
-
-### Phase 2 expected report result
-
-Phase 2 should be sufficient for a complete final project:
-
-> A frozen-VGGT NBV predictor is evaluated in the same closed-loop framework as PUN and classical/simple policy baselines, establishing whether VGGT representations are useful in a practical sequential acquisition pipeline.
+Coverage is normalized by the full face count or full mesh area, including
+faces unreachable from the candidate set; maximum achievable coverage can be
+below 1. Report the chosen face-based definition explicitly when describing
+true geometric gain.
 
 ---
 
-## Phase 3 — Joint Multi-View VGGT Prediction
+### Closed-loop Phase 2 evaluator
+
+For each test object:
+
+1. Initialize the rollout from the fixed starting view or views.
+2. Gather all currently acquired RGB observations.
+3. Independently run the VGGT/PUN predictor on each observation.
+4. Aggregate the per-view prediction maps.
+5. Mask already acquired and invalid candidate anchors.
+6. Select the highest-scoring valid candidate.
+7. Compute the true surface gain of that selection.
+8. Acquire the selected view.
+9. Update the visible-surface mask.
+10. Record coverage and per-step metrics.
+11. Repeat until the view budget is exhausted.
+
+Every policy must use the same evaluator.
+
+---
+
+### Required Phase 2 policies
+
+Minimum core comparison:
+
+* Random
+* Farthest-view heuristic
+* Official PUN
+* Independent per-view VGGT + PUN-style aggregation
+* Oracle one-step policy
+
+Add after the core comparison is stable:
+
+* VGGT-predicted-depth geometry baseline
+* ground-truth-depth geometry upper bound
+* mean/max history-aggregation ablations
+
+---
+
+### Phase 2 metrics
+
+#### Closed-loop metrics
+
+These are the primary Phase 2 outcome metrics:
+
+* surface coverage versus number of acquired views,
+* coverage AUC,
+* final coverage at the maximum view budget,
+* median inference time,
+* peak memory,
+* trainable parameter count.
+
+These metrics make comparison possible even though different policies may internally assign different meanings to their 48 scores.
+
+#### One-step policy-quality metrics
+
+For each rollout state, compute the true geometric gain of every remaining candidate.
+
+Then compare the policy's ranking with those gains using:
+
+* normalized utility regret of the selected action,
+* Spearman rank correlation,
+* NDCG@5.
+
+These metrics measure how well the policy scores align with actual geometric usefulness.
+
+They do **not** imply that PUN or Phase 2 VGGT was trained directly on these surface-gain targets.
+
+#### Original target metrics
+
+For the learned single-image VGGT predictor, retain the original Phase 1 NUM-target metrics separately.
+
+This gives two complementary results:
+
+```text
+single-image prediction quality
+    → how well VGGT predicts the original NUM target
+
+closed-loop geometric quality
+    → whether those predictions lead to useful NBV decisions
+```
+
+---
+
+### Phase 2 demo
+
+A saved rollout should visualize:
+
+* acquired RGB views,
+* individual per-view prediction maps if useful,
+* aggregated current 48-anchor score map,
+* selected NBV,
+* ground-truth candidate surface gains for diagnostic comparison,
+* accumulated visible surface,
+* coverage curve,
+* optional side-by-side PUN/VGGT rollout.
+
+The demo must use saved checkpoints and the same evaluator as the quantitative experiment.
+
+---
+
+### Phase 2 definition of done
+
+* [ ] Surface visibility cache is reproducible.
+* [ ] Oracle surface gain matches explicit coverage differences.
+* [ ] Closed-loop simulator is deterministic.
+* [ ] Official PUN runs without retraining.
+* [ ] PUN's original history aggregation is reproduced or any deviation is documented.
+* [ ] VGGT predicts the original NUM/PUN target from each image independently.
+* [ ] Per-image VGGT features/predictions can be cached.
+* [ ] VGGT and PUN receive every image in the supplied history under the same observation protocol; paired fixed-history checks use identical histories. Each closed-loop policy then follows its own selected trajectory from the same initial views.
+* [ ] Already-seen candidates are masked consistently.
+* [ ] Random, Farthest, PUN, VGGT, and Oracle use one evaluator.
+* [ ] True surface gain is used only as evaluation/oracle information and is never exposed to learned Phase 2 policies.
+* [ ] Coverage curves are generated for the complete test split.
+* [ ] Per-step geometric ranking metrics and closed-loop metrics are stored together.
+* [ ] Runtime, memory, and parameter counts are reported.
+* [ ] At least one saved rollout can be replayed.
+* [ ] Main results can be reproduced from fixed configs.
+
+---
+
+### Phase 2 expected result
+
+Phase 2 should answer:
+
+> Does replacing the visual representation used for single-image PUN/NUM prediction with frozen VGGT features lead to an effective sequential NBV policy when the independently predicted maps are combined across observations?
+
+A useful result could therefore be:
+
+> Frozen VGGT predicts the original NUM target more accurately than generic visual representations and, when used with PUN-style history aggregation, produces improved / comparable / worse true surface coverage in closed-loop acquisition.
+
+Importantly, this phase tests whether improvement on the proxy prediction task translates into improvement on the real geometric objective.
+
+A complete Phase 2 remains sufficient for the final project.
+
+---
+
+## Phase 3 — Direct History-Dependent Surface-Gain Prediction
 
 ### Goal
 
-Test the central novel hypothesis:
+Phase 3 changes the learning problem.
 
-> Does joint geometry-aware VGGT processing of the complete observation history improve NBV prediction over independent per-view processing and aggregation?
+Instead of independently predicting the original single-image PUN/NUM target and combining those predictions, train models directly to answer:
 
-This is the most uncertain phase and must not block completion of Phase 2.
+> Given everything observed so far, how much previously unseen surface would each remaining candidate view reveal?
 
-### Dataset extension
+This phase tests the central novel hypothesis:
 
-Create history examples:
+> Does joint geometry-aware VGGT processing of the complete observation history improve direct surface-gain prediction over capacity-matched independent VGGT processing of exactly the same history?
+
+Phase 3 is the highest-risk extension and must not block completion of Phase 2.
+
+---
+
+### Phase 3 history dataset
+
+Create a new supervised dataset of observation histories:
 
 ```text
-I_1:t = {I_1, ..., I_t},  t <= T
+I_1:t = {I_1, ..., I_t}
 ```
 
-with one geometric utility target for every candidate view.
-
-Target:
+For every history, generate the 48-value target:
 
 ```text
-u_t,j = Coverage(P_t ∪ z(v_j), W) - Coverage(P_t, W)
+u_t,j =
+    Coverage(P_t ∪ z(v_j), W)
+    -
+    Coverage(P_t, W)
 ```
+
+Now, unlike Phase 2, these values are the actual **training targets**.
+
+Each value explicitly means:
+
+> How much additional surface would candidate `j` reveal given the current observation history?
+
+The same face-visibility cache and configured `vis` or `vis_a` target used for
+Phase 2 evaluation generate these labels. Name the field `target_surface_gain`
+and keep it distinct from the original NUM `target_map`. No Phase 2 training
+run consumes these generated labels.
+
+A logical sample contains:
+
+```yaml
+object_id: str
+history_image_paths:
+  - ...
+history_anchor_ids:
+  - ...
+history_length: int
+target_surface_gain: float[48]
+valid_candidate_mask: bool[48]
+rotation_metadata: ...
+split: train|val|test
+```
+
+The dataset should remain object-disjoint.
+
+---
 
 ### History sampling
 
-The proposal does not prescribe a history-sampling distribution.
+Start with random unique-view histories.
 
-Implementation recommendation:
+Sample multiple history lengths up to the chosen maximum training horizon.
 
-1. Start with random unique-view histories so the pipeline is easy to generate and debug.
-2. Sample multiple history lengths up to `T`.
-3. Ensure training histories do not contain duplicate anchors unless deliberately testing revisits.
-4. Later, if useful, add histories generated by realistic policies to reduce train/evaluation distribution mismatch.
+Do not include duplicate anchors unless revisits are being studied deliberately.
 
-Store the sampling strategy in the dataset metadata.
+Record the sampling strategy in dataset metadata.
+
+If time permits, later add policy-generated histories to test or reduce
+train/evaluation distribution mismatch. Keep the fixed object split and record
+the policy/checkpoint provenance without using test objects for training.
 
 ### Random object rotations
 
-The proposal calls for object-centered utility anchors and random object rotations to reduce canonical-orientation shortcuts.
+Retain rotation augmentation as an optional Phase 3 ablation after the
+non-rotated pipeline is verified. Transform the rendered RGB observations,
+camera/object poses, anchor directions, and visibility labels consistently;
+rotating only labels or cached vectors is invalid. Record the transformation
+in sample/cache metadata and give both models identical augmented histories.
 
-Implementation rule:
+---
 
-Rotation augmentation must transform **all relevant quantities consistently**:
+### Phase 3 independent control model
 
-- rendered/image observation,
-- camera/object pose relationship,
-- anchor directions,
-- visibility/utility labels.
-
-Do not add rotation augmentation until the non-rotated history pipeline is verified end-to-end.
-
-### Joint model
-
-Conceptual flow:
+The first Phase 3 model processes exactly the same history as the joint model but keeps VGGT independent across images:
 
 ```text
-I_1:t
-   ↓
-joint frozen VGGT forward pass
-   ↓
-multi-frame geometry-aware patch / camera / register tokens
-   ↓
-history-aware pooling
-   ↓
-lightweight predictor
-   ↓
-48-anchor utility map
+I_1 → frozen VGGT → f_1 ┐
+I_2 → frozen VGGT → f_2 ├→ permutation-invariant aggregation
+...                      │
+I_t → frozen VGGT → f_t ┘
+                               ↓
+                       lightweight predictor
+                               ↓
+                    48 direct surface gains
 ```
 
-Backbone remains frozen.
+Unlike Phase 2, this model is **trained on history-dependent surface-gain targets**.
 
-Only the pooling/aggregation and prediction head are trained unless a deliberate ablation says otherwise.
+Therefore it is not simply the Phase 2 policy reused unchanged.
 
-### Independent comparison model
+It is the controlled independent-processing baseline required for the Phase 3 scientific comparison.
 
-The comparison must receive exactly the same observation histories.
+Frozen per-image VGGT features may still be cached for this model.
 
-Primary comparison:
+---
+
+### Phase 3 joint model
+
+The joint model receives the complete observation history in one VGGT forward pass:
 
 ```text
-same I_1:t
-   ↓
-independent frozen VGGT processing per image
-   ↓
-permutation-invariant aggregation
-   ↓
-capacity-matched prediction head
-   ↓
-48-anchor utility map
+{I_1, I_2, ..., I_t}
+          ↓
+ joint frozen VGGT
+          ↓
+multi-view geometry-aware tokens
+          ↓
+ history-aware pooling
+          ↓
+ lightweight predictor
+          ↓
+48 direct surface gains
 ```
 
-### Capacity matching
+Information from different observations can interact inside VGGT before the prediction head.
 
-To make the research conclusion defensible:
+The VGGT backbone remains frozen.
 
-- use the same frozen backbone,
-- keep output dimensionality identical,
-- keep trainable head capacity as close as practical,
-- report trainable parameter counts,
-- use the same training split,
-- use the same history samples,
-- use the same optimizer and training budget unless there is a documented reason not to,
-- evaluate with exactly the same metrics and closed-loop protocol.
+---
 
-### Phase 3 experiments
+### Controlled Phase 3 comparison
 
-Minimum:
+The central comparison is:
 
-1. Independent VGGT aggregation vs. joint VGGT.
-2. One-step ranking comparison.
-3. Closed-loop coverage comparison.
-4. Runtime/memory comparison.
+```text
+Independent:
+same history
+    ↓
+VGGT separately per image
+    ↓
+aggregate
+    ↓
+predict surface gain
 
-Useful ablations if time permits:
 
-- history length,
-- VGGT layer used,
-- token type,
-- aggregation type,
-- ranking-loss weight,
-- effect of random rotations.
+Joint:
+same history
+    ↓
+one joint VGGT forward
+    ↓
+pool
+    ↓
+predict surface gain
+```
+
+Everything except the location of multi-view interaction should be matched as closely as possible.
+
+Use:
+
+* identical history examples,
+* identical surface-gain targets,
+* identical object splits,
+* identical valid-candidate masks,
+* the same frozen VGGT checkpoint,
+* comparable trainable head capacity,
+* the same optimizer,
+* the same training budget,
+* the same loss,
+* the same evaluator,
+* the same rollout starting conditions,
+* the same view budget.
+
+This makes the central Phase 3 conclusion interpretable:
+
+> A systematic difference supports an effect of allowing observations to interact inside VGGT rather than only after independent feature extraction, subject to the documented capacity, pooling, and compute differences.
+
+---
+
+### Relationship between PUN and Phase 3
+
+Official PUN remains an external closed-loop baseline.
+
+Do not retrain the official PUN checkpoint as part of the main Phase 3 experiment.
+
+The main controlled scientific comparison is:
+
+```text
+independent VGGT trained on surface gain
+                vs.
+joint VGGT trained on surface gain
+```
+
+PUN can still appear on the same coverage curves because all policies are evaluated using the same ground-truth coverage metric.
+
+An optional additional ablation may retrain a PUN-like architecture on the Phase 3 history/surface-gain dataset.
+
+If included, label it explicitly as something such as:
+
+```text
+PUN-architecture surface-gain control
+```
+
+and keep it separate from the official pretrained PUN result.
+
+---
+
+### Phase 3 evaluation
+
+Because the models now directly predict the evaluator's geometric utility, one-step metrics have a particularly direct interpretation:
+
+* Huber/regression error on surface gain,
+* normalized utility regret,
+* Spearman correlation,
+* NDCG@5.
+
+Closed-loop metrics remain:
+
+* coverage versus acquired views,
+* coverage AUC,
+* final coverage,
+* runtime,
+* peak memory,
+* trainable parameters.
+
+The Phase 2 evaluator itself should not need to change.
+
+Only the policy's method for generating the 48 candidate scores changes.
+
+---
 
 ### Phase 3 definition of done
 
-- [ ] History dataset generation is deterministic.
-- [ ] Utility labels are verified against brute-force coverage on small examples.
-- [ ] Joint VGGT forward pass supports variable history length.
-- [ ] Independent baseline uses the exact same histories.
-- [ ] Capacity/training differences are documented.
-- [ ] Joint and independent models run through the Phase 2 evaluator unchanged.
-- [ ] Main result includes both one-step ranking and closed-loop coverage.
-- [ ] Failures/negative results are saved and reportable rather than discarded.
+* [ ] History dataset generation is deterministic.
+* [ ] Surface-gain labels match brute-force coverage calculations.
+* [ ] Training and evaluation use the same visibility definition.
+* [ ] Multiple history lengths are supported.
+* [ ] Independent and joint models receive exactly the same histories.
+* [ ] Independent VGGT processing never allows cross-view backbone interaction.
+* [ ] Joint VGGT genuinely processes multiple views together.
+* [ ] Trainable capacities are documented and approximately matched.
+* [ ] Both models use the same direct surface-gain supervision.
+* [ ] Both run through the Phase 2 evaluator unchanged.
+* [ ] One-step and closed-loop results are reported.
+* [ ] Runtime and memory differences are reported.
+* [ ] Negative or inconclusive joint-processing results remain reportable.
 
-### Phase 3 fallback rule
+### Phase 3 experiments and fallback rule
 
-If joint training is unstable, too slow, or incomplete near the project deadline:
+Run the independent-versus-joint one-step, closed-loop, and runtime/memory
+comparison first. Add history-length, feature-layer/token, aggregation,
+ranking-loss-weight, or rotation ablations only if time permits. Select model
+settings on validation data and retain all final test outcomes.
 
-1. Freeze the Phase 2 implementation.
-2. Use Phase 2 as the main complete project.
-3. Report Phase 3 as an exploratory extension.
-4. Include what was attempted, what failed, and any partial quantitative findings.
+If joint training is unstable, too slow, or incomplete near the deadline,
+keep the frozen Phase 2 result as the complete project and report Phase 3 as an
+exploratory extension with attempted configurations, failure modes, and any
+partial quantitative results. Do not delay or weaken Phase 2 to rescue it.
 
-Do not weaken the Phase 2 result to rescue Phase 3.
+---
+
+## Target semantics across the three phases
+
+The project should explicitly distinguish the three cases:
+
+| Phase       | Model input                       | Training target                                | History treatment                  | Final geometric evaluation                      |
+| ----------- | --------------------------------- | ---------------------------------------------- | ---------------------------------- | ----------------------------------------------- |
+| **Phase 1** | one image                         | original PUN/NUM 48-value target               | none                               | primarily original target metrics               |
+| **Phase 2** | each observed image independently | original PUN/NUM 48-value target               | aggregate per-view prediction maps | true surface gain and closed-loop coverage      |
+| **Phase 3** | complete observation history      | direct history-dependent 48-value surface gain | independent vs. joint VGGT         | same true surface gain and closed-loop coverage |
+
+This creates a progressive research story.
+
+### Phase 1 — representation
+
+> Can VGGT predict the original single-image NBV-related target better than generic frozen representations?
+
+### Phase 2 — practical sequential transfer
+
+> If VGGT predicts that proxy target well, does the improvement translate into better actual surface coverage when the predictions are used sequentially?
+
+### Phase 3 — direct geometric reasoning
+
+> If we train directly on history-dependent surface gain, does VGGT benefit from processing all observations jointly rather than independently?
+
+The three phases therefore change one major idea at a time:
+
+```text
+Phase 1:
+single image → proxy target
+
+Phase 2:
+multiple independently processed images
+→ proxy predictions
+→ aggregation
+→ evaluate actual geometry
+
+Phase 3:
+multi-view history
+→ direct geometric target
+→ independent vs. joint processing
+```
+
+This preserves PUN as a meaningful published baseline, keeps Phase 2 comparatively low-risk, and gives Phase 3 a clean capacity-matched experiment for the project's main multi-view hypothesis.
 
 ---
 
@@ -774,9 +1115,10 @@ Keep this strictly optional. Do not delay the main ShapeNet evaluation for it.
 
 # 6. Current and planned repository structure
 
-## Current Phase 1 tree
+## Current implementation tree
 
-The repository currently contains the Phase 1 implementation shown below.
+The repository contains the completed Phase 1 implementation and initial
+Phase 2 face-visibility infrastructure shown below.
 Generated directories such as `.venv/`, `build/`, `*.egg-info/`, `__pycache__/`,
 downloaded model weights, and feature-cache payloads are intentionally omitted.
 
@@ -794,11 +1136,13 @@ project_root/
 │   └── experiments/
 │       ├── phase1.yaml
 │       ├── phase1_probe_tiny.yaml
-│       └── phase1_sweep.yaml
+│       ├── phase1_sweep.yaml
+│       └── phase2_visibility.yaml
 │
 ├── data/
 │   ├── NUM/                         # local dataset; not tracked
-│   ├── cache/                       # models/features; not tracked
+│   ├── ShapeNetCore.v2/              # prepared NUM mesh subset; not tracked
+│   ├── cache/                       # models/features/visibility; not tracked
 │   └── splits/
 │       └── num_v1.json
 │
@@ -811,7 +1155,8 @@ project_root/
 │   ├── data/
 │   │   ├── __init__.py
 │   │   ├── num_dataset.py
-│   │   └── num_splits.py
+│   │   ├── num_splits.py
+│   │   └── visibility_cache.py
 │   │
 │   ├── eval/
 │   │   ├── __init__.py
@@ -836,7 +1181,10 @@ project_root/
 │   ├── geometry/
 │   │   ├── __init__.py
 │   │   ├── anchors.py
-│   │   └── anchors_v1.csv
+│   │   ├── anchors_v1.csv
+│   │   ├── mesh.py
+│   │   ├── visibility.py
+│   │   └── coverage.py
 │   │
 │   ├── losses/
 │   │   ├── __init__.py
@@ -856,7 +1204,8 @@ project_root/
 │   └── visualization/
 │       ├── __init__.py
 │       ├── phase1_prediction.py
-│       └── training_curves.py
+│       ├── training_curves.py
+│       └── visibility.py
 │
 ├── scripts/
 │   ├── init_experiment.py
@@ -864,6 +1213,7 @@ project_root/
 │   ├── inspect_num_sample.py
 │   ├── inspect_pun.py
 │   ├── prepare_num_split.py
+│   ├── precompute_visibility.py
 │   ├── run_phase1.py
 │   ├── train_probe.py
 │   └── visualize_phase1.py
@@ -881,140 +1231,81 @@ project_root/
 │   ├── test_phase1_prediction_visualization.py
 │   ├── test_probe.py
 │   ├── test_pun.py
-│   └── test_reproducibility.py
+│   ├── test_reproducibility.py
+│   └── test_visibility.py
 │
 └── outputs/
     ├── README.md
-    └── phase1/backbone_sweep/       # selected seed-0 result artifacts
+    └── phase1/backbone_sweep/       # frozen seed-1 results; seed 0 supporting
 ```
 
 The implemented Phase 1 separation is:
 
 **data → cached inputs/features → predictor or fixed baseline → evaluator → results → visualization**
 
-The repository now also includes the first Phase 2 infrastructure step:
-deterministic PUN-style per-anchor mesh-face visibility caches with explicit
-`Vis` and `VisA` aggregation. There is
-still no `policies/`, coverage/oracle utility abstraction, history dataset,
-closed-loop evaluator, or joint multi-view model; those later Phase 2/3
-additions should be introduced only in their corresponding development steps.
+The Phase 2 geometry infrastructure already provides deterministic PUN-style
+per-anchor mesh-face visibility caches, coverage, and candidate marginal gains
+for `Vis` and `VisA`. There is still no `policies/`, closed-loop evaluator,
+supervised history dataset, or joint multi-view model. Extend the existing
+`src/nbv` package without reorganizing completed Phase 1 modules.
 
-## Planned full-project tree
+## Planned additions for Phases 2 and 3
 
-The original planned structure for future Phase 2/3 work remains:
+These are proposed module/config names, not implemented commands:
 
 ```text
 project_root/
-│
-├── README.md
-├── project_overview.md
-├── pyproject.toml
-├── requirements.txt
-│
-├── configs/
-│   ├── data/
-│   ├── model/
-│   ├── train/
-│   ├── eval/
-│   └── experiments/
-│
+├── configs/experiments/
+│   ├── phase2_closed_loop.yaml           # five core policies + evaluator
+│   ├── phase2_aggregation_ablation.yaml  # optional mean/max rules
+│   ├── phase3_histories.yaml             # direct surface-gain dataset
+│   └── phase3_controlled.yaml            # matched independent/joint runs
 ├── data/
-│   ├── raw/
-│   ├── processed/
-│   ├── cache/
-│   │   ├── features/
-│   │   └── visibility/
-│   └── splits/
-│
-├── src/
+│   ├── cache/predictions/                # optional per-image NUM maps
+│   └── processed/histories/              # Phase 3 only
+├── src/nbv/
 │   ├── data/
-│   │   ├── num_dataset.py
-│   │   ├── history_dataset.py
-│   │   ├── transforms.py
-│   │   └── splits.py
-│   │
-│   ├── features/
-│   │   ├── base.py
-│   │   ├── imagenet_vit.py
-│   │   ├── dinov2.py
-│   │   ├── vggt.py
-│   │   └── cache.py
-│   │
+│   │   ├── observation_store.py         # acquired RGB/anchor lookup
+│   │   ├── prediction_cache.py
+│   │   └── history_dataset.py           # Phase 3 labels and batching
 │   ├── models/
-│   │   ├── heads.py
-│   │   ├── single_view.py
-│   │   ├── independent_multiview.py
-│   │   └── joint_multiview.py
-│   │
-│   ├── losses/
-│   │   ├── huber.py
-│   │   └── ranking.py
-│   │
-│   ├── geometry/
-│   │   ├── anchors.py
-│   │   ├── mesh.py
-│   │   ├── visibility.py
-│   │   └── coverage.py
-│   │
+│   │   ├── independent_multiview.py     # Phase 3 feature aggregation + head
+│   │   └── joint_multiview.py           # Phase 3 joint history + head
+│   ├── features/vggt_joint.py           # separate from single-image VGGT
 │   ├── policies/
 │   │   ├── base.py
+│   │   ├── aggregation.py              # map alignment + PUN rule
 │   │   ├── random_policy.py
 │   │   ├── farthest_policy.py
-│   │   ├── pun_policy.py
-│   │   ├── learned_policy.py
-│   │   ├── geometry_policy.py
-│   │   └── oracle_policy.py
-│   │
+│   │   ├── pun_policy.py               # released checkpoint, no retraining
+│   │   ├── vggt_policy.py              # Phase 2 independent NUM predictions
+│   │   ├── history_policy.py           # Phase 3 direct gain predictions
+│   │   ├── oracle_policy.py            # privileged evaluator adapter
+│   │   └── geometry_policy.py          # optional depth baselines
 │   ├── eval/
-│   │   ├── metrics.py
 │   │   ├── one_step.py
 │   │   ├── closed_loop.py
 │   │   ├── profiling.py
 │   │   └── result_schema.py
-│   │
-│   ├── visualization/
-│   │   ├── spherical_map.py
-│   │   ├── rollout.py
-│   │   └── coverage_plot.py
-│   │
-│   └── utils/
-│       ├── seed.py
-│       ├── logging.py
-│       └── checkpoint.py
-│
+│   └── visualization/
+│       ├── rollout.py
+│       └── coverage_plot.py
 ├── scripts/
-│   ├── prepare_num.py
-│   ├── cache_features.py
-│   ├── precompute_visibility.py
-│   ├── build_history_dataset.py
-│   ├── train.py
-│   ├── evaluate_one_step.py
 │   ├── evaluate_closed_loop.py
-│   ├── profile_model.py
-│   └── make_demo_results.py
-│
-├── notebooks/
-│   ├── phase1_single_view_demo.ipynb
-│   └── closed_loop_demo.ipynb
-│
-├── tests/
-│   ├── test_anchors.py
-│   ├── test_visibility.py
-│   ├── test_coverage.py
-│   ├── test_metrics.py
-│   ├── test_candidate_masking.py
-│   └── test_history_dataset.py
-│
-└── outputs/
-    ├── checkpoints/
-    ├── metrics/
-    ├── rollouts/
-    ├── figures/
-    └── tables/
+│   ├── make_demo_results.py
+│   ├── build_history_dataset.py         # Phase 3 only
+│   ├── train_history.py                # Phase 3 only
+│   └── evaluate_one_step.py
+└── tests/
+    ├── test_closed_loop.py
+    ├── test_policies.py
+    ├── test_history_dataset.py
+    └── test_history_models.py
 ```
 
-The exact future file names can change. The important full-project separation
-remains:
+Keep the existing geometry implementation and `precompute_visibility.py` as
+the common source of face coverage and gains. Exact future file names may
+change; the separation remains:
 
 **data → frozen features → predictor → policy → evaluator → visualization**
 
@@ -1046,53 +1337,101 @@ common evaluator; `LightweightProbeHead` is used for every trainable variant.
 
 ### Predictor
 
+Use separate semantic contracts even though each output has 48 entries:
+
 ```python
-class UtilityPredictor:
-    def predict(self, observations, observation_anchors, **kwargs):
-        # Return [B, 48] predicted utility/ranking scores.
+class SingleImageNUMPredictor:
+    def predict(self, images):
+        # Independent images -> [B, 48] original NUM/PUN target values.
+        ...
+
+class HistorySurfaceGainPredictor:
+    def predict(self, history_images, history_anchor_ids, history_mask):
+        # Phase 3 only: complete histories -> [B, 48] direct surface gains.
         ...
 ```
+
+Phase 2 calls the single-image predictor for each acquired image, aligns and
+aggregates the maps, and converts the aggregate to higher-is-better policy
+scores. VGGT's current one-frame sequence contract is retained; acquired views
+never interact inside the Phase 2 backbone. Independent batch examples are
+not a multi-view sequence.
+
+Phase 3's independent model aggregates independently extracted **features**
+before a history-trained head. Its joint counterpart extracts features from
+the complete history together. Both use the second predictor contract and
+identical direct surface-gain supervision.
 
 ### Policy
 
 ```python
 class NBVPolicy:
-    def select_next(self, state):
-        # Return one valid unobserved anchor index.
+    def score(self, observation_state):
+        # Return [48] higher-is-better scores in the common rollout frame.
+        # No mesh, visibility cache, seen-face mask, or true gains are supplied.
         ...
 ```
 
-### Evaluator state
+The evaluator applies one candidate mask and deterministic argmax rule. Keep
+raw NUM maps available for diagnostics without presenting aggregated Phase 2
+scores as calibrated surface gains. Oracle is a separately identified
+privileged adapter that returns evaluator-computed gains.
 
-Recommended state fields:
+### Observation and evaluator state
+
+Policy-visible observation state:
 
 ```text
-object_id
+object_id (lookup/provenance only, not a learned feature)
 acquired_anchor_ids
-observation_images / image references
-seen_face_mask
-current_coverage
+acquired RGB images / image references
+known camera/anchor geometry
 step_index
-candidate_mask
+valid_candidate_mask
 ```
 
-The learned model should not receive ground-truth `seen_face_mask`; that belongs only to the simulator/evaluator unless explicitly running a geometry upper bound.
+Evaluator-private additions:
+
+```text
+mesh / visibility cache
+seen_face_mask
+current_coverage
+candidate_surface_gains
+```
+
+Pass only acquired images or their cached features/maps to learned policies;
+precomputing every anchor must not make unacquired RGB observations available
+to them. Neither ground-truth gains nor coverage state is a Phase 2 training
+input. Optional GT-depth controls receive only the privileged information
+specified by their baseline definition and are labeled accordingly.
 
 ---
 
 # 8. Data schemas
 
-## Phase 1 sample
+## Phase 1 and Phase 2 training sample
 
-Recommended logical schema:
+Phase 2 reuses the original Phase 1 records and fixed object split:
 
 ```yaml
 object_id: str
 image_path: str
 source_anchor_id: int
-target_map: float[48]
+target_map: float[48]             # original NUM/PUN values
 split: train|val|test
-metadata: ...
+metadata: ...                    # target name/direction and map frame
+```
+
+## Phase 2 rollout observation
+
+This is simulator state, not a new supervised training dataset:
+
+```yaml
+object_id: str
+acquired_image_paths: [str, ...]
+acquired_anchor_ids: [int, ...]
+valid_candidate_mask: bool[48]
+map_frame_metadata: ...
 ```
 
 ## Phase 3 history sample
@@ -1104,19 +1443,24 @@ history_image_paths:
 history_anchor_ids:
   - ...
 history_length: int
-target_utility: float[48]
+target_surface_gain: float[48]   # direct history-dependent Vis/VisA gain
 valid_candidate_mask: bool[48]
 rotation_metadata: ...
 split: train|val|test
+visibility_cache_id: str
+coverage_target: vis|vis_a
+sampling_metadata: ...
 ```
 
 ### Dataset invariants
 
-- Anchor ordering must be global and immutable.
-- The same anchor index must always refer to the same object-centered direction.
-- Train/validation/test separation should be at the object level.
-- Already-observed anchors must have a consistent target/mask policy.
-- Utilities must be generated from the exact same visibility definition used in closed-loop evaluation.
+- Preserve the global canonical 48-anchor ordering and Phase 1 object splits.
+- Distinguish source-relative NUM map coordinates from the common rollout frame and document their conversion.
+- Preserve original NUM targets and direction in Phases 1/2; never replace them with geometric gain labels.
+- Generate Phase 3 `target_surface_gain` only from the same face-visibility definition/configuration used in evaluation.
+- Acquired anchors have zero direct marginal gain and are masked; other invalid anchors are also excluded from loss, selection, and ranking.
+- Histories contain unique anchors by default; variable-length batches carry an observation-padding mask separate from the candidate mask.
+- Both Phase 3 models receive identical split records, histories, labels, masks, and rotation metadata.
 
 ---
 
@@ -1182,13 +1526,31 @@ targets.
 
 ### Phase 2
 
-Reuse per-image VGGT caches for independent per-view aggregation.
+Reuse compatible Phase 1 per-image VGGT feature caches and the saved NUM head.
+Optionally cache complete raw 48-value maps for both VGGT and official PUN.
+Fingerprint prediction caches with the image/sample ID, model/head checkpoint
+checksum, preprocessing, feature metadata, target name/direction, and map-frame
+convention. Cache raw per-image outputs so aggregation ablations do not require
+backbone inference again.
+
+At a rollout step, retrieve only the acquired views. Compute each new image
+once and reuse the previous maps. Cache-backed rollout latency and live model
+inference latency must be reported separately; precomputation is not free
+inference.
 
 ### Phase 3
 
 Do **not** assume independent VGGT features can replace the joint forward pass.
 
-Joint multi-view VGGT features may depend on the complete input set, so the joint model should run the frozen backbone on the history as a group.
+The Phase 3 independent control can reuse frozen per-image VGGT features, but
+must train its history aggregation/head on the new direct gain labels. Its
+head checkpoint is distinct from the Phase 2 single-image NUM head.
+
+Joint VGGT features depend on the complete input history. Run the frozen
+backbone on that history as a group; a joint cache, if introduced, must key the
+entire ordered history, anchor/rotation metadata, checkpoint, preprocessing,
+and feature selection. Changing or adding a view invalidates that history's
+features. Fix the history ordering convention for paired comparisons.
 
 ---
 
@@ -1219,11 +1581,18 @@ Example:
 
 ```text
 phase1/vggt_patch_final/seed_0
-phase2/vggt_postpred_mean/seed_0
+phase2/vggt_num_pun_aggregation/seed_0
 phase3/vggt_joint/seed_0
 ```
 
 Run multiple seeds for the final reported comparisons if compute allows.
+
+Phase-specific rules:
+
+- Phase 2 reuses the validation-selected Phase 1 NUM predictor by default. Any additional predictor training uses only original single-image NUM labels and the Phase 1 loss/split protocol.
+- Official PUN remains inference-only in every main experiment; retain the released checkpoint and original preprocessing.
+- Phase 3 trains new independent and joint history heads with identical `target_surface_gain`, valid masks, optimizer, loss, validation selection, and training budget. Document approximately matched trainable capacity, batch/effective batch size, seeds, and any unavoidable compute differences.
+- Never use test coverage or test history metrics to select a feature variant, aggregation rule, loss weight, epoch, or checkpoint.
 
 ---
 
@@ -1234,19 +1603,23 @@ Run multiple seeds for the final reported comparisons if compute allows.
 Input:
 
 ```text
-predicted scores: [B, 48]
-target utility:   [B, 48]
-candidate mask:   [B, 48]
+raw predictions: [B, 48]
+target values:   [B, 48]
+candidate mask:  [B, 48]
 ```
 
-Only valid candidates should contribute where appropriate.
+Only valid candidates contribute. In Phases 1/2, regress the original NUM
+values in their original units and orient scores/targets separately for the
+ranking term. In Phase 3, regress nonnegative direct `Vis`/`VisA` surface gains;
+higher gain is always better. Keep the configured Huber and ranking weights
+identical between the Phase 3 control models.
 
 ### Pairwise ranking
 
 The ranking loss should encourage:
 
 ```text
-u_i > u_j  =>  score_i > score_j
+oriented_target_i > oriented_target_j  =>  score_i > score_j
 ```
 
 Avoid materializing all `48 x 48` pairs if it becomes inefficient; sampling informative pairs is acceptable if documented.
@@ -1276,11 +1649,11 @@ Include cases where:
 
 ### Spearman
 
-Define behavior for ties explicitly.
+Retain average ranks for ties and the current undefined result when fewer than two candidates remain or either vector is constant. Store undefined values as JSON `null`, and report valid metric counts when aggregating.
 
 ### NDCG@5
 
-Compute only over valid candidate anchors.
+Compute only over valid candidate anchors, with `k = min(5, valid_count)`. Retain the existing tie-aware implementation and all-zero-relevance result of zero. Phase 2/3 geometric NDCG uses nonnegative true gains as relevance; original NUM-target NDCG remains a separate metric.
 
 ### Coverage AUC
 
@@ -1290,56 +1663,86 @@ Define the x-axis consistently:
 number of acquired views
 ```
 
-Do not mix "initial views included" vs. "new views selected" between policies.
+Count initial views in every policy's x-axis and record the initial coverage
+point. The existing `coverage_auc` computes the unnormalized trapezoidal area;
+retain that definition and use the same view-count interval for every policy.
+If reporting a normalized variant, give it a separate name and denominator.
+
+For Phase 2/3 regret, use true geometric gains over the valid candidate set:
+
+```text
+R_t = (max_valid(u_t) - u_t[selected])
+      / (max_valid(u_t) - min_valid(u_t) + epsilon)
+```
+
+Use zero regret for all-equal valid gains, consistent with the current metric
+implementation. These geometric metrics do not imply Phase 2 gain supervision.
+Store original NUM-target metrics under a distinct namespace.
 
 ---
 
 # 14. Closed-loop evaluation protocol
 
-A single deterministic rollout function should support every policy.
-
-Pseudo-code:
+One deterministic rollout function supports every policy. Its view budget is
+the **total** number of acquired views, including initial views:
 
 ```python
-state = initialize_object(initial_view_or_views)
+state = evaluator.initialize(object_id, initial_anchor_ids)
+record_coverage(state)  # include initial observations in the curve
 
-for t in range(max_steps):
-    valid = get_unobserved_candidates(state)
+while len(state.acquired_anchor_ids) < max_acquired_views:
+    valid = evaluator.valid_candidates(state)
+    if not valid.any():
+        record_stop_reason("no_valid_candidates")
+        break
 
-    scores = policy.score(state)
-    scores[~valid] = -inf
+    true_gains = evaluator.candidate_gains(state)  # evaluator-private
+    if policy.is_oracle:
+        scores = true_gains.copy()               # explicit privileged branch
+    else:
+        observations = evaluator.observation_state(state)
+        scores = policy.score(observations)      # only acquired observations
 
-    next_anchor = argmax(scores)
-
-    oracle_utilities = compute_ground_truth_utilities(state)
-    record_one_step_metrics(scores, oracle_utilities, valid)
-
-    state = acquire_view_and_update_visibility(state, next_anchor)
-
+    require_finite_valid_scores(scores, valid)
+    next_anchor = canonical_masked_argmax(scores, valid)
+    record_one_step_metrics(scores, true_gains, valid, next_anchor)
+    record_rollout_step(state, scores, true_gains, valid, next_anchor)
+    state = evaluator.acquire_and_update(state, next_anchor)
     record_coverage(state)
 ```
 
-For the Random policy, use a seeded generator.
+`candidate_gains` and the state update use the existing face-cache helpers with
+the configured `vis` or `vis_a` target. The selected true gain must equal the
+post-acquisition coverage minus pre-acquisition coverage. Coverage is
+nondecreasing, but zero-gain steps are valid; do not require strict improvement
+or introduce policy-dependent early stopping when all remaining gains are zero.
 
-For the Oracle policy, select directly from ground-truth candidate gains.
+Random uses a recorded seed and random candidate scores. Farthest scores each
+valid candidate by its minimum angular distance to the acquired views and
+selects the largest value. Ties use canonical anchor order. Fail clearly on
+invalid/nonfinite policy scores rather than silently substituting a policy.
 
----
+Each policy chooses its own subsequent history from the same initial views.
+For paired fixed-history diagnostics, explicitly feed PUN/VGGT or the Phase 3
+control pair identical saved histories. Do not force identical trajectories
+when measuring closed-loop policy performance.
 
 # 15. Baseline fairness rules
 
-Before final experiments, use this checklist:
+Before final experiments, verify:
 
-- Same test objects.
-- Same initial view(s).
-- Same view budget.
-- Same 48 anchors.
-- Same invalid-view masking.
-- Same ground-truth coverage evaluator.
-- Same stopping rule.
-- Same metric implementation.
-- Same history available to each method unless the baseline definition explicitly differs.
-- Runtime measured with a documented warm-up/timing procedure.
-- Frozen/trained parameters reported clearly.
+- Same test objects, canonical anchors, initial view(s), total view budget, candidate masks, stopping rule, and coverage interval.
+- Same face-visibility cache, `Vis`/`VisA` target, geometric metrics, and evaluator for every policy.
+- Same acquired-observation access protocol; no unacquired RGB, ground-truth visibility, or candidate gains in learned policy inputs. Oracle and optional GT-depth controls are explicitly privileged.
+- Official PUN keeps its released checkpoint, preprocessing, raw output semantics, and reproduced history rule. Pin and report all deviations; carry forward the unknown original training-overlap limitation from Phase 1.
+- Phase 2 VGGT retains original NUM supervision and the same reproducible PUN-style combination rule wherever possible. Its aggregate is a policy score, not a surface-gain regression output.
+- Phase 3 independent/joint controls match histories, labels, masks, frozen checkpoint, optimizer, loss, validation selection, training budget, starting conditions, and approximately matched head capacity.
+- Runtime uses documented hardware, warm-up, device synchronization, precision, and history lengths. Separate live inference from cached policy scoring, include feature extraction/head/aggregation in live latency, and report precompute cost separately.
+- Report peak memory and trainable/frozen parameter counts, including a separate indication that official PUN is not trained locally.
+
+An optional retrained architecture is labeled **PUN-architecture surface-gain
+control**, with its own training provenance. It never replaces the official
+pretrained PUN result.
 
 ---
 
@@ -1362,33 +1765,56 @@ Before final experiments, use this checklist:
 | `vggt_camera_patch` | VGGT camera + mean-pooled patches | shared lightweight head | implemented |
 | `pun_upnet` | official released PUN ViT-S/16 checkpoint | inference only; official preprocessing + common evaluator | complete in the frozen seed-1 sweep |
 
-“Implemented” here means the entry is configured and covered by the Phase 1
-runner/tests; it does not mean the complete dataset sweep has already been run.
+All 12 configured entries were evaluated in the frozen seed-1 Phase 1 sweep.
+Preserve those artifacts and use validation evidence to select the Phase 2
+VGGT predictor.
 
 ## Phase 2 — minimum policy table
 
-| Policy | Learned? | Uses explicit geometry? | History processing |
-|---|---:|---:|---|
-| Random | no | no | none |
-| Farthest view | no | camera geometry only | acquired poses |
-| PUN | yes | official PUN behavior | per-view + post-prediction aggregation |
-| VGGT independent | yes | no | per-view + aggregation |
-| VGGT-depth geometry | partly | yes | explicit geometry |
-| GT-depth geometry | no / upper bound | yes | explicit geometry |
-| Oracle | no | ground-truth utility | direct oracle |
+| Policy | Training / checkpoint | Policy-score meaning | History treatment |
+|---|---|---|---|
+| Random | none | seeded random ranking | candidate mask |
+| Farthest view | none | minimum angular distance from acquired views | known camera poses |
+| Official PUN | released UPNet, no retraining | official aggregated NUM/PUN score | official per-view map combination |
+| Independent VGGT | Phase 1 NUM-trained head + frozen VGGT | aggregated NUM/PUN score | independent images + PUN-style map combination |
+| Oracle one-step | none; privileged evaluator | true incremental `Vis`/`VisA` gain | evaluator's acquired-face union |
+
+Every row uses the same ground-truth face-coverage evaluator. A complete,
+validated five-policy comparison is the core Phase 2 deliverable.
+
+Add after the core comparison is stable:
+
+| Optional comparison | Purpose |
+|---|---|
+| VGGT-predicted-depth geometry | compare with an explicit geometry policy |
+| Ground-truth-depth geometry upper bound | privileged depth control |
+| Mean/max per-view map aggregation | test simple deterministic combination rules |
+
+These additions do not block completion or freezing of the core Phase 2 result.
+The oracle is greedy for the current step; it is not a proof of globally
+optimal coverage at every multi-step budget.
 
 ## Phase 3 — central comparison
 
-| Model | VGGT use | Multi-view interaction inside backbone? | Aggregation |
-|---|---|---:|---|
-| Independent VGGT | frozen | no | permutation-invariant |
-| Joint VGGT | frozen | yes | joint token pooling |
+| Model | Training target | Multi-view interaction inside frozen VGGT? | History aggregation |
+|---|---|---|---|
+| Independent VGGT control | direct history-dependent `Vis`/`VisA` surface gains | no | permutation-invariant feature aggregation + new head |
+| Joint VGGT | identical direct surface-gain labels | yes | history-aware joint-token pooling + matched head |
+
+Both models train on the same history dataset and run through the unchanged
+Phase 2 evaluator. Official PUN and the Phase 2 VGGT policy remain external
+coverage references with their original NUM semantics. Any optional
+PUN-architecture surface-gain control is a separate, clearly labeled row.
 
 ---
 
 # 17. Recommended development order for VSCode + Codex
 
-Ask Codex to implement small, testable units in this order.
+Steps 1–8 are complete and remain the record of Phase 1 implementation.
+Continue at Step 9. Steps 9–14 complete the main Phase 2 deliverable without a
+new supervised history dataset; Steps 15–18 are the optional Phase 3 extension.
+Future script/config names below describe planned deliverables, not commands
+that already exist.
 
 ### Step 1 — repository and config skeleton
 
@@ -1473,58 +1899,157 @@ to the same deterministic validation sample. Reuse compatible frozen-feature
 caches when present; require explicit `--extract-missing-features` permission
 before running a missing pretrained backbone in memory.
 
-### Step 9 — geometry visibility cache
+### Step 9 — validate and precompute existing face visibility
 
-Rasterize per-anchor visible mesh-face sets, compute both `Vis` and `VisA`, and
-validate on one object.
+**Starting point:** the face rasterizer, mesh loader, `Vis`/`VisA` coverage and
+candidate-gain helpers, schema-2 cache, CLI, and synthetic tests already exist.
+Maintain this implementation; no surface-point sampling or cache migration is
+required.
 
-### Step 10 — closed-loop simulator
+1. Validate one real NUM object using `scripts/precompute_visibility.py` and `configs/experiments/phase2_visibility.yaml`, then a small fixed subset. Compare debug visibility views with the RGB/camera orientation.
+2. Pin mesh scale, camera settings, render resolution, culling, anchor ordering, and the selected coverage target (currently `vis_a`). Verify cache metadata rejects incompatible settings.
+3. Confirm candidate gains equal explicit coverage differences, acquired anchors have zero gain, and unions are independent of acquisition order.
+4. Precompute every object in the fixed Phase 2 test split; record completeness and any failures. Do not silently evaluate only successful objects. Prepare validation objects when needed for policy selection/debugging; training-split geometry is not required for NUM training.
 
-Start with Oracle and Random only.
+**Exit artifact:** reproducible face caches, a precompute manifest, and saved
+real-object sanity/debug results. Extend targeted geometry tests only where
+remaining correctness checks are not already covered.
 
-If Oracle does not monotonically improve coverage as expected, stop and debug the evaluator before adding learned policies.
+### Step 10 — deterministic closed-loop simulator with Random and Oracle
+
+Add the observation store, policy-visible/private state separation, common
+result schema, and `src/nbv/eval/closed_loop.py`. Wrap the existing face-cache
+coverage/gain helpers; do not duplicate geometry logic inside policies.
+
+Implement Random and one-step Oracle first. Pin total view budget, initial
+anchors, masks, seeded randomness, canonical tie-breaking, and candidate
+exhaustion behavior. Store initial coverage and per-step gains/coverage.
+
+**Exit check:** a saved single-object rollout replays identically; no acquired
+view is selected twice; coverage never decreases; each selected oracle gain
+matches the explicit coverage difference; zero-gain and exhausted-candidate
+states terminate under the documented protocol. Verify learned-policy state
+cannot access geometry or unacquired observations.
 
 ### Step 11 — farthest-view baseline
 
-This tests pose/anchor geometry independently of learning.
+Implement max-min angular distance from the acquired camera directions using
+the canonical anchor utilities. Run it through the same mask, tie-breaking,
+rollout, and metric path as Random and Oracle.
 
-### Step 12 — integrate PUN
+**Exit artifact:** a deterministic three-policy subset comparison establishing
+that camera geometry and evaluator behavior work without learned predictions.
 
-Verify the PUN output anchor ordering and history aggregation.
+### Step 12 — official PUN closed-loop adapter and aggregation
 
-### Step 13 — independent VGGT policy
+Reuse the existing official UPNet loader/checkpoint from Phase 1. Do not train
+or replace it. Inspect the pinned official history implementation and record
+its source revision, map-frame conversion, target direction, normalization,
+combination order, and final candidate selection behavior.
 
-Use cached per-view features/predictions and reproduce the Phase 2 closed-loop evaluation.
+Implement the reproducible post-prediction rule in a shared aggregation module
+and add the PUN policy adapter. Check one-image behavior, aligned multi-image
+maps, and acquisition masks against official outputs where reproducible.
+If a behavior cannot be reproduced, document the exact deviation in config,
+results, and report; label deterministic fallbacks as approximations rather
+than claiming an official aggregation reproduction.
 
-### Step 14 — complete Phase 2 baselines
+**Exit artifact:** official-checkpoint PUN rollouts and aggregation provenance,
+including anchor alignment and raw-output versus policy-score diagnostics.
 
-Add explicit geometry and GT-depth upper-bound pipelines.
+### Step 13 — independent per-view VGGT NUM policy
 
-Freeze the Phase 2 results once stable.
+Pin the validation-selected Phase 1 VGGT variant and saved head. Reuse the
+single-image extractor and compatible per-image features; optionally add raw
+prediction-map caches with checkpoint/target/frame metadata. No history-label
+generation or history-trained module is introduced in this step.
 
-### Step 15 — history dataset generator
+Use the shared PUN-style post-prediction combination rule. At each step, process
+only the newly acquired RGB and reuse previous maps; every VGGT sequence still
+contains one image. Validate cached versus live predictions and fixed-history
+PUN/VGGT access to exactly the same acquired observations.
 
-Generate `I_1:t` examples and utility targets from the visibility cache.
+**Exit artifact:** VGGT runs through the same simulator as the other four core
+policies and saves per-view raw maps, aggregate policy scores, selected actions,
+and evaluator-only true gains. Any retraining retains original NUM targets.
 
-### Step 16 — independent history model
+### Step 14 — complete and freeze the core Phase 2 result
 
-Build the exact comparison model required for Phase 3.
+Add geometric regret, Spearman, NDCG@5, coverage AUC/final coverage, complete
+per-object/per-step exports, live/cached runtime profiling, peak memory, and
+parameter counts. Keep original NUM-target results in a separate namespace.
 
-### Step 17 — joint VGGT model
+Run Random, Farthest, official PUN, independent VGGT, and Oracle on the full
+fixed test split with shared starts/budgets and recorded seeds. Produce coverage
+curves, comparison tables, and a saved-checkpoint rollout replay showing RGB,
+aggregate scores, true gain diagnostics, and accumulated visible faces.
 
-Only now implement joint-history VGGT processing.
+**Exit artifact:** fixed Phase 2 configs, complete results, checkpoints or
+checksum-pinned references, profiling records, a replayable demo, and all Phase 2
+completion checks satisfied. This is a final-quality project deliverable.
 
-### Step 18 — final experiment suite
+After the core is stable, optionally add VGGT-depth geometry, GT-depth geometry,
+and mean/max aggregation ablations. These do not gate freezing the core result
+or justify changing its target semantics.
 
-Run the fixed configs, aggregate seeds, create tables/figures, and archive checkpoints.
+### Step 15 — Phase 3 direct surface-gain history dataset
+
+Only after freezing Phase 2, create `history_dataset.py` and
+`scripts/build_history_dataset.py`. Extend face-cache precomputation to the
+fixed training/validation splits as needed, preserving the evaluation geometry
+settings. Sample seeded unique-anchor histories at multiple lengths and store
+`target_surface_gain`, valid-candidate masks, cache IDs, split, and sampling
+metadata. Include observation-padding masks in variable-length batches.
+
+**Exit check:** histories reproduce from config, splits remain object-disjoint,
+and labels match brute-force coverage differences. Training/evaluation share
+one visibility definition. Verify non-rotated data first; add consistent random
+rotations or policy-generated histories only as later documented ablations.
+
+### Step 16 — Phase 3 independent history control
+
+Build a new history-trained model from independent frozen VGGT features,
+permutation-invariant feature aggregation, and a lightweight 48-gain head.
+Reuse feature caches, but do not reuse Phase 2's NUM-trained policy unchanged.
+Train with the direct history labels and valid masks from Step 15.
+
+**Exit check:** a tiny history subset can be overfit; multiple lengths and
+padding work; history permutation leaves the independent aggregate unchanged;
+no backbone cross-view interaction occurs. Save validation-selected weights,
+one-step regression/ranking metrics, and a closed-loop smoke result.
+
+### Step 17 — joint frozen VGGT control
+
+Add a joint-history extractor separately from the existing single-image path.
+Feed complete histories through one frozen VGGT forward and train history-aware
+pooling plus a lightweight direct-gain head. Confirm multiple acquired views
+actually interact inside VGGT and padding is handled without contaminating
+real-view features.
+
+**Exit check:** the independent/joint pair uses identical histories, labels,
+valid masks, checkpoint, optimizer, loss, training budget, and approximately
+matched head capacity. Document parameter counts and memory at short histories
+before longer runs; do not substitute independent caches for joint features.
+
+### Step 18 — controlled Phase 3 experiment and reporting
+
+Run both models on identical held-out histories for Huber/regression error,
+geometric regret, Spearman, and NDCG@5. Run their own closed-loop trajectories
+through the unchanged Phase 2 evaluator with the same starts and budgets.
+Report coverage, AUC, final coverage, runtime, peak memory, and capacity.
+
+**Exit artifact:** reproducible configs, validation-selected checkpoints,
+paired one-step and closed-loop tables/figures, and a documented conclusion,
+including negative or inconclusive joint-processing results. Keep official
+PUN and Phase 2 VGGT as external coverage references. Aggregate configured
+seeds and add history-length/token ablations only if feasible.
 
 ### Step 19 — optional extensions
 
-Only after the primary results are complete:
-
-- Chamfer/reconstruction evaluation,
-- 3DGS evaluator,
-- MipNeRF360 transfer.
+Only after the core result is complete, consider reconstruction/Chamfer
+metrics, a 3DGS evaluator, MipNeRF360 transfer, or a separately labeled
+PUN-architecture surface-gain control. Preserve the frozen Phase 2 deliverable
+if Phase 3 or any extension exceeds the available time/compute.
 
 ---
 
@@ -1535,7 +2060,7 @@ When asking Codex to implement components, prefer bounded tasks with a definitio
 Good example:
 
 ```text
-Implement src/eval/metrics.py with normalized_regret, spearman_rank,
+Implement src/nbv/eval/metrics.py with normalized_regret, spearman_rank,
 ndcg_at_k, and coverage_auc. All functions must accept a valid-candidate
 mask where relevant. Add unit tests covering ties, masked candidates,
 oracle selection, worst selection, and all-equal utilities. Do not modify
@@ -1574,20 +2099,28 @@ Confirm:
 
 Confirm:
 
-- visibility masks look geometrically correct,
-- coverage never decreases,
-- acquiring an already-seen view is impossible,
-- oracle gain equals explicit coverage difference,
-- anchor IDs match image/camera directions.
+- existing face masks look geometrically correct on real objects,
+- every policy uses the same configured `Vis`/`VisA` cache,
+- coverage never decreases and repeat acquisition is impossible,
+- oracle gain equals explicit coverage difference, including zero-gain cases,
+- source-relative maps align to the common rollout anchor frame,
+- PUN's aggregation and score direction are verified or deviations documented,
+- VGGT uses only one-frame sequences and original NUM supervision,
+- cached/live outputs agree and only acquired observations reach policies,
+- true gains/visible-face state remain evaluator-private,
+- original NUM metrics and geometric metrics are stored separately.
 
 ### Before Phase 3 training
 
 Confirm:
 
-- history labels equal brute-force utility on small cases,
+- direct surface-gain labels equal brute-force `Vis`/`VisA` differences,
+- the Phase 2 face-visibility definition/config is unchanged,
 - variable-length history padding/masking is correct,
-- joint and independent models receive the same observations,
-- random rotation augmentation preserves anchor/label consistency.
+- joint and independent models receive identical histories, labels, and masks,
+- independent backbone calls never mix views; joint calls do mix views,
+- head capacities, optimizer, loss, and training budget are matched/documented,
+- optional random rotations preserve image/anchor/label consistency.
 
 ---
 
@@ -1609,13 +2142,19 @@ Mitigation:
 
 ### Risk 2 — PUN target semantics differ from direct surface-gain semantics
 
-The original NUM target may encode uncertainty differently from the Phase 2/3 incremental coverage utility.
+The original NUM/PUN target is a proxy, while incremental face coverage is the
+common evaluator quantity. Better proxy-target regression does not guarantee
+better sequential coverage. Lower-is-more-uncertain targets also require
+explicit score orientation before candidate selection.
 
 Mitigation:
 
-- keep Phase 1's official target semantics intact,
-- clearly separate Phase 1 target handling from new history-utility labels,
-- do not silently reinterpret PUN labels.
+- preserve original NUM targets in both Phases 1 and 2,
+- call Phase 2 aggregates policy scores rather than predicted surface gains,
+- generate direct history-dependent gain training labels only in Phase 3,
+- retain official PUN as an unretrained published-method baseline,
+- report the target/evaluator mismatch and any official aggregation deviations,
+- evaluate NUM prediction quality and geometric policy quality separately.
 
 ### Risk 3 — Data leakage across ShapeNet objects
 
@@ -1671,6 +2210,13 @@ For every final table/figure:
 - [ ] View budget documented.
 - [ ] Triangle-ID render resolution documented.
 - [ ] Visibility rasterization and culling policy documented.
+- [ ] `Vis`/`VisA` coverage target and face-cache provenance documented.
+- [ ] Training-target semantics and policy-score direction documented.
+- [ ] PUN map alignment, aggregation rule, and deviations documented.
+- [ ] Initial views, tie-breaking, and stopping behavior documented.
+- [ ] Phase 3 history sampling, cache IDs, and padding/rotation conventions saved.
+- [ ] Phase 3 matched histories, targets, capacity, optimizer, loss, and budget recorded.
+- [ ] Cached versus live inference timing and precomputation cost distinguished.
 - [ ] Runtime hardware documented.
 - [ ] Number of evaluation objects documented.
 
@@ -1777,39 +2323,82 @@ The implemented per-variant `summary.json` shape is:
 Runtime, memory, coverage, and per-step fields belong to the future Phase 2
 result schema and are not currently emitted by the Phase 1 runner.
 
-For future closed-loop phases, retain the planned machine-readable additions:
+For Phases 2/3, extend the existing semantic run-directory convention:
 
 ```text
-outputs/
-  metrics/
-    <experiment_id>/
-      config.yaml
-      summary.json
-      per_object.csv
-      per_step.csv
-  rollouts/
-    <experiment_id>/
-      <object_id>.npz
-  checkpoints/
-    <experiment_id>/
-      best.pt
+outputs/<phase>/<experiment>/seed_<n>/
+├── config.yaml
+├── metadata.json
+├── run.log
+├── checkpoints/                    # trained heads or pinned model references
+├── metrics/
+│   ├── summary.json
+│   ├── comparison.csv
+│   ├── per_object.csv
+│   ├── per_step.csv
+│   ├── profiling.json
+│   └── num_target_metrics.json     # Phase 2: original-target results/reference
+├── rollouts/<policy>/<object_id>.npz
+└── figures/
+    ├── coverage.svg
+    └── rollouts/
 ```
 
-The future common summary/result schema should retain these fields in addition
-to the Phase 1 fields above:
+The planned common summary separates training and evaluation semantics:
 
 ```json
 {
-  "normalized_regret_mean": null,
-  "spearman_mean": null,
-  "ndcg_at_5_mean": null,
-  "coverage_auc_mean": null,
-  "final_coverage_mean": null,
-  "median_inference_ms": null,
-  "peak_memory_mb": null,
-  "trainable_parameters": null
+  "phase": "phase2",
+  "policy": "vggt_num_pun_aggregation",
+  "training_target_semantics": "original_num",
+  "num_target_name": "PSNR",
+  "num_target_direction": "lower",
+  "policy_score_semantics": "aggregated_num_policy_score",
+  "aggregation_rule": null,
+  "aggregation_deviations": [],
+  "coverage_target": "vis_a",
+  "visibility_definition": "pun_unoccluded_rasterized_mesh_faces_v1",
+  "visibility_cache_manifest": null,
+  "checkpoint_sha256": null,
+  "geometry_metrics": {
+    "normalized_regret_mean": null,
+    "spearman_mean": null,
+    "spearman_valid_count": null,
+    "ndcg_at_5_mean": null,
+    "coverage_auc_mean": null,
+    "final_coverage_mean": null
+  },
+  "profiling": {
+    "median_live_inference_ms": null,
+    "median_cached_policy_ms": null,
+    "precompute_seconds": null,
+    "peak_memory_mb": null,
+    "trainable_parameters": null,
+    "frozen_parameters": null
+  }
 }
 ```
+
+These future fields are a planned schema, not currently emitted Phase 1 data.
+For Phase 3, set training/policy semantics to direct history-dependent surface
+gain, record the history dataset ID and matched-control settings, and add
+masked surface-gain Huber/regression error. Official PUN retains original NUM
+semantics in either phase. Use `none`/not-applicable metadata for heuristics and
+Oracle, rather than implying they were trained on NUM labels.
+
+Each per-step record should identify object, policy, seed, history anchors,
+acquired-view count, valid mask, selected anchor, selected/oracle true gain,
+coverage before/after, regret, Spearman, NDCG@5, and timing. Saved rollouts also
+retain score arrays, evaluator-only candidate gain arrays, optional raw
+per-image maps, image references, and enough cache/config provenance to replay
+the visible-face union and coverage curve. Store diagnostics together without
+passing them back into learned policy inputs.
+
+Aggregate per-object coverage curves over the complete fixed test split and
+report the object count. State whether ranking summaries are per-step or
+per-object means and how undefined metrics are excluded. Saved arrays and
+checkpoints must support the demo through the same evaluator, without hidden
+notebook-only training or geometry logic.
 
 ---
 
@@ -1824,13 +2413,15 @@ to the Phase 1 fields above:
 ### Phase 2
 
 - Main coverage-vs-view curve for all policies.
-- Table with regret, Spearman, NDCG@5, coverage AUC, runtime, memory, parameters.
-- Qualitative rollout showing chosen NBVs and accumulated surface.
+- Table with geometric regret, Spearman, NDCG@5, coverage AUC, final coverage, live/cached runtime, memory, and parameters.
+- Separate original NUM-target table or Phase 1 reference to test whether proxy-task improvements transfer to coverage.
+- Qualitative rollout showing acquired RGB, aggregated policy scores, chosen NBV, evaluator-only candidate gains, accumulated visible faces, and coverage.
+- Explicit PUN target/evaluator mismatch, history-aggregation deviations, and training-overlap limitation.
 
 ### Phase 3
 
 - Joint vs. independent coverage curve.
-- Joint vs. independent ranking metrics.
+- Joint vs. independent direct surface-gain regression and ranking metrics on identical held-out histories.
 - Runtime/memory comparison.
 - History-length ablation if available.
 
@@ -1845,7 +2436,10 @@ to the Phase 1 fields above:
 
 ### Gate A — after Phase 1
 
-Proceed only when the single-image comparison is reproducible and PUN is represented fairly.
+The complete seed-1 Phase 1 result satisfies this gate. Keep its artifacts
+frozen, pin the validation-selected VGGT variant, and proceed with original NUM
+supervision and official pretrained PUN. Complete the missing closed-loop
+aggregation/evaluator work in Steps 9–14.
 
 If VGGT does not outperform generic features:
 
@@ -1855,7 +2449,12 @@ If VGGT does not outperform generic features:
 
 ### Gate B — after Phase 2
 
-Treat the project as **complete** when the full independent-VGGT closed-loop evaluation is stable.
+Treat the core project as **complete** when Random, Farthest, official PUN,
+independent NUM-trained VGGT, and Oracle have reproducible full-test-split
+coverage results, geometric ranking metrics, profiling, and a replayable demo.
+PUN's aggregation is reproduced or deviations are documented. No sampled-point
+visibility replacement, history-supervised training, or depth-based ablation
+is required for this gate.
 
 At this point:
 
@@ -1879,15 +2478,15 @@ The final report should tell a progressive story rather than presenting Phase 3 
 
 ### Story 1 — Representation probe
 
-Can frozen VGGT features predict NBV-relevant quantities from a single image better than generic visual representations?
+Can frozen VGGT features predict the original single-image NUM/PUN 48-value target better than generic visual representations?
 
 ### Story 2 — Practical sequential policy
 
-Do those frozen features remain useful when placed into a complete closed-loop NBV pipeline and compared with PUN, heuristics, and geometry-based policies?
+Does improved prediction of that proxy target translate into better true face coverage when independently predicted maps are combined across observations, compared with official PUN, Random, Farthest, and Oracle?
 
 ### Story 3 — Novel multi-view test
 
-Does VGGT's joint multi-view reasoning provide additional value beyond independent per-view processing and aggregation?
+When both models train on direct history-dependent surface gains from the same face-visibility cache, does joint VGGT processing improve over capacity-matched independent feature aggregation?
 
 This structure ensures that every completed phase produces a self-contained research conclusion.
 
@@ -1895,7 +2494,10 @@ This structure ensures that every completed phase produces a self-contained rese
 
 # 26. Immediate implementation backlog
 
-Start here.
+Milestones 1–4 are complete. Resume at Milestone 5 / Step 9 using the existing
+face-visibility implementation. Milestone 6 is the required final-quality
+project checkpoint; Milestones 7–8 change the learning problem and follow only
+after Phase 2 is frozen.
 
 ### Milestone 1 — infrastructure
 
@@ -1934,41 +2536,56 @@ Start here.
 - [x] Build saved-checkpoint prediction-versus-target visualization.
 - [x] Freeze Phase 1 checkpoint.
 
-### Milestone 5 — closed-loop geometry
+### Milestone 5 — closed-loop geometry (Steps 9–11)
 
-- [ ] Mesh surface sampling.
-- [ ] Per-anchor visibility cache.
-- [ ] Coverage state.
-- [ ] Oracle utility.
-- [ ] Closed-loop simulator.
-- [ ] Random + oracle sanity tests.
+- [x] Mesh loading, canonical face rasterization, and schema-2 face caches.
+- [x] `Vis`/`VisA` coverage and candidate marginal-gain helpers with synthetic tests.
+- [x] Split/subset precompute CLI and debug visibility visualization.
+- [ ] Validate existing visibility/camera alignment on real NUM objects.
+- [ ] Complete fixed-test-split cache precomputation and completeness manifest.
+- [ ] Verify explicit coverage differences and pin one `Vis`/`VisA` definition.
+- [ ] Add acquired-RGB observation store and evaluator-private face state.
+- [ ] Implement deterministic shared closed-loop simulator and result schema.
+- [ ] Add Random/Oracle replay, masks, zero-gain, and exhaustion checks.
+- [ ] Add the max-min angular-distance Farthest policy.
 
-### Milestone 6 — complete Phase 2
+### Milestone 6 — complete Phase 2 (Steps 12–14)
 
-- [ ] Farthest-view policy.
-- [ ] PUN history policy.
-- [ ] Independent VGGT aggregation policy.
-- [ ] Full metric suite.
-- [ ] Coverage curves.
-- [ ] Runtime/memory profiling.
-- [ ] Closed-loop demo.
-- [ ] Freeze Phase 2 checkpoint.
+- [ ] Reuse official PUN checkpoint/preprocessing without retraining.
+- [ ] Reproduce PUN map alignment, direction, and aggregation; document deviations.
+- [ ] Pin the validation-selected Phase 1 VGGT NUM head and feature metadata.
+- [ ] Implement independent per-image VGGT + shared PUN-style map aggregation.
+- [ ] Reuse feature caches; support optional raw prediction-map caching.
+- [ ] Verify live/cache equivalence and identical supplied-history access.
+- [ ] Verify no true gains, visible-face state, or unacquired RGB reaches learned policies.
+- [ ] Run Random, Farthest, PUN, VGGT, and Oracle on the complete test split.
+- [ ] Save per-step geometric metrics and coverage metrics together; retain NUM metrics separately.
+- [ ] Report coverage curves/AUC/final coverage, live/cached runtime, memory, and parameter counts.
+- [ ] Save and replay a full rollout using checkpoints and the common evaluator.
+- [ ] Freeze reproducible Phase 2 configs and final-quality results.
+- [ ] Optional after the core is stable: VGGT-depth/GT-depth geometry and mean/max aggregation ablations.
 
-### Milestone 7 — Phase 3 dataset
+### Milestone 7 — Phase 3 history dataset (Step 15)
 
-- [ ] History sampling.
-- [ ] Incremental utility labels.
-- [ ] Variable-length batching.
-- [ ] Rotation augmentation after non-rotated pipeline passes tests.
+- [ ] Precompute training/validation face caches with the frozen evaluation definition.
+- [ ] Generate deterministic, unique-anchor histories at multiple lengths.
+- [ ] Generate `target_surface_gain` and masks from the existing face-cache helpers.
+- [ ] Verify labels against brute-force coverage differences and preserve object splits.
+- [ ] Add variable-length batching and separate observation/candidate masks.
+- [ ] Save sampling strategy, cache IDs, coverage target, and rotation metadata.
+- [ ] Optional: consistent rotations or policy-generated histories after the base pipeline passes.
 
-### Milestone 8 — joint experiment
+### Milestone 8 — controlled direct-gain experiment (Steps 16–18)
 
-- [ ] Capacity-matched independent model.
-- [ ] Joint frozen-VGGT model.
-- [ ] One-step evaluation.
-- [ ] Closed-loop evaluation.
-- [ ] History-length/token ablations if useful.
-- [ ] Freeze Phase 3 result or document failure mode.
+- [ ] Train a new independent VGGT feature-aggregation control on history surface gains.
+- [ ] Train joint frozen VGGT on the identical histories, targets, and masks.
+- [ ] Verify absent/present cross-view backbone interaction in independent/joint paths.
+- [ ] Approximately match head capacity and use the same optimizer, loss, and training budget.
+- [ ] Compare held-out surface-gain regression, regret, Spearman, and NDCG@5.
+- [ ] Run both models through the unchanged Phase 2 evaluator and compare coverage.
+- [ ] Report runtime, peak memory, parameter counts, and remaining control differences.
+- [ ] Add history-length/token ablations only if useful and feasible.
+- [ ] Freeze Phase 3 results or document negative/inconclusive outcomes and failure modes.
 
 ### Milestone 9 — stretch only
 
@@ -1986,6 +2603,9 @@ Avoid spending early time on:
 - custom UI/web applications,
 - large hyperparameter searches,
 - fine-tuning VGGT,
+- replacing the current face-visibility implementation with surface-point sampling,
+- creating history-supervised datasets or large learned history modules for Phase 2,
+- retraining official PUN on direct surface gain,
 - replacing the 48-anchor action space,
 - sophisticated learned policy optimization,
 - 3DGS reconstruction,
@@ -1999,4 +2619,4 @@ The project is strongest when the comparison is controlled and the evaluation is
 
 # 28. One-sentence implementation priority
 
-**First prove the feature probe, then build the complete independent-view closed-loop pipeline, and only then attempt joint multi-view VGGT processing.**
+**Retain the completed Phase 1 NUM probe, finish Phase 2 with independent NUM predictions and PUN-style aggregation under the existing face-coverage evaluator, then train capacity-matched independent and joint Phase 3 models on direct history-dependent surface gains.**
