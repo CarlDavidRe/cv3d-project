@@ -153,6 +153,7 @@ def run_rollout(
         "schema_version": ROLLOUT_SCHEMA_VERSION, "phase": "phase2",
         "object_id": observations.object_id, "policy": policy.name, "seed": config.seed,
         "policy_is_oracle": bool(policy.is_oracle), "policy_score_semantics": policy.score_semantics,
+        "policy_provenance": getattr(policy, "provenance", {}),
         "training_target_semantics": getattr(policy, "training_target_semantics", "none"),
         "coverage_target": config.coverage_target,
         "visibility_definition": cache.metadata["visibility_definition"],

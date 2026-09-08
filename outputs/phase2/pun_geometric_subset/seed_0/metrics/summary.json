@@ -1,0 +1,130 @@
+{
+  "complete_fixed_split": false,
+  "complete_requested_cohort": true,
+  "coverage_aggregation": "per_object_mean; AUC is unnormalized over recorded acquired-view counts",
+  "coverage_target": "vis_a",
+  "evaluated_object_count": 10,
+  "geometry_validation_status": "num_camera_bbox_centered",
+  "phase": "phase2",
+  "policies": [
+    {
+      "coverage_auc_mean": 5.880119741098876,
+      "final_coverage_mean": 0.8317217876689144,
+      "ndcg_at_5_mean": 0.54253519750436,
+      "ndcg_at_5_valid_count": 90,
+      "normalized_regret_mean": 0.5908232586856145,
+      "normalized_regret_valid_count": 90,
+      "object_count": 10,
+      "policy": "random",
+      "policy_score_semantics": "seeded_random_ranking",
+      "spearman_mean": 0.02405368176512517,
+      "spearman_valid_count": 90,
+      "training_target_semantics": "none"
+    },
+    {
+      "coverage_auc_mean": 5.813607829945693,
+      "final_coverage_mean": 0.8506651338343089,
+      "ndcg_at_5_mean": 0.7285314599971728,
+      "ndcg_at_5_valid_count": 90,
+      "normalized_regret_mean": 0.4561055724388759,
+      "normalized_regret_valid_count": 90,
+      "object_count": 10,
+      "policy": "farthest",
+      "policy_score_semantics": "max_min_angular_distance_radians",
+      "spearman_mean": 0.4183176451860338,
+      "spearman_valid_count": 90,
+      "training_target_semantics": "none"
+    },
+    {
+      "coverage_auc_mean": 5.72826189323326,
+      "final_coverage_mean": 0.7749150692961486,
+      "ndcg_at_5_mean": 0.34702561764199813,
+      "ndcg_at_5_valid_count": 90,
+      "normalized_regret_mean": 0.7059323083565641,
+      "normalized_regret_valid_count": 90,
+      "object_count": 10,
+      "policy": "pun",
+      "policy_score_semantics": "negative_product_of_aligned_raw_psnr_after_small_filter",
+      "spearman_mean": -0.1401029632185867,
+      "spearman_valid_count": 90,
+      "training_target_semantics": "official_single_image_num_psnr"
+    },
+    {
+      "coverage_auc_mean": 6.62219736139896,
+      "final_coverage_mean": 0.8700051731292671,
+      "ndcg_at_5_mean": 1.0,
+      "ndcg_at_5_valid_count": 90,
+      "normalized_regret_mean": 0.0,
+      "normalized_regret_valid_count": 90,
+      "object_count": 10,
+      "policy": "oracle",
+      "policy_score_semantics": "true_incremental_surface_gain",
+      "spearman_mean": 1.0,
+      "spearman_valid_count": 90,
+      "training_target_semantics": "none"
+    }
+  ],
+  "policy_provenance": {
+    "farthest": {},
+    "oracle": {},
+    "pun": {
+      "aggregation": "official_small_filter_then_raw_product_psnr_argmin_v1",
+      "alignment": "official_minimal_rotation_exp30_interpolation_v1",
+      "baseline": "official_pretrained_pun_upnet",
+      "candidate_mask_adaptation": "shared acquired/invalid anchor mask applied by common evaluator",
+      "candidate_set_adaptation": "official fresh 512-point spherical samples replaced by evaluator canonical 48 anchors",
+      "checkpoint_path": "/home/reese/computer_vision/cv3d-project/data/cache/models/pun/vit_small_patch16_224_PSNR_250425172703/best_vit_regressor.pth",
+      "checkpoint_sha256": "91b2065f7652aac0c84386d4af10cd0c1ae723c049c91e45ccc78722f70907ae",
+      "common_score_orientation": "negative_raw_product_higher_is_better",
+      "empty_small_filter_fallback": "ignore small suppression when it removes every valid canonical candidate",
+      "filter_fallback_count": 0,
+      "filter_fallback_object_steps": {},
+      "filtered_candidate_count_mean": 8.433333333333334,
+      "filtered_candidate_count_valid_steps": 90,
+      "frozen_parameter_count": 21684144,
+      "interpolation_degrees": 30.0,
+      "locally_trained": false,
+      "model_name": "vit_small_patch16_224",
+      "official_antipodal_rotation_behavior_retained": true,
+      "preprocessing": {
+        "crop_mode": "center",
+        "crop_pct": 0.9,
+        "input_size": [
+          3,
+          224,
+          224
+        ],
+        "interpolation": "bicubic",
+        "mean": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "std": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "release_name": "vit_small_patch16_224_PSNR_250425172703",
+      "source_commit": "aa6f8f4f12154854a4c1867209725c80475af102",
+      "source_policy_file": "fep_nbv/baseline/our_policy_single.py",
+      "source_policy_file_sha256": "09a7ad1f0cc2e54c8032dc38169995c75707601c68cace6a013c2e9bb085445c",
+      "source_repository": "https://github.com/ZhangLab-DeepNeuroCogLab/PUN",
+      "source_viewpoint_file": "fep_nbv/utils/generate_viewpoints.py",
+      "source_viewpoint_file_sha256": "2f0abec6c5405f3d21cd70f0fa0b628f5560200341bff338573a65b2c9c696f7",
+      "suppression_threshold": 0.1,
+      "target_direction": "lower_is_more_uncertain",
+      "target_name": "PSNR",
+      "tie_breaking_adaptation": "lowest valid canonical anchor ID",
+      "training_overlap_limitation": "official release has no machine-readable training manifest; overlap with test objects/categories cannot be ruled out"
+    },
+    "random": {}
+  },
+  "ranking_aggregation": "pooled_per_step_mean_excluding_null_with_valid_counts",
+  "requested_object_count": 10,
+  "schema_version": 1,
+  "timing_protocol": "Policy scoring includes PUN preprocessing, uncached image inference, and aggregation; excludes geometry and evaluator RGB loading. No warm-up, synchronization, or memory profiling yet.",
+  "training_target_semantics": "policy_specific; see policy rows and rollouts",
+  "visibility_cache_manifest": "/home/reese/computer_vision/cv3d-project/outputs/phase2/pun_geometric_subset/seed_0/metrics/visibility_cache_manifest.json"
+}

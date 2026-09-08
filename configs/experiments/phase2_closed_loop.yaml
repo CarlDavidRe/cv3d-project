@@ -2,7 +2,7 @@ schema_version: 1
 
 experiment:
   phase: phase2
-  name: geometric_baselines
+  name: pun_closed_loop
   seed: 0
   deterministic: true
 
@@ -22,8 +22,29 @@ phase2:
     object_ids: []              # Optional explicit subset of this split.
     limit: null
     skip_missing_caches: false  # Opt in for provisional runs during precompute.
-    policies: [random, farthest, oracle]
+    policies: [random, farthest, pun, oracle]
     max_acquired_views: 10      # Includes the initial views.
     initial_anchor_ids: [0]
     invalid_anchor_ids: []
     coverage_target: vis_a      # Explicit override of a cache's default target.
+
+  # Released PUN/UPNet inference only; no optimizer or local training.
+  pun:
+    source_repository: https://github.com/ZhangLab-DeepNeuroCogLab/PUN
+    source_commit: aa6f8f4f12154854a4c1867209725c80475af102
+    source_policy_file_sha256: 09a7ad1f0cc2e54c8032dc38169995c75707601c68cace6a013c2e9bb085445c
+    source_viewpoint_file_sha256: 2f0abec6c5405f3d21cd70f0fa0b628f5560200341bff338573a65b2c9c696f7
+    release_name: vit_small_patch16_224_PSNR_250425172703
+    model_name: vit_small_patch16_224
+    target_name: PSNR
+    device: auto
+    inference_batch_size: 16
+    interpolation_degrees: 30.0
+    suppression_threshold: 0.1
+    selection_method: all
+    delete_method: small
+    checkpoint:
+      path: data/cache/models/pun/vit_small_patch16_224_PSNR_250425172703/best_vit_regressor.pth
+      download_url: https://drive.usercontent.google.com/download?id=1vpVFy2LQMjN0jTJ_o1chZ6B4nJNfNVKP&export=download&confirm=t
+      sha256: 91b2065f7652aac0c84386d4af10cd0c1ae723c049c91e45ccc78722f70907ae
+      download_if_missing: true

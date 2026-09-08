@@ -225,6 +225,10 @@ class ClosedLoopTests(unittest.TestCase):
 
     def experiment_config(self):
         config = load_config(ROOT / "configs/experiments/phase2_closed_loop.yaml")
+        config["experiment"]["name"] = "geometric_baselines"
+        config["phase2"]["evaluation"]["policies"] = [
+            "random", "farthest", "oracle"
+        ]
         config["paths"].update(data_root=str(self.root / "NUM"), output_root=str(self.root / "outputs"), visibility_cache_root=str(self.root / "cache"))
         split_path = self.root / "split.json"
         split_path.write_text(json.dumps({"schema_version": 1, "splits": {"train": [], "val": [], "test": [self.object_id, "category/missing"]}}))

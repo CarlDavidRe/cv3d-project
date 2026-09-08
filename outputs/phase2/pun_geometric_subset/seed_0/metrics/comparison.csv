@@ -1,0 +1,5 @@
+policy,object_count,policy_score_semantics,training_target_semantics,final_coverage_mean,coverage_auc_mean,normalized_regret_mean,normalized_regret_valid_count,spearman_mean,spearman_valid_count,ndcg_at_5_mean,ndcg_at_5_valid_count
+random,10,seeded_random_ranking,none,0.8317217876689144,5.880119741098876,0.5908232586856145,90,0.02405368176512517,90,0.54253519750436,90
+farthest,10,max_min_angular_distance_radians,none,0.8506651338343089,5.813607829945693,0.4561055724388759,90,0.4183176451860338,90,0.7285314599971728,90
+pun,10,negative_product_of_aligned_raw_psnr_after_small_filter,official_single_image_num_psnr,0.7749150692961486,5.72826189323326,0.7059323083565641,90,-0.1401029632185867,90,0.34702561764199813,90
+oracle,10,true_incremental_surface_gain,none,0.8700051731292671,6.62219736139896,0.0,90,1.0,90,1.0,90

@@ -358,7 +358,7 @@ Repository audit as of 2026-09-07:
 | Runtime/memory profiling | Deferred to Phase 2 | Trainable parameter counts are reported. A common inference-time and peak-memory protocol remains useful for the closed-loop system but does not block the frozen Phase 1 feature-probe result. |
 | PUN comparison | Complete | The official released PSNR UPNet checkpoint was checksum-verified, evaluated last with official timm preprocessing, and recorded with both official unmasked MSE and common masked metrics. The full row covers all 5,232 validation and 14,400 test samples. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
-| Phase 2 visibility and simulator | Implemented and subset-validated; full-split work pending | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Farthest/Oracle simulator are implemented. Prepared PLY meshes use bounding-box centering supported by six independent validation objects. Replayable subset rollouts use this convention. Full-split precomputation, learned policy adapters, the history dataset, and joint VGGT remain pending. |
+| Phase 2 visibility and simulator | Implemented and subset-validated; full-split work pending | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Farthest/official-PUN/Oracle simulator are implemented. PUN uses the released checkpoint and reproduced map alignment/filter/product rule under the fixed 48-anchor protocol; its continuous-candidate deviations are documented. Prepared PLY meshes use bounding-box centering supported by six independent validation objects. Full-split precomputation, the VGGT policy adapter, the history dataset, and joint VGGT remain pending. |
 
 The Phase 1 audit recorded 104 passing tests. This historical count does not
 validate the planned Phase 2/3 changes or replace real-data, real-checkpoint,
@@ -720,8 +720,8 @@ The demo must use saved checkpoints and the same evaluator as the quantitative e
 * [ ] Surface visibility cache is reproducible.
 * [ ] Oracle surface gain matches explicit coverage differences.
 * [ ] Closed-loop simulator is deterministic.
-* [ ] Official PUN runs without retraining.
-* [ ] PUN's original history aggregation is reproduced or any deviation is documented.
+* [x] Official PUN runs without retraining.
+* [x] PUN's original history aggregation is reproduced or any deviation is documented.
 * [ ] VGGT predicts the original NUM/PUN target from each image independently.
 * [ ] Per-image VGGT features/predictions can be cached.
 * [ ] VGGT and PUN receive every image in the supplied history under the same observation protocol; paired fixed-history checks use identical histories. Each closed-loop policy then follows its own selected trajectory from the same initial views.
@@ -1245,9 +1245,12 @@ The implemented Phase 1 separation is:
 
 The Phase 2 geometry infrastructure already provides deterministic PUN-style
 per-anchor mesh-face visibility caches, coverage, and candidate marginal gains
-for `Vis` and `VisA`. There is still no `policies/`, closed-loop evaluator,
-supervised history dataset, or joint multi-view model. Extend the existing
-`src/nbv` package without reorganizing completed Phase 1 modules.
+for `Vis` and `VisA`. The repository now also contains the acquired-only
+observation store, shared closed-loop evaluator, Random/Farthest/Oracle
+policies, and official-checkpoint PUN adapter with history aggregation. There
+is still no Phase 2 VGGT policy, supervised history dataset, or joint
+multi-view model. Extend the existing `src/nbv` package without reorganizing
+completed Phase 1 modules.
 
 ## Planned additions for Phases 2 and 3
 
@@ -1971,6 +1974,17 @@ that camera geometry and evaluator behavior work without learned predictions.
 
 ### Step 12 — official PUN closed-loop adapter and aggregation
 
+**Implementation status:** implemented with the checksum-pinned released UPNet,
+deterministic timm preprocessing, acquired-only raw prediction caches, shared
+source-frame alignment and aggregation, rollout provenance, and replay tests.
+The official 30° exponential interpolation, per-map `small` filter, raw-map
+product, and PSNR argmin are reproduced on the common 48 anchors. The official
+fresh 512-candidate sampling is intentionally replaced by the evaluator's
+fixed candidates and mask; this and the deterministic empty-filter fallback
+are documented in `docs/pun_closed_loop_adapter.md`. The replay-verified
+ten-object four-policy artifact is under
+`outputs/phase2/pun_geometric_subset/seed_0`.
+
 Reuse the existing official UPNet loader/checkpoint from Phase 1. Do not train
 or replace it. Inspect the pinned official history implementation and record
 its source revision, map-frame conversion, target direction, normalization,
@@ -2581,8 +2595,8 @@ after Phase 2 is frozen.
 
 ### Milestone 6 — complete Phase 2 (Steps 12–14)
 
-- [ ] Reuse official PUN checkpoint/preprocessing without retraining.
-- [ ] Reproduce PUN map alignment, direction, and aggregation; document deviations.
+- [x] Reuse official PUN checkpoint/preprocessing without retraining.
+- [x] Reproduce PUN map alignment, direction, and aggregation; document deviations.
 - [ ] Pin the validation-selected Phase 1 VGGT NUM head and feature metadata.
 - [ ] Implement independent per-image VGGT + shared PUN-style map aggregation.
 - [ ] Reuse feature caches; support optional raw prediction-map caching.

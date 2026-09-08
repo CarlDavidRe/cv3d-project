@@ -3,8 +3,8 @@
 This repository implements the phased project described in
 [`project_overview.md`](project_overview.md). Phase 1 is complete. Phase 2 now
 includes mesh-face visibility caching and a deterministic closed-loop evaluator
-with Random, max-min angular-distance Farthest, and one-step Oracle policies.
-The learned policy adapters remain future work.
+with Random, max-min angular-distance Farthest, official-checkpoint PUN, and
+one-step Oracle policies. The independent VGGT adapter remains future work.
 
 ## Steps 1–4: setup and dataset verification
 
@@ -275,7 +275,7 @@ vis_a_coverage = cache.coverage([0, 12], target="vis_a")
 candidate_gains = cache.candidate_gains([0, 12])
 ```
 
-## Steps 10–11: geometric-baseline closed-loop simulator
+## Steps 10–12: shared closed-loop simulator and official PUN
 
 The common evaluator in `src/nbv/eval/closed_loop.py` uses the existing face
 cache's coverage and candidate-gain helpers. Its defaults are anchor 0, ten
@@ -283,9 +283,11 @@ cache's coverage and candidate-gain helpers. Its defaults are anchor 0, ten
 Random assigns reproducible scores using the seed, object ID, and decision
 index; changing object or policy execution order does not change its scores.
 Farthest scores each candidate by its minimum great-circle distance from all
-acquired camera directions. Oracle greedily selects the largest current true
-gain. All three use the same candidate mask and choose the lowest canonical
-anchor ID on ties.
+acquired camera directions. PUN independently predicts a source-relative PSNR
+map for each acquired RGB observation, aligns the maps, applies the official
+`small` suppression rule, and minimizes their raw product. Oracle greedily
+selects the largest current true gain. All policies use the same candidate mask
+and choose the lowest canonical anchor ID on ties.
 
 Run a small fixed subset while caches are being generated:
 
@@ -335,6 +337,28 @@ contain only acquired RGB/references, history anchor IDs, known camera poses,
 and the candidate mask. No NUM targets, unacquired image table, visibility
 cache, seen-face state, or true gains are passed to ordinary policies. Oracle
 uses an explicit privileged evaluator branch.
+
+PUN loads the checksum-pinned released UPNet checkpoint and official timm
+preprocessing without an optimizer or local training. Raw per-image PSNR maps
+are saved separately under `prediction_maps/pun/`; rollout scores are oriented
+aggregated policy scores, not surface-gain predictions. The pinned source,
+exact alignment/product/filter order, and adaptations from the official fresh
+512-candidate sphere to the common fixed 48-anchor evaluator are documented in
+[the PUN adapter note](docs/pun_closed_loop_adapter.md).
+
+Run a one-object released-checkpoint smoke rollout with:
+
+```bash
+python3 scripts/evaluate_closed_loop.py \
+  --object CATEGORY/OBJECT \
+  --set experiment.name=pun_closed_loop_smoke \
+  --set 'phase2.evaluation.policies=[pun]'
+```
+
+The retained [four-policy subset comparison](outputs/phase2/pun_geometric_subset/seed_0/metrics/summary.json)
+contains ten objects and 40 replay-verified rollouts, plus one acquired-only
+raw-map cache per PUN trajectory. It is a complete requested subset, not the
+complete fixed test split.
 
 **Step 9 validation:** camera calibration and tracking follow the PUN/Blender
 source, with pole rolls pinned to the released NUM images. See the
