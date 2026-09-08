@@ -46,6 +46,16 @@ class ConfigTests(unittest.TestCase):
         )
         self.assertEqual(vis_config["phase2"]["visibility"]["target"], "vis")
 
+    def test_phase3_history_config_loads(self) -> None:
+        config = load_config(
+            self.config_path.with_name("phase3_histories.yaml")
+        )
+        histories = config["phase3"]["histories"]
+        self.assertEqual(config["experiment"]["phase"], "phase3")
+        self.assertEqual(histories["coverage_target"], "vis_a")
+        self.assertEqual(histories["history_lengths"], [1, 2, 4, 6, 8])
+        self.assertFalse(histories["rotation_augmentation"])
+
     def test_tiny_probe_config_loads_and_supports_training_overrides(self) -> None:
         path = self.config_path.with_name("phase1_probe_tiny.yaml")
         config = load_config(

@@ -1,5 +1,17 @@
 """Dataset interfaces for next-best-view experiments."""
 
+from nbv.data.history_dataset import (
+    HISTORY_DATASET_SCHEMA_VERSION,
+    HISTORY_SAMPLING_STRATEGY,
+    HistoryBatch,
+    HistoryDataset,
+    HistoryDatasetError,
+    HistorySample,
+    SurfaceGainHistoryDataset,
+    assert_surface_gain_matches_coverage,
+    build_history_dataset,
+    collate_history_samples,
+)
 from nbv.data.num_dataset import (
     NUMDataset,
     NUMDatasetError,
@@ -22,16 +34,26 @@ from nbv.data.visibility_cache import (
     load_visibility_cache,
     save_visibility_cache,
     visibility_cache_compatibility_errors,
+    visibility_cache_fingerprint,
     visibility_cache_path,
 )
 
 __all__ = [
+    "HISTORY_DATASET_SCHEMA_VERSION",
+    "HISTORY_SAMPLING_STRATEGY",
+    "HistoryBatch",
+    "HistoryDataset",
+    "HistoryDatasetError",
+    "HistorySample",
+    "SurfaceGainHistoryDataset",
     "NUMDataset",
     "NUMDatasetError",
     "NUMSample",
     "NUMSampleRecord",
     "PUN_HELD_OUT_CATEGORIES",
     "build_num_v1_manifest",
+    "build_history_dataset",
+    "collate_history_samples",
     "complete_objects_by_category",
     "load_object_split",
     "pun_compatible_object_split",
@@ -43,5 +65,7 @@ __all__ = [
     "load_visibility_cache",
     "save_visibility_cache",
     "visibility_cache_compatibility_errors",
+    "visibility_cache_fingerprint",
     "visibility_cache_path",
+    "assert_surface_gain_matches_coverage",
 ]

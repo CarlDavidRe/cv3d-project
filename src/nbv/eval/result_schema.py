@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import csv
-import hashlib
 import json
 import os
 import tempfile
@@ -13,7 +12,7 @@ from typing import Any
 
 import numpy as np
 
-from nbv.data.visibility_cache import VisibilityCache
+from nbv.data.visibility_cache import VisibilityCache, visibility_cache_fingerprint
 from nbv.eval.metrics import coverage_auc
 
 
@@ -22,12 +21,7 @@ ROLLOUT_SCHEMA_VERSION = 1
 
 def visibility_fingerprint(cache: VisibilityCache) -> str:
     """Identify both the actual face arrays and their generation provenance."""
-    digest = hashlib.sha256(json.dumps(cache.metadata, sort_keys=True, allow_nan=False).encode())
-    for array in (cache.anchor_ids, cache.face_areas, cache.face_visibility):
-        digest.update(array.dtype.str.encode())
-        digest.update(str(array.shape).encode())
-        digest.update(array.tobytes(order="C"))
-    return digest.hexdigest()
+    return visibility_cache_fingerprint(cache)
 
 
 @dataclass(frozen=True)

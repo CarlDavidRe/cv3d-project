@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
@@ -31,6 +32,21 @@ class VisibilityCacheError(ValueError):
 
 class IncompatibleVisibilityCacheError(VisibilityCacheError):
     """Raised when cache metadata does not match the requested generation."""
+
+
+def visibility_cache_fingerprint(cache: "VisibilityCache") -> str:
+    """Identify both visibility arrays and their complete generation provenance."""
+
+    digest = hashlib.sha256(
+        json.dumps(
+            cache.metadata, sort_keys=True, allow_nan=False
+        ).encode("utf-8")
+    )
+    for array in (cache.anchor_ids, cache.face_areas, cache.face_visibility):
+        digest.update(array.dtype.str.encode("ascii"))
+        digest.update(str(array.shape).encode("ascii"))
+        digest.update(array.tobytes(order="C"))
+    return digest.hexdigest()
 
 
 @dataclass(frozen=True, slots=True)

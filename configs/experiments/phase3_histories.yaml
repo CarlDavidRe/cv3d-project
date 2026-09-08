@@ -1,0 +1,34 @@
+schema_version: 1
+
+experiment:
+  phase: phase3
+  name: direct_surface_gain_histories
+  seed: 0
+  deterministic: true
+
+paths:
+  data_root: data/NUM
+  visibility_cache_root: data/cache/visibility
+  history_dataset_root: data/processed/histories
+  output_root: outputs
+  model_cache_root: data/cache/models
+
+phase3:
+  histories:
+    dataset_name: random_unique_v1
+    split_manifest: data/splits/num_v1.json
+
+    # These references make the label/evaluator geometry agreement explicit.
+    visibility_config: configs/experiments/phase2_visibility.yaml
+    evaluation_config: configs/experiments/phase2_closed_loop.yaml
+    coverage_target: vis_a
+
+    splits: [train, val, test]
+    history_lengths: [1, 2, 4, 6, 8]
+    histories_per_object_per_length: 8
+    invalid_anchor_ids: []
+    sampling_strategy: seeded_unique_anchor_subsets_v1
+
+    # Verify the canonical, non-rotated dataset before adding an ablation.
+    rotation_augmentation: false
+    limit_per_split: null

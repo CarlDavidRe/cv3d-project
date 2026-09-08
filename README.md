@@ -5,7 +5,9 @@ This repository implements the phased project described in
 includes mesh-face visibility caching and a deterministic closed-loop evaluator
 with Random, max-min angular-distance Farthest, official-checkpoint PUN,
 independent per-view VGGT, and one-step Oracle policies. Full-split evaluation
-and Step 14 profiling remain pending.
+remains pending while the visibility cache finishes. Phase 3 Step 15 now
+provides the deterministic direct surface-gain history dataset builder and
+variable-length loader.
 
 ## Steps 1–4: setup and dataset verification
 
@@ -428,6 +430,66 @@ on six independent validation objects (30 views). The saved run uses this
 normalization. This is subset validation, not a
 pixel-perfect or full-dataset guarantee. See the
 [normalization validation](docs/num_camera_alignment.md#independent-validation).
+
+## Step 15: direct surface-gain history dataset
+
+The Phase 3 dataset reuses the exact schema-2 face visibility caches and
+configured Phase 2 evaluator target. Before the full build, precompute the
+training and validation geometry (and finish the pending test caches):
+
+~~~bash
+python3 scripts/precompute_visibility.py --split train
+python3 scripts/precompute_visibility.py --split val
+python3 scripts/precompute_visibility.py --split test
+~~~
+
+Build all object-disjoint shards from the checked configuration:
+
+~~~bash
+python3 scripts/build_history_dataset.py
+~~~
+
+The command writes a manifest plus deterministic train/validation/test NPZ
+shards under data/processed/histories/random_unique_v1. It fails before writing
+if any selected RGB object or visibility cache is missing. Existing datasets
+are not replaced unless --overwrite is explicit. For a small smoke build, use
+a split limit or one known object and select a different dataset name:
+
+~~~bash
+python3 scripts/build_history_dataset.py \
+  --split train \
+  --limit 2 \
+  --set phase3.histories.dataset_name=random_unique_smoke
+~~~
+
+Each sample contains an ordered, duplicate-free anchor history, relative RGB
+paths, target_surface_gain[48], valid_candidate_mask[48], the visibility-cache
+fingerprint, identity rotation metadata, split, and deterministic sampling
+provenance. The loader can return paths for independent cached-feature
+training or decode RGB for the later joint model:
+
+~~~python
+from torch.utils.data import DataLoader
+from nbv.data import HistoryDataset, collate_history_samples
+
+dataset = HistoryDataset(
+    "data/processed/histories/random_unique_v1",
+    split="train",
+    load_images=True,
+)
+loader = DataLoader(
+    dataset,
+    batch_size=8,
+    shuffle=False,
+    collate_fn=collate_history_samples,
+)
+batch = next(iter(loader))
+# batch.history_padding_mask: [B, history_length], True only for padding
+# batch.valid_candidate_mask: [B, 48], false for acquired/invalid candidates
+~~~
+
+Random rotations and policy-generated histories remain later ablations; this
+first dataset intentionally keeps canonical, non-rotated NUM observations.
 
 ## Step 5: model smoke tests
 
