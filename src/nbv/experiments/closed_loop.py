@@ -1,4 +1,4 @@
-"""Config-driven Random/Oracle evaluation over a fixed object split."""
+"""Config-driven geometric-baseline evaluation over a fixed object split."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from nbv.eval.result_schema import save_rollout, write_csv, write_json
 from nbv.geometry import CAMERA_CONVENTION, CANONICAL_ORDERING, FACE_VISIBILITY_RENDERER
 from nbv.geometry.mesh import MESH_CENTERING, sha256_file
 from nbv.logging_utils import configure_logging
-from nbv.policies import OraclePolicy, RandomPolicy
+from nbv.policies import FarthestPolicy, OraclePolicy, RandomPolicy
 from nbv.reproducibility import initialize_run, resolve_run_directory
 
 
@@ -36,8 +36,21 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
         )
     }, seed=config["experiment"]["seed"])
     policies = settings["policies"]
-    if not isinstance(policies, list) or not policies or len(set(policies)) != len(policies) or set(policies) - {"random", "oracle"}:
-        raise ValueError("policies must be a non-empty unique list of random/oracle")
+    policy_factories = {
+        "random": RandomPolicy,
+        "farthest": FarthestPolicy,
+        "oracle": OraclePolicy,
+    }
+    if (
+        not isinstance(policies, list)
+        or not policies
+        or len(set(policies)) != len(policies)
+        or set(policies) - policy_factories.keys()
+    ):
+        raise ValueError(
+            "policies must be a non-empty unique list drawn from "
+            "random/farthest/oracle"
+        )
     if type(settings["skip_missing_caches"]) is not bool:
         raise ValueError("skip_missing_caches must be boolean")
     split = settings["split"]
@@ -111,7 +124,7 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
             store = ObservationStore.from_num_object(resolve(config["paths"]["data_root"]), oid)
             object_results = []
             for name in policies:
-                policy = RandomPolicy() if name == "random" else OraclePolicy()
+                policy = policy_factories[name]()
                 result = run_rollout(cache, store, policy, rollout_config)
                 replay_rollout(result, cache, store)
                 result.metadata.update({
@@ -165,7 +178,7 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
         "visibility_cache_manifest": str(manifest_path),
         "ranking_aggregation": "pooled_per_step_mean_excluding_null_with_valid_counts",
         "coverage_aggregation": "per_object_mean; AUC is unnormalized over recorded acquired-view counts",
-        "timing_protocol": "CPU scoring only, excludes geometry and RGB; no live model or memory profiling in Step 10",
+        "timing_protocol": "CPU scoring only, excludes geometry and RGB; no live model or memory profiling in Steps 10-11",
     }
     write_json(summary, run.metrics_dir / "summary.json")
     write_csv(comparisons, run.metrics_dir / "comparison.csv")

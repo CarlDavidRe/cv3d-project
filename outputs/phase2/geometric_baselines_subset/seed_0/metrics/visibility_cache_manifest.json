@@ -1,0 +1,662 @@
+{
+  "cache_provenance": {
+    "02691156/1628b65a9f3cd7c05e9e2656aff7dd5b": {
+      "metadata": {
+        "anchor_count": 48,
+        "anchor_ordering": "pun_healpix_nside2_ring_anchor0_positive_z_v1",
+        "available_visibility_targets": [
+          "vis",
+          "vis_a"
+        ],
+        "camera_convention": "opengl_blender_track_world_z_num_poles_pixel_centers",
+        "camera_radius": 2.73,
+        "cull_backfaces": false,
+        "far": 4.0,
+        "horizontal_fov_degrees": 51.98948897809546,
+        "mesh_centering": "bounding_box",
+        "mesh_relative_path": "models/model_normalized.ply",
+        "mesh_scale": 2.0,
+        "mesh_sha256": "9ade5c4e5e4b7496d2e7da15ea88218d44fd662e260980a98db4004f29a08d73",
+        "mesh_to_world": [
+          [
+            2.0,
+            0.0,
+            0.0,
+            0.0015000000000000013
+          ],
+          [
+            0.0,
+            2.0,
+            0.0,
+            -0.045169999999999995
+          ],
+          [
+            0.0,
+            0.0,
+            2.0,
+            -0.11413999999999996
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "n_faces": 5893,
+        "near": 1.2,
+        "numpy_version": "2.3.5",
+        "object_id": "02691156/1628b65a9f3cd7c05e9e2656aff7dd5b",
+        "pun_source_revision": "aa6f8f4f12154854a4c1867209725c80475af102",
+        "render_resolution": [
+          256,
+          256
+        ],
+        "renderer": "numpy_cpu_triangle_id_zbuffer_perspective_v1",
+        "schema_version": 2,
+        "visibility_definition": "pun_unoccluded_rasterized_mesh_faces_v1",
+        "visibility_target": "vis_a"
+      },
+      "path": "/home/reese/computer_vision/cv3d-project/data/cache/visibility/02691156/1628b65a9f3cd7c05e9e2656aff7dd5b.npz",
+      "sha256": "6d9c6745827f262f4f9ed4c1505a091b68f603fa0645636a10785d5a4c358e3b"
+    },
+    "02691156/162ed8d0d989f3acc1ccec171a275967": {
+      "metadata": {
+        "anchor_count": 48,
+        "anchor_ordering": "pun_healpix_nside2_ring_anchor0_positive_z_v1",
+        "available_visibility_targets": [
+          "vis",
+          "vis_a"
+        ],
+        "camera_convention": "opengl_blender_track_world_z_num_poles_pixel_centers",
+        "camera_radius": 2.73,
+        "cull_backfaces": false,
+        "far": 4.0,
+        "horizontal_fov_degrees": 51.98948897809546,
+        "mesh_centering": "bounding_box",
+        "mesh_relative_path": "models/model_normalized.ply",
+        "mesh_scale": 2.0,
+        "mesh_sha256": "1bd435e51942df3f00c409c125bda3de2502349e55260162b065bed5930c1a21",
+        "mesh_to_world": [
+          [
+            2.0,
+            0.0,
+            0.0,
+            0.0002500000000000002
+          ],
+          [
+            0.0,
+            2.0,
+            0.0,
+            -0.07345
+          ],
+          [
+            0.0,
+            0.0,
+            2.0,
+            -0.07297999999999999
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "n_faces": 5912,
+        "near": 1.2,
+        "numpy_version": "2.3.5",
+        "object_id": "02691156/162ed8d0d989f3acc1ccec171a275967",
+        "pun_source_revision": "aa6f8f4f12154854a4c1867209725c80475af102",
+        "render_resolution": [
+          256,
+          256
+        ],
+        "renderer": "numpy_cpu_triangle_id_zbuffer_perspective_v1",
+        "schema_version": 2,
+        "visibility_definition": "pun_unoccluded_rasterized_mesh_faces_v1",
+        "visibility_target": "vis_a"
+      },
+      "path": "/home/reese/computer_vision/cv3d-project/data/cache/visibility/02691156/162ed8d0d989f3acc1ccec171a275967.npz",
+      "sha256": "e349ca3ee6600af0aa538b971ec67a39fea550a70f1ce6ad1112927b9d4d23a2"
+    },
+    "02691156/1659db64bbf46bcdc1955ee4b5680e91": {
+      "metadata": {
+        "anchor_count": 48,
+        "anchor_ordering": "pun_healpix_nside2_ring_anchor0_positive_z_v1",
+        "available_visibility_targets": [
+          "vis",
+          "vis_a"
+        ],
+        "camera_convention": "opengl_blender_track_world_z_num_poles_pixel_centers",
+        "camera_radius": 2.73,
+        "cull_backfaces": false,
+        "far": 4.0,
+        "horizontal_fov_degrees": 51.98948897809546,
+        "mesh_centering": "bounding_box",
+        "mesh_relative_path": "models/model_normalized.ply",
+        "mesh_scale": 2.0,
+        "mesh_sha256": "42d0bf78d0a75ddccee62f4bbb19bb8b2a26c3cfc34a8a520636fd77af42a04a",
+        "mesh_to_world": [
+          [
+            2.0,
+            0.0,
+            0.0,
+            0.0006300000000000194
+          ],
+          [
+            0.0,
+            2.0,
+            0.0,
+            -0.10624
+          ],
+          [
+            0.0,
+            0.0,
+            2.0,
+            -0.10997000000000001
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "n_faces": 6125,
+        "near": 1.2,
+        "numpy_version": "2.3.5",
+        "object_id": "02691156/1659db64bbf46bcdc1955ee4b5680e91",
+        "pun_source_revision": "aa6f8f4f12154854a4c1867209725c80475af102",
+        "render_resolution": [
+          256,
+          256
+        ],
+        "renderer": "numpy_cpu_triangle_id_zbuffer_perspective_v1",
+        "schema_version": 2,
+        "visibility_definition": "pun_unoccluded_rasterized_mesh_faces_v1",
+        "visibility_target": "vis_a"
+      },
+      "path": "/home/reese/computer_vision/cv3d-project/data/cache/visibility/02691156/1659db64bbf46bcdc1955ee4b5680e91.npz",
+      "sha256": "e26b070b388281fd9d51c023578f85bc3a6e583a8fd83c37d33e337b7d0c0b34"
+    },
+    "02691156/165c4491d10067b3bd46d022fd7d80aa": {
+      "metadata": {
+        "anchor_count": 48,
+        "anchor_ordering": "pun_healpix_nside2_ring_anchor0_positive_z_v1",
+        "available_visibility_targets": [
+          "vis",
+          "vis_a"
+        ],
+        "camera_convention": "opengl_blender_track_world_z_num_poles_pixel_centers",
+        "camera_radius": 2.73,
+        "cull_backfaces": false,
+        "far": 4.0,
+        "horizontal_fov_degrees": 51.98948897809546,
+        "mesh_centering": "bounding_box",
+        "mesh_relative_path": "models/model_normalized.ply",
+        "mesh_scale": 2.0,
+        "mesh_sha256": "85a7c7c6a1adf24db797555b401f9c597d76f7390c664550b0c870a8d37c85d7",
+        "mesh_to_world": [
+          [
+            2.0,
+            0.0,
+            0.0,
+            0.00034000000000000696
+          ],
+          [
+            0.0,
+            2.0,
+            0.0,
+            -0.11400000000000002
+          ],
+          [
+            0.0,
+            0.0,
+            2.0,
+            -0.028969999999999996
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "n_faces": 5972,
+        "near": 1.2,
+        "numpy_version": "2.3.5",
+        "object_id": "02691156/165c4491d10067b3bd46d022fd7d80aa",
+        "pun_source_revision": "aa6f8f4f12154854a4c1867209725c80475af102",
+        "render_resolution": [
+          256,
+          256
+        ],
+        "renderer": "numpy_cpu_triangle_id_zbuffer_perspective_v1",
+        "schema_version": 2,
+        "visibility_definition": "pun_unoccluded_rasterized_mesh_faces_v1",
+        "visibility_target": "vis_a"
+      },
+      "path": "/home/reese/computer_vision/cv3d-project/data/cache/visibility/02691156/165c4491d10067b3bd46d022fd7d80aa.npz",
+      "sha256": "35fcf9f087dc03cb609d178dfd06a7a73b2c51ba0c541f9b5f7bc1a0ac7052d9"
+    },
+    "02691156/1667ab313638fb366cf1b4a8fc3914e": {
+      "metadata": {
+        "anchor_count": 48,
+        "anchor_ordering": "pun_healpix_nside2_ring_anchor0_positive_z_v1",
+        "available_visibility_targets": [
+          "vis",
+          "vis_a"
+        ],
+        "camera_convention": "opengl_blender_track_world_z_num_poles_pixel_centers",
+        "camera_radius": 2.73,
+        "cull_backfaces": false,
+        "far": 4.0,
+        "horizontal_fov_degrees": 51.98948897809546,
+        "mesh_centering": "bounding_box",
+        "mesh_relative_path": "models/model_normalized.ply",
+        "mesh_scale": 2.0,
+        "mesh_sha256": "8cc12b5e14b578391b0be176efcca31c1d1f162f417499b139349fd5e304eb80",
+        "mesh_to_world": [
+          [
+            2.0,
+            0.0,
+            0.0,
+            0.0006400000000000294
+          ],
+          [
+            0.0,
+            2.0,
+            0.0,
+            -0.06989999999999999
+          ],
+          [
+            0.0,
+            0.0,
+            2.0,
+            -0.049240000000000006
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "n_faces": 6004,
+        "near": 1.2,
+        "numpy_version": "2.3.5",
+        "object_id": "02691156/1667ab313638fb366cf1b4a8fc3914e",
+        "pun_source_revision": "aa6f8f4f12154854a4c1867209725c80475af102",
+        "render_resolution": [
+          256,
+          256
+        ],
+        "renderer": "numpy_cpu_triangle_id_zbuffer_perspective_v1",
+        "schema_version": 2,
+        "visibility_definition": "pun_unoccluded_rasterized_mesh_faces_v1",
+        "visibility_target": "vis_a"
+      },
+      "path": "/home/reese/computer_vision/cv3d-project/data/cache/visibility/02691156/1667ab313638fb366cf1b4a8fc3914e.npz",
+      "sha256": "4acf1516b325930c4bcc45430f939b26d482547e2789047048b4e569dcc647c8"
+    },
+    "02691156/16689e54c884aa01639c7058eaf33ae": {
+      "metadata": {
+        "anchor_count": 48,
+        "anchor_ordering": "pun_healpix_nside2_ring_anchor0_positive_z_v1",
+        "available_visibility_targets": [
+          "vis",
+          "vis_a"
+        ],
+        "camera_convention": "opengl_blender_track_world_z_num_poles_pixel_centers",
+        "camera_radius": 2.73,
+        "cull_backfaces": false,
+        "far": 4.0,
+        "horizontal_fov_degrees": 51.98948897809546,
+        "mesh_centering": "bounding_box",
+        "mesh_relative_path": "models/model_normalized.ply",
+        "mesh_scale": 2.0,
+        "mesh_sha256": "f6a6589a756ab73b1321d4d5ea9b08acf6b1f4f8a63e8f238423516d3ec63e71",
+        "mesh_to_world": [
+          [
+            2.0,
+            0.0,
+            0.0,
+            -0.0
+          ],
+          [
+            0.0,
+            2.0,
+            0.0,
+            -0.09711
+          ],
+          [
+            0.0,
+            0.0,
+            2.0,
+            0.28241
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "n_faces": 6212,
+        "near": 1.2,
+        "numpy_version": "2.3.5",
+        "object_id": "02691156/16689e54c884aa01639c7058eaf33ae",
+        "pun_source_revision": "aa6f8f4f12154854a4c1867209725c80475af102",
+        "render_resolution": [
+          256,
+          256
+        ],
+        "renderer": "numpy_cpu_triangle_id_zbuffer_perspective_v1",
+        "schema_version": 2,
+        "visibility_definition": "pun_unoccluded_rasterized_mesh_faces_v1",
+        "visibility_target": "vis_a"
+      },
+      "path": "/home/reese/computer_vision/cv3d-project/data/cache/visibility/02691156/16689e54c884aa01639c7058eaf33ae.npz",
+      "sha256": "89f6bf417d7350ed64139b6a613a38167361ba4f51796abef17015b63bb494f0"
+    },
+    "02691156/166d333d38897d1513d521050081b441": {
+      "metadata": {
+        "anchor_count": 48,
+        "anchor_ordering": "pun_healpix_nside2_ring_anchor0_positive_z_v1",
+        "available_visibility_targets": [
+          "vis",
+          "vis_a"
+        ],
+        "camera_convention": "opengl_blender_track_world_z_num_poles_pixel_centers",
+        "camera_radius": 2.73,
+        "cull_backfaces": false,
+        "far": 4.0,
+        "horizontal_fov_degrees": 51.98948897809546,
+        "mesh_centering": "bounding_box",
+        "mesh_relative_path": "models/model_normalized.ply",
+        "mesh_scale": 2.0,
+        "mesh_sha256": "7f01d8a681b100587530150173d50710382fc6830f737c71730cb4a14d93919c",
+        "mesh_to_world": [
+          [
+            2.0,
+            0.0,
+            0.0,
+            0.010110000000000008
+          ],
+          [
+            0.0,
+            2.0,
+            0.0,
+            -0.04566
+          ],
+          [
+            0.0,
+            0.0,
+            2.0,
+            -0.0006799999999999862
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "n_faces": 6042,
+        "near": 1.2,
+        "numpy_version": "2.3.5",
+        "object_id": "02691156/166d333d38897d1513d521050081b441",
+        "pun_source_revision": "aa6f8f4f12154854a4c1867209725c80475af102",
+        "render_resolution": [
+          256,
+          256
+        ],
+        "renderer": "numpy_cpu_triangle_id_zbuffer_perspective_v1",
+        "schema_version": 2,
+        "visibility_definition": "pun_unoccluded_rasterized_mesh_faces_v1",
+        "visibility_target": "vis_a"
+      },
+      "path": "/home/reese/computer_vision/cv3d-project/data/cache/visibility/02691156/166d333d38897d1513d521050081b441.npz",
+      "sha256": "16b5adac8199536b86f2862348e51d7578689911f56a24fbf34aeb14399e7143"
+    },
+    "02691156/16715d886ecf0a97ce2cec85ea6ae00d": {
+      "metadata": {
+        "anchor_count": 48,
+        "anchor_ordering": "pun_healpix_nside2_ring_anchor0_positive_z_v1",
+        "available_visibility_targets": [
+          "vis",
+          "vis_a"
+        ],
+        "camera_convention": "opengl_blender_track_world_z_num_poles_pixel_centers",
+        "camera_radius": 2.73,
+        "cull_backfaces": false,
+        "far": 4.0,
+        "horizontal_fov_degrees": 51.98948897809546,
+        "mesh_centering": "bounding_box",
+        "mesh_relative_path": "models/model_normalized.ply",
+        "mesh_scale": 2.0,
+        "mesh_sha256": "8a6ba22c309e62472ab54727e798f64839cf52ffa420904c8ba4aefef1cba13a",
+        "mesh_to_world": [
+          [
+            2.0,
+            0.0,
+            0.0,
+            -0.002630000000000021
+          ],
+          [
+            0.0,
+            2.0,
+            0.0,
+            -0.11764
+          ],
+          [
+            0.0,
+            0.0,
+            2.0,
+            -0.09221999999999997
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "n_faces": 6150,
+        "near": 1.2,
+        "numpy_version": "2.3.5",
+        "object_id": "02691156/16715d886ecf0a97ce2cec85ea6ae00d",
+        "pun_source_revision": "aa6f8f4f12154854a4c1867209725c80475af102",
+        "render_resolution": [
+          256,
+          256
+        ],
+        "renderer": "numpy_cpu_triangle_id_zbuffer_perspective_v1",
+        "schema_version": 2,
+        "visibility_definition": "pun_unoccluded_rasterized_mesh_faces_v1",
+        "visibility_target": "vis_a"
+      },
+      "path": "/home/reese/computer_vision/cv3d-project/data/cache/visibility/02691156/16715d886ecf0a97ce2cec85ea6ae00d.npz",
+      "sha256": "9c272c6959f0b067edfac0de1b7868a00524fa8f9bbe1f6aff6a7bfa196fe88e"
+    },
+    "02691156/167250e2014c72dbb87697d3904b168b": {
+      "metadata": {
+        "anchor_count": 48,
+        "anchor_ordering": "pun_healpix_nside2_ring_anchor0_positive_z_v1",
+        "available_visibility_targets": [
+          "vis",
+          "vis_a"
+        ],
+        "camera_convention": "opengl_blender_track_world_z_num_poles_pixel_centers",
+        "camera_radius": 2.73,
+        "cull_backfaces": false,
+        "far": 4.0,
+        "horizontal_fov_degrees": 51.98948897809546,
+        "mesh_centering": "bounding_box",
+        "mesh_relative_path": "models/model_normalized.ply",
+        "mesh_scale": 2.0,
+        "mesh_sha256": "ddaf7e0d7376a934aee7d5dd526ab88b3ea1012b8c64c0cfddd860c349596301",
+        "mesh_to_world": [
+          [
+            2.0,
+            0.0,
+            0.0,
+            0.0007199999999999984
+          ],
+          [
+            0.0,
+            2.0,
+            0.0,
+            -0.09607
+          ],
+          [
+            0.0,
+            0.0,
+            2.0,
+            0.009039999999999992
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "n_faces": 5978,
+        "near": 1.2,
+        "numpy_version": "2.3.5",
+        "object_id": "02691156/167250e2014c72dbb87697d3904b168b",
+        "pun_source_revision": "aa6f8f4f12154854a4c1867209725c80475af102",
+        "render_resolution": [
+          256,
+          256
+        ],
+        "renderer": "numpy_cpu_triangle_id_zbuffer_perspective_v1",
+        "schema_version": 2,
+        "visibility_definition": "pun_unoccluded_rasterized_mesh_faces_v1",
+        "visibility_target": "vis_a"
+      },
+      "path": "/home/reese/computer_vision/cv3d-project/data/cache/visibility/02691156/167250e2014c72dbb87697d3904b168b.npz",
+      "sha256": "c67372c7539d3cdc2bc529e721aab7c5d8885de60b74d10c4efb5e3c97a52e33"
+    },
+    "02691156/167740d2a5f5cb6c7f4561609781d8c9": {
+      "metadata": {
+        "anchor_count": 48,
+        "anchor_ordering": "pun_healpix_nside2_ring_anchor0_positive_z_v1",
+        "available_visibility_targets": [
+          "vis",
+          "vis_a"
+        ],
+        "camera_convention": "opengl_blender_track_world_z_num_poles_pixel_centers",
+        "camera_radius": 2.73,
+        "cull_backfaces": false,
+        "far": 4.0,
+        "horizontal_fov_degrees": 51.98948897809546,
+        "mesh_centering": "bounding_box",
+        "mesh_relative_path": "models/model_normalized.ply",
+        "mesh_scale": 2.0,
+        "mesh_sha256": "277e9f28c3d95fbefee69c840f245cac7c5ebd336e2e7747d85c53bd7ab2c253",
+        "mesh_to_world": [
+          [
+            2.0,
+            0.0,
+            0.0,
+            0.0021200000000000108
+          ],
+          [
+            0.0,
+            2.0,
+            0.0,
+            -0.04503000000000001
+          ],
+          [
+            0.0,
+            0.0,
+            2.0,
+            0.056989999999999985
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "n_faces": 6029,
+        "near": 1.2,
+        "numpy_version": "2.3.5",
+        "object_id": "02691156/167740d2a5f5cb6c7f4561609781d8c9",
+        "pun_source_revision": "aa6f8f4f12154854a4c1867209725c80475af102",
+        "render_resolution": [
+          256,
+          256
+        ],
+        "renderer": "numpy_cpu_triangle_id_zbuffer_perspective_v1",
+        "schema_version": 2,
+        "visibility_definition": "pun_unoccluded_rasterized_mesh_faces_v1",
+        "visibility_target": "vis_a"
+      },
+      "path": "/home/reese/computer_vision/cv3d-project/data/cache/visibility/02691156/167740d2a5f5cb6c7f4561609781d8c9.npz",
+      "sha256": "58839678fe15a9a9a61ecf0c1d433f74738c4f6531e66f3780bb97dda4bffff1"
+    }
+  },
+  "complete_fixed_split": false,
+  "complete_requested_cohort": true,
+  "coverage_target": "vis_a",
+  "evaluated_object_ids": [
+    "02691156/1628b65a9f3cd7c05e9e2656aff7dd5b",
+    "02691156/162ed8d0d989f3acc1ccec171a275967",
+    "02691156/1659db64bbf46bcdc1955ee4b5680e91",
+    "02691156/165c4491d10067b3bd46d022fd7d80aa",
+    "02691156/1667ab313638fb366cf1b4a8fc3914e",
+    "02691156/16689e54c884aa01639c7058eaf33ae",
+    "02691156/166d333d38897d1513d521050081b441",
+    "02691156/16715d886ecf0a97ce2cec85ea6ae00d",
+    "02691156/167250e2014c72dbb87697d3904b168b",
+    "02691156/167740d2a5f5cb6c7f4561609781d8c9"
+  ],
+  "expected_geometry": {
+    "anchor_count": 48,
+    "anchor_ordering": "pun_healpix_nside2_ring_anchor0_positive_z_v1",
+    "available_visibility_targets": [
+      "vis",
+      "vis_a"
+    ],
+    "camera_convention": "opengl_blender_track_world_z_num_poles_pixel_centers",
+    "camera_radius": 2.73,
+    "cull_backfaces": false,
+    "far": 4.0,
+    "horizontal_fov_degrees": 51.98948897809546,
+    "mesh_centering": "bounding_box",
+    "mesh_relative_path": "models/model_normalized.ply",
+    "mesh_scale": 2.0,
+    "near": 1.2,
+    "render_resolution": [
+      256,
+      256
+    ],
+    "renderer": "numpy_cpu_triangle_id_zbuffer_perspective_v1",
+    "schema_version": 2,
+    "visibility_definition": "pun_unoccluded_rasterized_mesh_faces_v1"
+  },
+  "failures": [],
+  "geometry_validation_status": "num_camera_bbox_centered",
+  "missing_object_ids": [],
+  "requested_object_ids": [
+    "02691156/1628b65a9f3cd7c05e9e2656aff7dd5b",
+    "02691156/162ed8d0d989f3acc1ccec171a275967",
+    "02691156/1659db64bbf46bcdc1955ee4b5680e91",
+    "02691156/165c4491d10067b3bd46d022fd7d80aa",
+    "02691156/1667ab313638fb366cf1b4a8fc3914e",
+    "02691156/16689e54c884aa01639c7058eaf33ae",
+    "02691156/166d333d38897d1513d521050081b441",
+    "02691156/16715d886ecf0a97ce2cec85ea6ae00d",
+    "02691156/167250e2014c72dbb87697d3904b168b",
+    "02691156/167740d2a5f5cb6c7f4561609781d8c9"
+  ],
+  "split": "test",
+  "split_manifest": "/home/reese/computer_vision/cv3d-project/data/splits/num_v1.json",
+  "split_manifest_sha256": "17fd089bd5bbbe13325ad106659e00a1acb8ccd82a743398905de69d0d97f51d",
+  "split_object_count": 300
+}

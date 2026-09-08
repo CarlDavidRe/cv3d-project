@@ -16,8 +16,13 @@ from nbv.data.visibility_cache import VisibilityCache, load_visibility_cache, sa
 from nbv.eval.closed_loop import RolloutConfig, canonical_masked_argmax, replay_rollout, run_rollout
 from nbv.eval.result_schema import load_rollout, save_rollout
 from nbv.experiments.closed_loop import run_closed_loop_experiment
-from nbv.geometry import CAMERA_CONVENTION, CANONICAL_ORDERING, FACE_VISIBILITY_RENDERER
-from nbv.policies import OraclePolicy, RandomPolicy
+from nbv.geometry import (
+    CAMERA_CONVENTION,
+    CANONICAL_ORDERING,
+    FACE_VISIBILITY_RENDERER,
+    canonical_anchors,
+)
+from nbv.policies import FarthestPolicy, OraclePolicy, RandomPolicy
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -81,6 +86,31 @@ class ClosedLoopTests(unittest.TestCase):
         np.testing.assert_array_equal(first.acquired_anchor_ids, second.acquired_anchor_ids)
         self.assertFalse(np.array_equal(first.scores, different.scores))
         self.assertEqual(len(set(first.acquired_anchor_ids)), 10)
+
+    def test_farthest_uses_max_min_angular_distance_and_canonical_ties(self):
+        result = run_rollout(
+            self.cache,
+            self.store(),
+            FarthestPolicy(),
+            RolloutConfig(max_acquired_views=10),
+        )
+        self.assertEqual(
+            result.acquired_anchor_ids.tolist(),
+            [0, 46, 18, 28, 16, 30, 2, 44, 13, 33],
+        )
+        distances = canonical_anchors().angular_distance_matrix
+        for index, step in enumerate(result.steps):
+            expected = distances[:, step["history_anchor_ids"]].min(axis=1)
+            np.testing.assert_allclose(result.scores[index], expected, atol=1e-12)
+            self.assertEqual(
+                step["selected_anchor"],
+                canonical_masked_argmax(expected, result.valid_masks[index]),
+            )
+        self.assertFalse(result.metadata["policy_is_oracle"])
+        self.assertEqual(
+            result.metadata["policy_score_semantics"],
+            "max_min_angular_distance_radians",
+        )
 
     def test_masking_exhaustion_and_multiple_initial_views(self):
         result = run_rollout(self.cache, self.store((0, 1, 2, 3)), OraclePolicy(), RolloutConfig(
@@ -155,7 +185,7 @@ class ClosedLoopTests(unittest.TestCase):
             canonical_masked_argmax(scores, np.zeros(48, bool))
 
     def test_saved_rollouts_replay_and_reject_changed_geometry_or_diagnostics(self):
-        for policy in (RandomPolicy(), OraclePolicy()):
+        for policy in (RandomPolicy(), FarthestPolicy(), OraclePolicy()):
             original = run_rollout(self.cache, self.store(), policy)
             path = save_rollout(original, self.root / f"{policy.name}.npz")
             loaded = load_rollout(path)
@@ -236,7 +266,7 @@ class ClosedLoopTests(unittest.TestCase):
         save_visibility_cache(self.cache, cache_path)  # Missing pinned render metadata.
         with self.assertRaisesRegex(ValueError, "Evaluation failed"):
             run_closed_loop_experiment(config, ROOT)
-        manifest = json.loads((self.root / "outputs/phase2/random_oracle/seed_0/metrics/visibility_cache_manifest.json").read_text())
+        manifest = json.loads((self.root / "outputs/phase2/geometric_baselines/seed_0/metrics/visibility_cache_manifest.json").read_text())
         self.assertEqual(len(manifest["failures"]), 1)
         self.assertEqual(manifest["evaluated_object_ids"], [])
 
@@ -249,7 +279,7 @@ class ClosedLoopTests(unittest.TestCase):
         save_visibility_cache(cache, cache_path)
         with self.assertRaisesRegex(ValueError, "Evaluation failed"):
             run_closed_loop_experiment(config, ROOT)
-        manifest = json.loads((self.root / "outputs/phase2/random_oracle/seed_0/metrics/visibility_cache_manifest.json").read_text())
+        manifest = json.loads((self.root / "outputs/phase2/geometric_baselines/seed_0/metrics/visibility_cache_manifest.json").read_text())
         self.assertIn("mesh_centering", manifest["failures"][0]["error"])
 
 

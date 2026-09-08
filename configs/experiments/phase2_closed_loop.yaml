@@ -2,7 +2,7 @@ schema_version: 1
 
 experiment:
   phase: phase2
-  name: random_oracle
+  name: geometric_baselines
   seed: 0
   deterministic: true
 
@@ -22,7 +22,7 @@ phase2:
     object_ids: []              # Optional explicit subset of this split.
     limit: null
     skip_missing_caches: false  # Opt in for provisional runs during precompute.
-    policies: [random, oracle]
+    policies: [random, farthest, oracle]
     max_acquired_views: 10      # Includes the initial views.
     initial_anchor_ids: [0]
     invalid_anchor_ids: []

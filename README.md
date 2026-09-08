@@ -3,8 +3,8 @@
 This repository implements the phased project described in
 [`project_overview.md`](project_overview.md). Phase 1 is complete. Phase 2 now
 includes mesh-face visibility caching and a deterministic closed-loop evaluator
-with Random and one-step Oracle policies. Farthest and the learned policy
-adapters remain future work.
+with Random, max-min angular-distance Farthest, and one-step Oracle policies.
+The learned policy adapters remain future work.
 
 ## Steps 1–4: setup and dataset verification
 
@@ -275,22 +275,24 @@ vis_a_coverage = cache.coverage([0, 12], target="vis_a")
 candidate_gains = cache.candidate_gains([0, 12])
 ```
 
-## Step 10: Random/Oracle closed-loop simulator
+## Steps 10–11: geometric-baseline closed-loop simulator
 
 The common evaluator in `src/nbv/eval/closed_loop.py` uses the existing face
 cache's coverage and candidate-gain helpers. Its defaults are anchor 0, ten
 **total** acquired views (including the initial view), and `vis_a` coverage.
 Random assigns reproducible scores using the seed, object ID, and decision
 index; changing object or policy execution order does not change its scores.
-Oracle greedily selects the largest current true gain. Both use the same
-candidate mask and choose the lowest canonical anchor ID on ties.
+Farthest scores each candidate by its minimum great-circle distance from all
+acquired camera directions. Oracle greedily selects the largest current true
+gain. All three use the same candidate mask and choose the lowest canonical
+anchor ID on ties.
 
 Run a small fixed subset while caches are being generated:
 
 ```bash
 python3 scripts/evaluate_closed_loop.py \
   --limit 10 --skip-missing-caches \
-  --set experiment.name=random_oracle_subset
+  --set experiment.name=geometric_baselines_subset
 ```
 
 Omit `--limit` and `--skip-missing-caches` for the complete configured test
@@ -316,7 +318,7 @@ of the visibility arrays and metadata. Verify a saved rollout with:
 
 ```bash
 python3 scripts/evaluate_closed_loop.py \
-  --replay outputs/phase2/random_oracle_subset/seed_0/rollouts/oracle/CATEGORY/OBJECT.npz
+  --replay outputs/phase2/geometric_baselines_subset/seed_0/rollouts/farthest/CATEGORY/OBJECT.npz
 ```
 
 Replay runs saved scores through the same evaluator and checks actions,
@@ -339,11 +341,12 @@ source, with pole rolls pinned to the released NUM images. See the
 [RGB/mesh validation report](outputs/phase2/visibility_alignment/report.json)
 and [precomputation instructions](docs/num_camera_alignment.md).
 Runs record `geometry_validation_status: num_camera_bbox_centered`.
-The retained [Random/Oracle results](outputs/phase2/random_oracle/seed_0/metrics/summary.json)
-cover three objects; split completeness is reported separately.
+The retained [Random/Farthest/Oracle results](outputs/phase2/geometric_baselines_subset/seed_0/metrics/summary.json)
+cover a fixed ten-object test subset; the requested cohort is complete, while
+full-split completeness is reported separately.
 Bounding-box centering improves mean silhouette overlap from 51.3% to 86.8%
-on six independent validation objects (30 views). The three available caches
-and the saved run use this normalization. This is subset validation, not a
+on six independent validation objects (30 views). The saved run uses this
+normalization. This is subset validation, not a
 pixel-perfect or full-dataset guarantee. See the
 [normalization validation](docs/num_camera_alignment.md#independent-validation).
 

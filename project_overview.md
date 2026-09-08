@@ -358,7 +358,7 @@ Repository audit as of 2026-09-07:
 | Runtime/memory profiling | Deferred to Phase 2 | Trainable parameter counts are reported. A common inference-time and peak-memory protocol remains useful for the closed-loop system but does not block the frozen Phase 1 feature-probe result. |
 | PUN comparison | Complete | The official released PSNR UPNet checkpoint was checksum-verified, evaluated last with official timm preprocessing, and recorded with both official unmasked MSE and common masked metrics. The full row covers all 5,232 validation and 14,400 test samples. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
-| Phase 2 visibility and simulator | Implemented and subset-validated; full-split work pending | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Oracle simulator are implemented. Prepared PLY meshes use bounding-box centering supported by six independent validation objects. Three local caches and their replayable rollouts use this convention. Full-split precomputation, learned policy adapters, the history dataset, and joint VGGT remain pending. |
+| Phase 2 visibility and simulator | Implemented and subset-validated; full-split work pending | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Farthest/Oracle simulator are implemented. Prepared PLY meshes use bounding-box centering supported by six independent validation objects. Replayable subset rollouts use this convention. Full-split precomputation, learned policy adapters, the history dataset, and joint VGGT remain pending. |
 
 The Phase 1 audit recorded 104 passing tests. This historical count does not
 validate the planned Phase 2/3 changes or replace real-data, real-checkpoint,
@@ -1956,6 +1956,12 @@ cannot access geometry or unacquired observations.
 
 ### Step 11 — farthest-view baseline
 
+**Implementation status:** implemented with `FarthestPolicy` and registered in
+the shared config-driven evaluator. Scores are max-min great-circle distances
+in radians over canonical camera directions; common evaluator masking and
+lowest-anchor-ID tie-breaking remain unchanged. The replay-verified ten-object
+artifact is under `outputs/phase2/geometric_baselines_subset/seed_0`.
+
 Implement max-min angular distance from the acquired camera directions using
 the canonical anchor utilities. Run it through the same mask, tie-breaking,
 rollout, and metric path as Random and Oracle.
@@ -2571,7 +2577,7 @@ after Phase 2 is frozen.
 - [x] Add acquired-RGB observation store and evaluator-private geometry access.
 - [x] Implement deterministic shared closed-loop simulator and result schema.
 - [x] Add Random/Oracle replay, masks, zero-gain, and exhaustion checks.
-- [ ] Add the max-min angular-distance Farthest policy.
+- [x] Add the max-min angular-distance Farthest policy.
 
 ### Milestone 6 — complete Phase 2 (Steps 12–14)
 

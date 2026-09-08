@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate Random/Oracle with fixed geometry, or verify a saved rollout replay."""
+"""Evaluate Phase 2 geometric baselines, or verify a saved rollout replay."""
 
 from __future__ import annotations
 
