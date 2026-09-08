@@ -40,7 +40,7 @@ from nbv.policies import (
     VGGTPolicy,
 )
 from nbv.reproducibility import initialize_run, resolve_run_directory, seed_everything
-from nbv.visualization import write_closed_loop_visualizations
+from nbv.visualization import write_closed_loop_visualizations, write_phase2_rollout_demo
 
 
 def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str | Path) -> Path:
@@ -224,6 +224,22 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
             values = [step[metric] for result in results for step in result.steps if step[metric] is not None]
             comparison[f"{metric}_mean"] = float(np.mean(values)) if values else None
             comparison[f"{metric}_valid_count"] = len(values)
+        policy_times = [step["policy_ms"] for result in results for step in result.steps]
+        comparison["median_policy_ms"] = (
+            float(np.median(policy_times)) if policy_times else None
+        )
+        comparison["profiling_modes"] = sorted({
+            step.get("profiling_mode", "unspecified")
+            for result in results for step in result.steps
+        })
+        for key in ("process_rss_bytes", "process_rss_delta_bytes", "peak_cuda_allocated_bytes"):
+            values = [step.get(key) for result in results for step in result.steps if step.get(key) is not None]
+            comparison[f"peak_{key}"] = max(values) if values else None
+        provenance = results[0].metadata.get("policy_provenance", {}) if results else {}
+        comparison["trainable_parameter_count"] = provenance.get("trainable_parameter_count", 0)
+        comparison["frozen_parameter_count"] = provenance.get(
+            "frozen_parameter_count", provenance.get("frozen_parameter_count_unavailable")
+        )
         comparisons.append(comparison)
         for count in sorted({int(c) for result in results for c in result.acquired_view_counts}):
             values = [float(result.coverage[np.flatnonzero(result.acquired_view_counts == count)[0]]) for result in results if count in result.acquired_view_counts]
@@ -247,7 +263,13 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
         "visibility_cache_manifest": str(manifest_path),
         "ranking_aggregation": "pooled_per_step_mean_excluding_null_with_valid_counts",
         "coverage_aggregation": "per_object_mean; AUC is unnormalized over recorded acquired-view counts",
-        "timing_protocol": "Policy scoring includes learned-policy cache lookup or preprocessing/inference plus aggregation; excludes geometry and evaluator RGB loading. No warm-up, synchronization, or memory profiling yet.",
+        "timing_protocol": "Policy scoring includes cache lookup or preprocessing/inference plus aggregation; excludes geometry and evaluator RGB loading. CUDA is synchronized around scoring; medians include the cold first decision.",
+        "memory_protocol": "Per-step process RSS plus RSS delta and CUDA peak allocated bytes; CUDA peak stats reset immediately before each score call.",
+        "original_num_target_results": {
+            "namespace": "phase1_num_target_metrics",
+            "vggt_summary_path": config.get("phase2", {}).get("vggt", {}).get("summary", {}).get("path"),
+            "note": "Original NUM-target metrics remain in the pinned Phase 1 summary and are not geometric gain metrics.",
+        },
     }
     if all_results:
         figure_paths = write_closed_loop_visualizations(
@@ -257,9 +279,67 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
             name: str(path.relative_to(run.run_dir))
             for name, path in figure_paths.items()
         }
+        demo_result = next(
+            (result for result in all_results if result.metadata["policy"] == "vggt"),
+            all_results[0],
+        )
+        demo_cache = load_visibility_cache(
+            demo_result.metadata["visibility_cache_path"],
+            expected_metadata=dict(
+                expected_geometry, object_id=demo_result.metadata["object_id"]
+            ),
+        )
+        demo_path = write_phase2_rollout_demo(
+            demo_result,
+            demo_cache,
+            run.figure_dir / "closed_loop" / "rollout_demo.svg",
+        )
+        summary["figures"]["rollout_demo"] = str(demo_path.relative_to(run.run_dir))
     write_json(summary, run.metrics_dir / "summary.json")
     write_csv(comparisons, run.metrics_dir / "comparison.csv")
     write_csv(curves, run.metrics_dir / "coverage.csv")
+    required_policies = {"random", "farthest", "pun", "vggt", "oracle"}
+    profile_modes = {
+        step.get("profiling_mode")
+        for result in all_results for step in result.steps
+    }
+    pun_provenance = summary["policy_provenance"].get("pun", {})
+    vggt_provenance = summary["policy_provenance"].get("vggt", {})
+    checks = {
+        "complete_fixed_test_split": bool(manifest["complete_fixed_split"] and split == "test"),
+        "five_core_policies": set(policies) == required_policies,
+        "all_rollouts_replay_verified": len(all_results) == len(manifest["evaluated_object_ids"]) * len(policies),
+        "per_object_and_per_step_exports": bool(per_object) and bool([s for r in all_results for s in r.steps]),
+        "profiling_records": all(
+            "policy_ms" in step and "process_rss_bytes" in step
+            for result in all_results for step in result.steps
+        ),
+        "live_and_cached_profile_modes": (
+            "live_model_inference_incremental" in profile_modes
+            and "cached_features_plus_live_head" in profile_modes
+        ),
+        "figures_generated": bool(all_results),
+        "replayable_demo": bool(
+            all_results
+            and (run.figure_dir / "closed_loop" / "rollout_demo.svg").is_file()
+        ),
+        "pinned_learned_policy_references": bool(
+            pun_provenance.get("checkpoint_sha256")
+            and pun_provenance.get("source_commit")
+            and vggt_provenance.get("checkpoint_sha256")
+            and vggt_provenance.get("feature_cache_sha256")
+        ),
+    }
+    completion = {
+        "schema_version": 1,
+        "phase": "phase2",
+        "status": "complete" if all(checks.values()) else "pending",
+        "checks": checks,
+        "result_summary": str(run.metrics_dir / "summary.json"),
+        "resolved_config": str(run.run_dir / "config.yaml"),
+        "note": "Only a complete fixed test-split five-policy run may freeze Phase 2.",
+    }
+    write_json(completion, run.metrics_dir / "phase2_completion.json")
     if manifest["failures"]:
         raise ValueError(f"Evaluation failed for {len(manifest['failures'])} objects; see {manifest_path}")
     return run.run_dir
@@ -341,6 +421,7 @@ def _load_pun_components(
         "checkpoint_sha256": PUN_CHECKPOINT_SHA256,
         "preprocessing": data_config,
         "locally_trained": False,
+        "trainable_parameter_count": 0,
         "frozen_parameter_count": total_parameters,
         "candidate_set_adaptation": "official fresh 512-point spherical samples replaced by evaluator canonical 48 anchors",
         "candidate_mask_adaptation": "shared acquired/invalid anchor mask applied by common evaluator",
@@ -488,7 +569,8 @@ def _load_vggt_components(
         "model": dict(model_settings),
         "allow_live_extraction": settings["allow_live_extraction"],
         "trainable_parameter_count": sum(p.numel() for p in head.parameters()),
-        "frozen_vggt_parameter_count": None,
+        "frozen_parameter_count": None,
+        "frozen_parameter_count_unavailable": "VGGT is not loaded in cache-only evaluation; profile a live run to record its instantiated aggregator count",
         "true_surface_gain_supervision": False,
         "map_frame": settings["map_frame"],
     }

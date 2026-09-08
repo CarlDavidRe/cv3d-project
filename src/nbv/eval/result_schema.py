@@ -63,6 +63,13 @@ class RolloutResult:
             result[f"{key}_valid_count"] = len(values)
         times = [s["policy_ms"] for s in self.steps]
         result["median_policy_ms"] = float(np.median(times)) if times else None
+        for source, destination in (
+            ("process_rss_bytes", "peak_process_rss_bytes"),
+            ("process_rss_delta_bytes", "peak_process_rss_delta_bytes"),
+            ("peak_cuda_allocated_bytes", "peak_cuda_allocated_bytes"),
+        ):
+            values = [s.get(source) for s in self.steps if s.get(source) is not None]
+            result[destination] = max(values) if values else None
         return result
 
 

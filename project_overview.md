@@ -358,7 +358,7 @@ Repository audit as of 2026-09-07:
 | Runtime/memory profiling | Deferred to Phase 2 | Trainable parameter counts are reported. A common inference-time and peak-memory protocol remains useful for the closed-loop system but does not block the frozen Phase 1 feature-probe result. |
 | PUN comparison | Complete | The official released PSNR UPNet checkpoint was checksum-verified, evaluated last with official timm preprocessing, and recorded with both official unmasked MSE and common masked metrics. The full row covers all 5,232 validation and 14,400 test samples. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
-| Phase 2 visibility and simulator | Steps 9–13 implemented and subset-validated; full-split work pending | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Farthest/official-PUN/independent-VGGT/Oracle simulator are implemented. PUN and VGGT share the reproduced map alignment/filter/product rule under the fixed 48-anchor protocol. VGGT uses the checksum-pinned validation-selected Phase 1 max-pooled-patch head and cached single-image features. Prepared PLY meshes use bounding-box centering supported by six independent validation objects. Full-split precomputation/evaluation, Step 14 profiling, the Phase 3 history dataset, and joint VGGT remain pending. |
+| Phase 2 visibility and simulator | Steps 9–14 implemented and subset-validated; final full-split run pending cache completion | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Farthest/official-PUN/independent-VGGT/Oracle simulator are implemented. PUN and VGGT share the reproduced map alignment/filter/product rule under the fixed 48-anchor protocol. VGGT uses the checksum-pinned validation-selected Phase 1 max-pooled-patch head and cached single-image features. Step 14 now adds cached/live profiling, memory and parameter exports, a replay-verified rollout demo, separate NUM-result provenance, and a strict completion manifest that cannot freeze a partial cohort. Prepared PLY meshes use bounding-box centering supported by six independent validation objects. The full test-split run remains intentionally pending while visibility caches are computed; Phase 3 has not started. |
 
 The Phase 1 audit recorded 104 passing tests. This historical count does not
 validate the planned Phase 2/3 changes or replace real-data, real-checkpoint,
@@ -2033,6 +2033,15 @@ policies and saves per-view raw maps, aggregate policy scores, selected actions,
 and evaluator-only true gains. Any retraining retains original NUM targets.
 
 ### Step 14 — complete and freeze the core Phase 2 result
+
+**Implementation status:** complete. The shared runner now exports geometric
+ranking and coverage metrics, per-step/per-object records, profiling modes and
+latency/memory fields, parameter counts, comparison figures, an automatically
+generated replay-verified rollout SVG, and a machine-readable completion gate.
+The gate reports `complete` only for an error-free five-policy run on the entire
+fixed test split. The final quantitative run and freeze remain pending until
+all visibility caches are available; do not use the partial-cache option for
+that run.
 
 Add geometric regret, Spearman, NDCG@5, coverage AUC/final coverage, complete
 per-object/per-step exports, live/cached runtime profiling, peak memory, and

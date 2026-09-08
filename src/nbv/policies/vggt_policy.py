@@ -101,6 +101,15 @@ class VGGTPolicy:
             "filtered_candidate_counts": self._filtered_candidate_counts.copy(),
         }
 
+    @property
+    def profiling_mode(self) -> str:
+        sources = set(self._prediction_sources.values())
+        if not sources or sources == {"feature_cache"}:
+            return "cached_features_plus_live_head"
+        if sources == {"live_vggt"}:
+            return "live_vggt_plus_head"
+        return "mixed_cached_and_live_vggt_plus_head"
+
     def score(self, observation_state: ObservationState) -> np.ndarray:
         if not observation_state.acquired_observations:
             raise ValueError("VGGTPolicy requires at least one acquired observation")

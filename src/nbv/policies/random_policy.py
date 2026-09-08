@@ -12,6 +12,7 @@ class RandomPolicy:
     name = "random"
     is_oracle = False
     score_semantics = "seeded_random_ranking"
+    provenance = {"trainable_parameter_count": 0, "frozen_parameter_count": 0}
 
     def score(self, observation_state: ObservationState) -> np.ndarray:
         key = json.dumps([

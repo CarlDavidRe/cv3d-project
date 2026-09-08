@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import os
+from pathlib import Path
+import resource
 from time import perf_counter
 
 import numpy as np
+import torch
 
 from nbv.data.observation_store import ObservationStore
 from nbv.data.visibility_cache import VisibilityCache
@@ -64,6 +68,24 @@ def _readonly_copy(array: np.ndarray) -> np.ndarray:
     return result
 
 
+def _resident_memory_bytes() -> int | None:
+    """Return current Linux RSS, with a portable peak-RSS fallback."""
+    try:
+        fields = Path("/proc/self/statm").read_text().split()
+        return int(fields[1]) * os.sysconf("SC_PAGE_SIZE")
+    except (OSError, IndexError, ValueError):
+        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        return int(peak * (1024 if os.name != "darwin" else 1)) if peak else None
+
+
+def _policy_cuda_device(policy: NBVPolicy) -> torch.device | None:
+    device = getattr(policy, "device", None)
+    if device is None:
+        return None
+    resolved = torch.device(device)
+    return resolved if resolved.type == "cuda" else None
+
+
 def run_rollout(
     cache: VisibilityCache,
     observations: ObservationStore,
@@ -105,6 +127,11 @@ def run_rollout(
             stop_reason = "no_valid_candidates"
             break
         gains = cache.candidate_gains(history, target=config.coverage_target)
+        cuda_device = _policy_cuda_device(policy)
+        if cuda_device is not None:
+            torch.cuda.synchronize(cuda_device)
+            torch.cuda.reset_peak_memory_stats(cuda_device)
+        rss_before = _resident_memory_bytes()
         if policy.is_oracle:
             started = perf_counter()
             scores = gains.copy()
@@ -119,7 +146,14 @@ def run_rollout(
             )
             started = perf_counter()
             scores = policy.score(state)
+        if cuda_device is not None:
+            torch.cuda.synchronize(cuda_device)
         elapsed_ms = (perf_counter() - started) * 1000
+        rss_after = _resident_memory_bytes()
+        peak_cuda_bytes = (
+            int(torch.cuda.max_memory_allocated(cuda_device))
+            if cuda_device is not None else None
+        )
         scores = np.asarray(scores, dtype=np.float64).copy()
         selected = canonical_masked_argmax(scores, valid)
         correlation = spearman_rank(scores, gains, valid)
@@ -143,6 +177,13 @@ def run_rollout(
             "spearman": float(correlation) if np.isfinite(correlation) else None,
             "ndcg_at_5": ndcg_at_k(scores, gains, valid),
             "policy_ms": elapsed_ms, "acquisition_ms": acquisition_ms,
+            "process_rss_bytes": rss_after,
+            "process_rss_delta_bytes": (
+                max(0, rss_after - rss_before)
+                if rss_before is not None and rss_after is not None else None
+            ),
+            "peak_cuda_allocated_bytes": peak_cuda_bytes,
+            "profiling_mode": getattr(policy, "profiling_mode", "analytic_cpu"),
         })
         all_scores.append(scores)
         all_gains.append(gains)
@@ -164,7 +205,8 @@ def run_rollout(
         "available_anchor_mask": available.tolist(), "stop_reason": stop_reason,
         "tie_breaking": "lowest_valid_canonical_anchor_id", "zero_gain_behavior": "continue",
         "random_protocol": "sha256_seed_object_step_128bit_pcg64_v1",
-        "timing_protocol": "cpu_policy_scoring_excludes_geometry_and_rgb_loading",
+        "timing_protocol": "wall_clock_policy_scoring_with_cuda_synchronization_excludes_geometry_and_evaluator_rgb_loading",
+        "memory_protocol": "per_step_process_rss_and_cuda_peak_allocated; cuda_stats_reset_before_policy_score",
         "ranking_aggregation": "per_step_mean_excluding_undefined_with_valid_counts",
     }
     return RolloutResult(
@@ -206,7 +248,10 @@ def replay_rollout(
     if len(replayed.steps) != len(saved.steps):
         raise ValueError("Replay step count differs")
     for actual, expected in zip(replayed.steps, saved.steps):
-        for key in expected.keys() - {"policy_ms", "acquisition_ms"}:
+        for key in expected.keys() - {
+            "policy_ms", "acquisition_ms", "process_rss_bytes",
+            "process_rss_delta_bytes", "peak_cuda_allocated_bytes", "profiling_mode",
+        }:
             if actual[key] != expected[key]:
                 raise ValueError(f"Replay step mismatch: {key}")
     return replayed

@@ -7,6 +7,7 @@ class OraclePolicy:
     name = "oracle"
     is_oracle = True
     score_semantics = "true_incremental_surface_gain"
+    provenance = {"trainable_parameter_count": 0, "frozen_parameter_count": 0}
 
     def score(self, observation_state: ObservationState):
         raise RuntimeError("Oracle scores must be supplied by the evaluator")

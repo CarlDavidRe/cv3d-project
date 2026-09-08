@@ -13,6 +13,7 @@ class FarthestPolicy:
     name = "farthest"
     is_oracle = False
     score_semantics = "max_min_angular_distance_radians"
+    provenance = {"trainable_parameter_count": 0, "frozen_parameter_count": 0}
 
     def score(self, observation_state: ObservationState) -> np.ndarray:
         directions = np.asarray(observation_state.anchor_directions, dtype=np.float64)

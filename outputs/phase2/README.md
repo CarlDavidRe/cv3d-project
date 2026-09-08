@@ -1,7 +1,9 @@
 # Phase 2 implementation checks
 
-These are NUM geometry and simulator checks. A frozen Phase 2 result requires
-the learned policies and complete-test-split evaluation.
+These are NUM geometry and simulator checks. Step 14 infrastructure is now
+implemented, but a frozen Phase 2 result still requires the complete-test-split
+evaluation after visibility precomputation finishes. The final run's
+`metrics/phase2_completion.json` is authoritative; subset runs remain pending.
 Meshes use bounding-box centering, supported by six independent validation
 objects. Successful cache/replay checks establish internal consistency;
 full-dataset RGB registration and exact source-OBJ equivalence are not claimed.

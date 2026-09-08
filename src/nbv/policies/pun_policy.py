@@ -29,6 +29,7 @@ class PUNPolicy:
     is_oracle = False
     score_semantics = "negative_product_of_aligned_raw_psnr_after_small_filter"
     training_target_semantics = "official_single_image_num_psnr"
+    profiling_mode = "live_model_inference_incremental"
 
     def __init__(
         self,

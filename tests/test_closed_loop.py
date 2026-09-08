@@ -24,6 +24,7 @@ from nbv.geometry import (
     canonical_anchors,
 )
 from nbv.policies import FarthestPolicy, OraclePolicy, RandomPolicy
+from nbv.visualization import write_phase2_rollout_demo
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -202,6 +203,19 @@ class ClosedLoopTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "candidate_gains"):
                 replay_rollout(loaded, self.cache, self.store())
 
+    def test_rollout_demo_embeds_rgb_scores_gains_faces_and_coverage(self):
+        result = run_rollout(
+            self.cache, self.store(), OraclePolicy(), RolloutConfig(max_acquired_views=4)
+        )
+        output = write_phase2_rollout_demo(result, self.cache, self.root / "demo.svg")
+        ET.parse(output)
+        svg = output.read_text()
+        self.assertIn("data:image/png;base64,", svg)
+        self.assertIn("Aggregated policy scores", svg)
+        self.assertIn("Evaluator-only true gains", svg)
+        self.assertIn("Accumulated visible-face weight", svg)
+        self.assertIn("Coverage trajectory", svg)
+
     def test_invalid_configuration_and_object_mismatch_fail(self):
         for kwargs in (
             {"initial_anchor_ids": ()}, {"initial_anchor_ids": (0, 0)},
@@ -259,10 +273,14 @@ class ClosedLoopTests(unittest.TestCase):
         self.assertEqual(summary["coverage_target"], "vis_a")
         self.assertTrue((run / "metrics/per_step.csv").is_file())
         self.assertTrue((run / "metrics/coverage.csv").is_file())
+        completion = json.loads((run / "metrics/phase2_completion.json").read_text())
+        self.assertEqual(completion["status"], "pending")
+        self.assertFalse(completion["checks"]["complete_fixed_test_split"])
         expected_figures = {
             "coverage": "figures/closed_loop/coverage_curves.svg",
             "per_step": "figures/closed_loop/per_step_policy_quality.svg",
             "summary": "figures/closed_loop/policy_summary.svg",
+            "rollout_demo": "figures/closed_loop/rollout_demo.svg",
         }
         self.assertEqual(summary["figures"], expected_figures)
         for relative in expected_figures.values():

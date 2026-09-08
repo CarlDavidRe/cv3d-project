@@ -276,7 +276,7 @@ vis_a_coverage = cache.coverage([0, 12], target="vis_a")
 candidate_gains = cache.candidate_gains([0, 12])
 ```
 
-## Steps 10–13: shared closed-loop simulator, PUN, and independent VGGT
+## Steps 10–14: complete Phase 2 closed-loop evaluation
 
 The common evaluator in `src/nbv/eval/closed_loop.py` uses the existing face
 cache's coverage and candidate-gain helpers. Its defaults are anchor 0, ten
@@ -329,9 +329,12 @@ masks, gains, coverage, and ranking diagnostics. Optional `--cache PATH` and
 `--data-root PATH` support relocated data. Wall-clock timings are excluded
 from replay equality. Regret, Spearman, and NDCG@5 measure true geometric gain;
 undefined Spearman values become JSON `null` with valid counts in summaries.
-Coverage AUC retains the unnormalized trapezoidal definition. Timing currently
-measures CPU policy scoring separately from RGB loading and excludes geometry;
-live model and memory profiling belong to the later learned-policy steps.
+Coverage AUC retains the unnormalized trapezoidal definition. Per-step profiling
+records synchronized wall-clock policy latency, process RSS, RSS delta, and CUDA
+peak allocated memory separately from RGB loading and geometry. Each row labels
+whether scoring used analytic CPU logic, live PUN inference, cached VGGT features
+plus the head, live VGGT plus the head, or a mixed path. The first decision is
+intentionally retained as a cold measurement; policy tables report the median.
 
 Every completed run also writes three self-contained SVGs under
 `figures/closed_loop/`:
@@ -344,6 +347,31 @@ Every completed run also writes three self-contained SVGs under
 The paths are recorded in `metrics/summary.json`. Figure generation consumes
 the completed in-memory rollouts and does not alter policy scores, actions, or
 metrics.
+
+The experiment also writes `figures/closed_loop/rollout_demo.svg`, a
+self-contained, replay-verified diagnostic containing acquired RGB views,
+aggregated scores, evaluator-only true gains, accumulated visible-face weight,
+and the coverage trajectory. Render any saved rollout again with:
+
+```bash
+python3 scripts/visualize_phase2.py \
+  outputs/phase2/RUN/seed_0/rollouts/vggt/CATEGORY/OBJECT.npz
+```
+
+`metrics/phase2_completion.json` is the machine-readable freeze gate. It is
+`complete` only for the five required policies on the entire fixed test split,
+with no missing/failed caches, replayed rollouts, exports, profiling, figures,
+and pinned learned-policy provenance. Subset runs remain explicitly `pending`.
+Once visibility precomputation is finished, the final run is:
+
+```bash
+python3 scripts/evaluate_closed_loop.py \
+  --config configs/experiments/phase2_closed_loop.yaml
+```
+
+Do not pass `--limit`, `--object`, or `--skip-missing-caches` when freezing the
+core result. Original single-image NUM metrics remain linked under the separate
+`original_num_target_results` namespace in the Phase 2 summary.
 
 The evaluator owns the observation store and geometry. Policy snapshots
 contain only acquired RGB/references, history anchor IDs, known camera poses,
