@@ -1,0 +1,44 @@
+experiment:
+  deterministic: true
+  name: random_oracle_subset
+  phase: phase2
+  seed: 0
+paths:
+  data_root: data/NUM
+  model_cache_root: data/cache/models
+  output_root: outputs
+  visibility_cache_root: data/cache/visibility
+phase2:
+  evaluation:
+    coverage_target: vis_a
+    geometry_validation_status: num_camera_bbox_centered
+    initial_anchor_ids:
+    - 0
+    invalid_anchor_ids: []
+    limit: 10
+    max_acquired_views: 10
+    object_ids: []
+    policies:
+    - random
+    - oracle
+    skip_missing_caches: true
+    split: test
+    split_manifest: data/splits/num_v1.json
+  resolved_visibility:
+    camera_radius: 2.73
+    cull_backfaces: false
+    far: 4.0
+    horizontal_fov_degrees: 51.98948897809546
+    limit: null
+    mesh_centering: bounding_box
+    mesh_relative_path: models/model_normalized.ply
+    mesh_scale: 2.0
+    near: 1.2
+    render_resolution:
+    - 256
+    - 256
+    split: test
+    split_manifest: data/splits/num_v1.json
+    target: vis_a
+  visibility_config: configs/experiments/phase2_visibility.yaml
+schema_version: 1
