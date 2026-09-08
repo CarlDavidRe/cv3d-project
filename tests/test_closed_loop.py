@@ -6,6 +6,7 @@ import unittest
 from dataclasses import fields, replace
 from pathlib import Path
 from unittest.mock import patch
+import xml.etree.ElementTree as ET
 
 import numpy as np
 from PIL import Image
@@ -258,6 +259,18 @@ class ClosedLoopTests(unittest.TestCase):
         self.assertEqual(summary["coverage_target"], "vis_a")
         self.assertTrue((run / "metrics/per_step.csv").is_file())
         self.assertTrue((run / "metrics/coverage.csv").is_file())
+        expected_figures = {
+            "coverage": "figures/closed_loop/coverage_curves.svg",
+            "per_step": "figures/closed_loop/per_step_policy_quality.svg",
+            "summary": "figures/closed_loop/policy_summary.svg",
+        }
+        self.assertEqual(summary["figures"], expected_figures)
+        for relative in expected_figures.values():
+            ET.parse(run / relative)
+        coverage_svg = (run / expected_figures["coverage"]).read_text()
+        self.assertIn('data-policy="random"', coverage_svg)
+        self.assertIn('data-policy="farthest"', coverage_svg)
+        self.assertIn('data-policy="oracle"', coverage_svg)
         result = load_rollout(run / "rollouts/oracle" / f"{self.object_id}.npz")
         self.assertEqual(result.metadata["visibility_cache_metadata"]["visibility_target"], "vis")
         with self.assertRaisesRegex(ValueError, "not empty"):

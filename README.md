@@ -332,6 +332,18 @@ Coverage AUC retains the unnormalized trapezoidal definition. Timing currently
 measures CPU policy scoring separately from RGB loading and excludes geometry;
 live model and memory profiling belong to the later learned-policy steps.
 
+Every completed run also writes three self-contained SVGs under
+`figures/closed_loop/`:
+
+- `coverage_curves.svg`: mean surface coverage versus total acquired views;
+- `per_step_policy_quality.svg`: selected true gain, regret, Spearman, and
+  NDCG@5 at each decision;
+- `policy_summary.svg`: final coverage, coverage AUC, regret, and NDCG@5 bars.
+
+The paths are recorded in `metrics/summary.json`. Figure generation consumes
+the completed in-memory rollouts and does not alter policy scores, actions, or
+metrics.
+
 The evaluator owns the observation store and geometry. Policy snapshots
 contain only acquired RGB/references, history anchor IDs, known camera poses,
 and the candidate mask. No NUM targets, unacquired image table, visibility

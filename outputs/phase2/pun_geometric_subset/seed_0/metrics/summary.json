@@ -4,6 +4,11 @@
   "coverage_aggregation": "per_object_mean; AUC is unnormalized over recorded acquired-view counts",
   "coverage_target": "vis_a",
   "evaluated_object_count": 10,
+  "figures": {
+    "coverage": "figures/closed_loop/coverage_curves.svg",
+    "per_step": "figures/closed_loop/per_step_policy_quality.svg",
+    "summary": "figures/closed_loop/policy_summary.svg"
+  },
   "geometry_validation_status": "num_camera_bbox_centered",
   "phase": "phase2",
   "policies": [

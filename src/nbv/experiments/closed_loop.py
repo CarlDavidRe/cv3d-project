@@ -30,6 +30,7 @@ from nbv.models import (
 )
 from nbv.policies import FarthestPolicy, OraclePolicy, PUNPolicy, RandomPolicy
 from nbv.reproducibility import initialize_run, resolve_run_directory, seed_everything
+from nbv.visualization import write_closed_loop_visualizations
 
 
 def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str | Path) -> Path:
@@ -233,6 +234,14 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
         "coverage_aggregation": "per_object_mean; AUC is unnormalized over recorded acquired-view counts",
         "timing_protocol": "Policy scoring includes PUN preprocessing, uncached image inference, and aggregation; excludes geometry and evaluator RGB loading. No warm-up, synchronization, or memory profiling yet.",
     }
+    if all_results:
+        figure_paths = write_closed_loop_visualizations(
+            all_results, run.figure_dir / "closed_loop"
+        )
+        summary["figures"] = {
+            name: str(path.relative_to(run.run_dir))
+            for name, path in figure_paths.items()
+        }
     write_json(summary, run.metrics_dir / "summary.json")
     write_csv(comparisons, run.metrics_dir / "comparison.csv")
     write_csv(curves, run.metrics_dir / "coverage.csv")

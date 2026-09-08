@@ -1985,6 +1985,12 @@ are documented in `docs/pun_closed_loop_adapter.md`. The replay-verified
 ten-object four-policy artifact is under
 `outputs/phase2/pun_geometric_subset/seed_0`.
 
+The shared experiment runner now also emits dependency-free SVG coverage
+curves, per-step policy-quality plots, and aggregate policy-summary bars under
+each run's `figures/closed_loop` directory. Their paths are stored in the JSON
+summary and the plots are computed from the same in-memory rollout results as
+the CSV metrics.
+
 Reuse the existing official UPNet loader/checkpoint from Phase 1. Do not train
 or replace it. Inspect the pinned official history implementation and record
 its source revision, map-frame conversion, target direction, normalization,
