@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="590" viewBox="0 0 980 590">
+<style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;fill:#475569}.panel{font-size:14px;font-weight:650}.tick{font-size:10px;fill:#475569}.axis{stroke:#64748b;stroke-width:1}.grid{stroke:#e2e8f0;stroke-width:1}.legend{font-size:12px}.value{font-size:10px;font-weight:600}</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="490.00" y="32" class="title" text-anchor="middle">Mean surface coverage by acquired-view count</text>
+<text x="490.00" y="54" class="subtitle" text-anchor="middle">Mean over 1 object; coverage target: vis_a.</text>
+<line x1="470.00" y1="92" x2="490.00" y2="92" stroke="#7c3aed" stroke-width="3"/>
+<text x="497.00" y="96.00" class="legend">vggt</text>
+<text x="490.00" y="116" class="panel" text-anchor="middle">Coverage</text>
+<line x1="75.00" y1="510.00" x2="905.00" y2="510.00" class="grid"/>
+<text x="67.00" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="75.00" y1="433.00" x2="905.00" y2="433.00" class="grid"/>
+<text x="67.00" y="437.00" class="tick" text-anchor="end">0.20</text>
+<line x1="75.00" y1="356.00" x2="905.00" y2="356.00" class="grid"/>
+<text x="67.00" y="360.00" class="tick" text-anchor="end">0.40</text>
+<line x1="75.00" y1="279.00" x2="905.00" y2="279.00" class="grid"/>
+<text x="67.00" y="283.00" class="tick" text-anchor="end">0.60</text>
+<line x1="75.00" y1="202.00" x2="905.00" y2="202.00" class="grid"/>
+<text x="67.00" y="206.00" class="tick" text-anchor="end">0.80</text>
+<line x1="75.00" y1="125.00" x2="905.00" y2="125.00" class="grid"/>
+<text x="67.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="75.00" y1="125.00" x2="75.00" y2="510.00" class="axis"/>
+<line x1="75.00" y1="510.00" x2="905.00" y2="510.00" class="axis"/>
+<text x="75.00" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="241.00" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="407.00" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="573.00" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="739.00" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="905.00" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="490.00" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="119.46,479.34 201.81,402.31 284.15,347.52 366.49,321.69 448.83,308.29 531.17,291.55 613.51,270.34 695.85,251.29 778.19,222.91 860.54,204.60" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linejoin="round" data-policy="vggt"/>
+<circle cx="119.46" cy="479.34" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="201.81" cy="402.31" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="284.15" cy="347.52" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="366.49" cy="321.69" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="448.83" cy="308.29" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="531.17" cy="291.55" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="613.51" cy="270.34" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="695.85" cy="251.29" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="778.19" cy="222.91" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="860.54" cy="204.60" r="3" fill="#7c3aed" data-policy="vggt"/>
+</svg>

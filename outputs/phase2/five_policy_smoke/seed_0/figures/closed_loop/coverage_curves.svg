@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="590" viewBox="0 0 980 590">
+<style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;fill:#475569}.panel{font-size:14px;font-weight:650}.tick{font-size:10px;fill:#475569}.axis{stroke:#64748b;stroke-width:1}.grid{stroke:#e2e8f0;stroke-width:1}.legend{font-size:12px}.value{font-size:10px;font-weight:600}</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="490.00" y="32" class="title" text-anchor="middle">Mean surface coverage by acquired-view count</text>
+<text x="490.00" y="54" class="subtitle" text-anchor="middle">Mean over 1 object; coverage target: vis_a.</text>
+<line x1="246.00" y1="92" x2="266.00" y2="92" stroke="#64748b" stroke-width="3"/>
+<text x="273.00" y="96.00" class="legend">random</text>
+<line x1="358.00" y1="92" x2="378.00" y2="92" stroke="#2563eb" stroke-width="3"/>
+<text x="385.00" y="96.00" class="legend">farthest</text>
+<line x1="470.00" y1="92" x2="490.00" y2="92" stroke="#dc2626" stroke-width="3"/>
+<text x="497.00" y="96.00" class="legend">pun</text>
+<line x1="582.00" y1="92" x2="602.00" y2="92" stroke="#7c3aed" stroke-width="3"/>
+<text x="609.00" y="96.00" class="legend">vggt</text>
+<line x1="694.00" y1="92" x2="714.00" y2="92" stroke="#059669" stroke-width="3"/>
+<text x="721.00" y="96.00" class="legend">oracle</text>
+<text x="490.00" y="116" class="panel" text-anchor="middle">Coverage</text>
+<line x1="75.00" y1="510.00" x2="905.00" y2="510.00" class="grid"/>
+<text x="67.00" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="75.00" y1="433.00" x2="905.00" y2="433.00" class="grid"/>
+<text x="67.00" y="437.00" class="tick" text-anchor="end">0.20</text>
+<line x1="75.00" y1="356.00" x2="905.00" y2="356.00" class="grid"/>
+<text x="67.00" y="360.00" class="tick" text-anchor="end">0.40</text>
+<line x1="75.00" y1="279.00" x2="905.00" y2="279.00" class="grid"/>
+<text x="67.00" y="283.00" class="tick" text-anchor="end">0.60</text>
+<line x1="75.00" y1="202.00" x2="905.00" y2="202.00" class="grid"/>
+<text x="67.00" y="206.00" class="tick" text-anchor="end">0.80</text>
+<line x1="75.00" y1="125.00" x2="905.00" y2="125.00" class="grid"/>
+<text x="67.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="75.00" y1="125.00" x2="75.00" y2="510.00" class="axis"/>
+<line x1="75.00" y1="510.00" x2="905.00" y2="510.00" class="axis"/>
+<text x="75.00" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="241.00" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="407.00" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="573.00" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="739.00" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="905.00" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="490.00" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="119.46,479.34 201.81,352.56 284.15,252.78 366.49,215.85 448.83,209.94 531.17,193.75 613.51,189.85 695.85,186.11 778.19,177.30 860.54,176.11" fill="none" stroke="#64748b" stroke-width="3" stroke-linejoin="round" data-policy="random"/>
+<circle cx="119.46" cy="479.34" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="201.81" cy="352.56" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="284.15" cy="252.78" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="366.49" cy="215.85" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="448.83" cy="209.94" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="531.17" cy="193.75" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="613.51" cy="189.85" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="695.85" cy="186.11" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="778.19" cy="177.30" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="860.54" cy="176.11" r="3" fill="#64748b" data-policy="random"/>
+<polyline points="119.46,479.34 201.81,457.62 284.15,332.49 366.49,270.46 448.83,225.29 531.17,183.99 613.51,179.45 695.85,176.43 778.19,173.86 860.54,171.56" fill="none" stroke="#2563eb" stroke-width="3" stroke-linejoin="round" data-policy="farthest"/>
+<circle cx="119.46" cy="479.34" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="201.81" cy="457.62" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="284.15" cy="332.49" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="366.49" cy="270.46" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="448.83" cy="225.29" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="531.17" cy="183.99" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="613.51" cy="179.45" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="695.85" cy="176.43" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="778.19" cy="173.86" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="860.54" cy="171.56" r="3" fill="#2563eb" data-policy="farthest"/>
+<polyline points="119.46,479.34 201.81,347.51 284.15,268.07 366.49,259.67 448.83,248.76 531.17,245.45 613.51,229.98 695.85,228.80 778.19,226.69 860.54,215.90" fill="none" stroke="#dc2626" stroke-width="3" stroke-linejoin="round" data-policy="pun"/>
+<circle cx="119.46" cy="479.34" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="201.81" cy="347.51" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="284.15" cy="268.07" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="366.49" cy="259.67" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="448.83" cy="248.76" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="531.17" cy="245.45" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="613.51" cy="229.98" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="695.85" cy="228.80" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="778.19" cy="226.69" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="860.54" cy="215.90" r="3" fill="#dc2626" data-policy="pun"/>
+<polyline points="119.46,479.34 201.81,402.31 284.15,347.52 366.49,321.69 448.83,308.29 531.17,291.55 613.51,270.34 695.85,251.29 778.19,222.91 860.54,204.60" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linejoin="round" data-policy="vggt"/>
+<circle cx="119.46" cy="479.34" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="201.81" cy="402.31" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="284.15" cy="347.52" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="366.49" cy="321.69" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="448.83" cy="308.29" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="531.17" cy="291.55" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="613.51" cy="270.34" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="695.85" cy="251.29" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="778.19" cy="222.91" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="860.54" cy="204.60" r="3" fill="#7c3aed" data-policy="vggt"/>
+<polyline points="119.46,479.34 201.81,347.51 284.15,245.49 366.49,197.96 448.83,183.80 531.17,176.43 613.51,171.08 695.85,166.93 778.19,164.60 860.54,162.83" fill="none" stroke="#059669" stroke-width="3" stroke-linejoin="round" data-policy="oracle"/>
+<circle cx="119.46" cy="479.34" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="201.81" cy="347.51" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="284.15" cy="245.49" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="366.49" cy="197.96" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="448.83" cy="183.80" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="531.17" cy="176.43" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="613.51" cy="171.08" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="695.85" cy="166.93" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="778.19" cy="164.60" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="860.54" cy="162.83" r="3" fill="#059669" data-policy="oracle"/>
+</svg>

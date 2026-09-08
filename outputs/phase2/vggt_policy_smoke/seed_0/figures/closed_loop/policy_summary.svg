@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1460" height="560" viewBox="0 0 1460 560">
+<style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;fill:#475569}.panel{font-size:14px;font-weight:650}.tick{font-size:10px;fill:#475569}.axis{stroke:#64748b;stroke-width:1}.grid{stroke:#e2e8f0;stroke-width:1}.legend{font-size:12px}.value{font-size:10px;font-weight:600}</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="730.00" y="32" class="title" text-anchor="middle">Closed-loop policy summary</text>
+<text x="730.00" y="54" class="subtitle" text-anchor="middle">Mean over 1 object; coverage target: vis_a.</text>
+<text x="220.00" y="108" class="panel" text-anchor="middle">Final coverage ↑</text>
+<line x1="70.00" y1="455.00" x2="370.00" y2="455.00" class="grid"/>
+<text x="62.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="70.00" y1="389.00" x2="370.00" y2="389.00" class="grid"/>
+<text x="62.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="70.00" y1="323.00" x2="370.00" y2="323.00" class="grid"/>
+<text x="62.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="70.00" y1="257.00" x2="370.00" y2="257.00" class="grid"/>
+<text x="62.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="70.00" y1="191.00" x2="370.00" y2="191.00" class="grid"/>
+<text x="62.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="70.00" y1="125.00" x2="370.00" y2="125.00" class="grid"/>
+<text x="62.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="70.00" y1="125.00" x2="70.00" y2="455.00" class="axis"/>
+<line x1="70.00" y1="455.00" x2="370.00" y2="455.00" class="axis"/>
+<rect x="124.00" y="193.23" width="192.00" height="261.77" fill="#7c3aed" data-policy="vggt" data-value="0.79324524"/>
+<text x="220.00" y="186.23" class="value" text-anchor="middle">0.793</text>
+<text x="220.00" y="479.00" class="tick" text-anchor="middle">vggt</text>
+<text x="560.00" y="108" class="panel" text-anchor="middle">Coverage AUC ↑</text>
+<line x1="410.00" y1="455.00" x2="710.00" y2="455.00" class="grid"/>
+<text x="402.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="410.00" y1="389.00" x2="710.00" y2="389.00" class="grid"/>
+<text x="402.00" y="393.00" class="tick" text-anchor="end">1.01</text>
+<line x1="410.00" y1="323.00" x2="710.00" y2="323.00" class="grid"/>
+<text x="402.00" y="327.00" class="tick" text-anchor="end">2.02</text>
+<line x1="410.00" y1="257.00" x2="710.00" y2="257.00" class="grid"/>
+<text x="402.00" y="261.00" class="tick" text-anchor="end">3.03</text>
+<line x1="410.00" y1="191.00" x2="710.00" y2="191.00" class="grid"/>
+<text x="402.00" y="195.00" class="tick" text-anchor="end">4.04</text>
+<line x1="410.00" y1="125.00" x2="710.00" y2="125.00" class="grid"/>
+<text x="402.00" y="129.00" class="tick" text-anchor="end">5.04</text>
+<line x1="410.00" y1="125.00" x2="410.00" y2="455.00" class="axis"/>
+<line x1="410.00" y1="455.00" x2="710.00" y2="455.00" class="axis"/>
+<rect x="464.00" y="143.68" width="192.00" height="311.32" fill="#7c3aed" data-policy="vggt" data-value="4.7588176"/>
+<text x="560.00" y="136.68" class="value" text-anchor="middle">4.759</text>
+<text x="560.00" y="479.00" class="tick" text-anchor="middle">vggt</text>
+<text x="900.00" y="108" class="panel" text-anchor="middle">Mean regret ↓</text>
+<line x1="750.00" y1="455.00" x2="1050.00" y2="455.00" class="grid"/>
+<text x="742.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="750.00" y1="389.00" x2="1050.00" y2="389.00" class="grid"/>
+<text x="742.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="750.00" y1="323.00" x2="1050.00" y2="323.00" class="grid"/>
+<text x="742.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="750.00" y1="257.00" x2="1050.00" y2="257.00" class="grid"/>
+<text x="742.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="750.00" y1="191.00" x2="1050.00" y2="191.00" class="grid"/>
+<text x="742.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="750.00" y1="125.00" x2="1050.00" y2="125.00" class="grid"/>
+<text x="742.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="750.00" y1="125.00" x2="750.00" y2="455.00" class="axis"/>
+<line x1="750.00" y1="455.00" x2="1050.00" y2="455.00" class="axis"/>
+<rect x="804.00" y="213.40" width="192.00" height="241.60" fill="#7c3aed" data-policy="vggt" data-value="0.73212607"/>
+<text x="900.00" y="206.40" class="value" text-anchor="middle">0.732</text>
+<text x="900.00" y="479.00" class="tick" text-anchor="middle">vggt</text>
+<text x="1240.00" y="108" class="panel" text-anchor="middle">Mean NDCG@5 ↑</text>
+<line x1="1090.00" y1="455.00" x2="1390.00" y2="455.00" class="grid"/>
+<text x="1082.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="1090.00" y1="389.00" x2="1390.00" y2="389.00" class="grid"/>
+<text x="1082.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="1090.00" y1="323.00" x2="1390.00" y2="323.00" class="grid"/>
+<text x="1082.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="1090.00" y1="257.00" x2="1390.00" y2="257.00" class="grid"/>
+<text x="1082.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="1090.00" y1="191.00" x2="1390.00" y2="191.00" class="grid"/>
+<text x="1082.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="1090.00" y1="125.00" x2="1390.00" y2="125.00" class="grid"/>
+<text x="1082.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="1090.00" y1="125.00" x2="1090.00" y2="455.00" class="axis"/>
+<line x1="1090.00" y1="455.00" x2="1390.00" y2="455.00" class="axis"/>
+<rect x="1144.00" y="307.36" width="192.00" height="147.64" fill="#7c3aed" data-policy="vggt" data-value="0.44738431"/>
+<text x="1240.00" y="300.36" class="value" text-anchor="middle">0.447</text>
+<text x="1240.00" y="479.00" class="tick" text-anchor="middle">vggt</text>
+</svg>

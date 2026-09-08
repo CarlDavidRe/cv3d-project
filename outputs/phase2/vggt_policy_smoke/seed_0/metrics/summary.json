@@ -1,0 +1,110 @@
+{
+  "complete_fixed_split": false,
+  "complete_requested_cohort": true,
+  "coverage_aggregation": "per_object_mean; AUC is unnormalized over recorded acquired-view counts",
+  "coverage_target": "vis_a",
+  "evaluated_object_count": 1,
+  "figures": {
+    "coverage": "figures/closed_loop/coverage_curves.svg",
+    "per_step": "figures/closed_loop/per_step_policy_quality.svg",
+    "summary": "figures/closed_loop/policy_summary.svg"
+  },
+  "geometry_validation_status": "num_camera_bbox_centered",
+  "phase": "phase2",
+  "policies": [
+    {
+      "coverage_auc_mean": 4.758817569642615,
+      "final_coverage_mean": 0.7932452432602,
+      "ndcg_at_5_mean": 0.44738430880781777,
+      "ndcg_at_5_valid_count": 9,
+      "normalized_regret_mean": 0.7321260747923373,
+      "normalized_regret_valid_count": 9,
+      "object_count": 1,
+      "policy": "vggt",
+      "policy_score_semantics": "negative_product_of_aligned_raw_psnr_after_small_filter",
+      "spearman_mean": -0.022487468898032388,
+      "spearman_valid_count": 9,
+      "training_target_semantics": "phase1_single_image_num_psnr"
+    }
+  ],
+  "policy_provenance": {
+    "vggt": {
+      "aggregation": "official_small_filter_then_raw_product_psnr_argmin_v1",
+      "alignment": "official_minimal_rotation_exp30_interpolation_v1",
+      "allow_live_extraction": false,
+      "checkpoint_path": "/home/reese/computer_vision/cv3d-project/outputs/phase1/backbone_sweep/seed_1/variants/vggt_max_pooled_patch/best.pt",
+      "checkpoint_sha256": "6256e28c056615f699c6c5364a9aeaf141f730f4561a5af7f4c96ce7ab2d4938",
+      "common_score_orientation": "negative_raw_product_higher_is_better",
+      "feature_cache_metadata": {
+        "backbone": "vggt",
+        "backbone_configuration": {
+          "history_mode": "single_image",
+          "image_size": 518,
+          "input_resolution": [
+            518,
+            518
+          ],
+          "layer_index": -1,
+          "model_id": "facebook/VGGT-1B",
+          "preprocessing": "square_resize_rgb_0_1"
+        },
+        "cache_dtype": "float16",
+        "cache_schema": 1,
+        "extraction_precision": "bfloat16",
+        "feature_components": [
+          "max_pooled_patch"
+        ],
+        "feature_pooling": {
+          "max_pooled_patch": "max"
+        },
+        "history_mode": "single_image",
+        "mask_source_view": true,
+        "num_anchors": 48,
+        "sample_count": 14400,
+        "sample_ids_sha256": "260f6912ce7212308972c145fa060015dd07f107019bd997625c5fd011166d66",
+        "split": "test",
+        "split_manifest_sha256": "17fd089bd5bbbe13325ad106659e00a1acb8ccd82a743398905de69d0d97f51d",
+        "target_name": "PSNR",
+        "variant": "vggt_max_pooled_patch"
+      },
+      "feature_cache_path": "/home/reese/computer_vision/cv3d-project/data/cache/features/vggt/vggt_max_pooled_patch/test_3334dd9c7e19faf6.pt",
+      "feature_cache_sha256": "5fd6c6f2e264fad7aa0e36a4351c4a0ac9222f0567195da700580b414ef19308",
+      "feature_components": [
+        "max_pooled_patch"
+      ],
+      "filter_fallback_count": 0,
+      "filter_fallback_object_steps": {},
+      "filtered_candidate_count_mean": 11.777777777777779,
+      "filtered_candidate_count_valid_steps": 9,
+      "frozen_vggt_parameter_count": null,
+      "history_mode": "independent_single_image",
+      "interpolation_degrees": 30.0,
+      "model": {
+        "image_size": 518,
+        "layer_index": -1,
+        "model_id": "facebook/VGGT-1B"
+      },
+      "phase1_summary_path": "/home/reese/computer_vision/cv3d-project/outputs/phase1/backbone_sweep/seed_1/variants/vggt_max_pooled_patch/summary.json",
+      "phase1_summary_sha256": "65b7b4548292dfdf2e36161c2b4de0d1e40487ea454d7acec8e8ef500911e96f",
+      "prediction_source_counts": {
+        "feature_cache": 9,
+        "live_vggt": 0
+      },
+      "predictor": "phase1_validation_selected_frozen_vggt_num_head",
+      "selection_metric": "best_vggt_validation_ranking_across_regret_spearman_ndcg_at_5",
+      "selection_split": "val",
+      "suppression_threshold": 0.1,
+      "target_direction": "lower_is_more_uncertain",
+      "target_name": "PSNR",
+      "trainable_parameter_count": 272560,
+      "true_surface_gain_supervision": false,
+      "variant": "vggt_max_pooled_patch"
+    }
+  },
+  "ranking_aggregation": "pooled_per_step_mean_excluding_null_with_valid_counts",
+  "requested_object_count": 1,
+  "schema_version": 1,
+  "timing_protocol": "Policy scoring includes PUN preprocessing, uncached image inference, and aggregation; excludes geometry and evaluator RGB loading. No warm-up, synchronization, or memory profiling yet.",
+  "training_target_semantics": "policy_specific; see policy rows and rollouts",
+  "visibility_cache_manifest": "/home/reese/computer_vision/cv3d-project/outputs/phase2/vggt_policy_smoke/seed_0/metrics/visibility_cache_manifest.json"
+}

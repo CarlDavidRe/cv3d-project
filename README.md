@@ -3,8 +3,9 @@
 This repository implements the phased project described in
 [`project_overview.md`](project_overview.md). Phase 1 is complete. Phase 2 now
 includes mesh-face visibility caching and a deterministic closed-loop evaluator
-with Random, max-min angular-distance Farthest, official-checkpoint PUN, and
-one-step Oracle policies. The independent VGGT adapter remains future work.
+with Random, max-min angular-distance Farthest, official-checkpoint PUN,
+independent per-view VGGT, and one-step Oracle policies. Full-split evaluation
+and Step 14 profiling remain pending.
 
 ## Steps 1–4: setup and dataset verification
 
@@ -275,7 +276,7 @@ vis_a_coverage = cache.coverage([0, 12], target="vis_a")
 candidate_gains = cache.candidate_gains([0, 12])
 ```
 
-## Steps 10–12: shared closed-loop simulator and official PUN
+## Steps 10–13: shared closed-loop simulator, PUN, and independent VGGT
 
 The common evaluator in `src/nbv/eval/closed_loop.py` uses the existing face
 cache's coverage and candidate-gain helpers. Its defaults are anchor 0, ten
@@ -358,6 +359,15 @@ exact alignment/product/filter order, and adaptations from the official fresh
 512-candidate sphere to the common fixed 48-anchor evaluator are documented in
 [the PUN adapter note](docs/pun_closed_loop_adapter.md).
 
+VGGT uses the validation-selected Phase 1 `vggt_max_pooled_patch` head. The
+Phase 1 config, summary, checkpoint, and independent single-image test feature
+cache are checksum-pinned. Only newly acquired features are passed through the
+head; prior raw maps are reused and combined through the exact same PUN-style
+alignment/filter/product path. Cache misses fail unless live VGGT extraction
+is explicitly enabled. Raw maps are stored under `prediction_maps/vggt/`.
+Selection evidence, semantics, and leakage boundaries are documented in
+[the VGGT adapter note](docs/vggt_closed_loop_adapter.md).
+
 Run a one-object released-checkpoint smoke rollout with:
 
 ```bash
@@ -371,6 +381,11 @@ The retained [four-policy subset comparison](outputs/phase2/pun_geometric_subset
 contains ten objects and 40 replay-verified rollouts, plus one acquired-only
 raw-map cache per PUN trajectory. It is a complete requested subset, not the
 complete fixed test split.
+
+The retained [five-policy one-object smoke run](outputs/phase2/five_policy_smoke/seed_0/metrics/summary.json)
+contains replay-verified Random, Farthest, PUN, VGGT, and Oracle trajectories.
+VGGT uses nine acquired-only cached maps for its nine policy decisions. This
+validates Step 13 integration but is not a full-split result.
 
 **Step 9 validation:** camera calibration and tracking follow the PUN/Blender
 source, with pole rolls pinned to the released NUM images. See the

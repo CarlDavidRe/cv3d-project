@@ -2,7 +2,7 @@ schema_version: 1
 
 experiment:
   phase: phase2
-  name: pun_closed_loop
+  name: phase2_closed_loop
   seed: 0
   deterministic: true
 
@@ -22,7 +22,7 @@ phase2:
     object_ids: []              # Optional explicit subset of this split.
     limit: null
     skip_missing_caches: false  # Opt in for provisional runs during precompute.
-    policies: [random, farthest, pun, oracle]
+    policies: [random, farthest, pun, vggt, oracle]
     max_acquired_views: 10      # Includes the initial views.
     initial_anchor_ids: [0]
     invalid_anchor_ids: []
@@ -48,3 +48,35 @@ phase2:
       download_url: https://drive.usercontent.google.com/download?id=1vpVFy2LQMjN0jTJ_o1chZ6B4nJNfNVKP&export=download&confirm=t
       sha256: 91b2065f7652aac0c84386d4af10cd0c1ae723c049c91e45ccc78722f70907ae
       download_if_missing: true
+
+  # Validation-selected Phase 1 VGGT NUM predictor. The test feature cache
+  # contains only independent, single-image frozen features and no geometry.
+  vggt:
+    variant: vggt_max_pooled_patch
+    selection_split: val
+    selection_metric: best_vggt_validation_ranking_across_regret_spearman_ndcg_at_5
+    target_name: PSNR
+    target_direction: lower
+    map_frame: source_relative_canonical_anchor_zero
+    feature_components: [max_pooled_patch]
+    device: auto
+    inference_batch_size: 32
+    interpolation_degrees: 30.0
+    suppression_threshold: 0.1
+    allow_live_extraction: false
+    model:
+      model_id: facebook/VGGT-1B
+      image_size: 518
+      layer_index: -1
+    checkpoint:
+      path: outputs/phase1/backbone_sweep/seed_1/variants/vggt_max_pooled_patch/best.pt
+      sha256: 6256e28c056615f699c6c5364a9aeaf141f730f4561a5af7f4c96ce7ab2d4938
+    summary:
+      path: outputs/phase1/backbone_sweep/seed_1/variants/vggt_max_pooled_patch/summary.json
+      sha256: 65b7b4548292dfdf2e36161c2b4de0d1e40487ea454d7acec8e8ef500911e96f
+    phase1_config:
+      path: outputs/phase1/backbone_sweep/seed_1/config.yaml
+      sha256: 5a742cb7e58a894a9329263a3f8440931a0294fc7e5785ebb778adc1e2a94b85
+    feature_cache:
+      path: data/cache/features/vggt/vggt_max_pooled_patch/test_3334dd9c7e19faf6.pt
+      sha256: 5fd6c6f2e264fad7aa0e36a4351c4a0ac9222f0567195da700580b414ef19308

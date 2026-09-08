@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 from typing import Any, Mapping
 
 import numpy as np
+import torch
 
 from nbv.config import load_config
 from nbv.data.num_dataset import load_object_split
 from nbv.data.observation_store import ObservationStore
 from nbv.data.visibility_cache import load_visibility_cache, visibility_cache_path
+from nbv.features import create_feature_extractor, load_feature_cache
 from nbv.eval.closed_loop import RolloutConfig, replay_rollout, run_rollout
 from nbv.eval.result_schema import save_rollout, write_csv, write_json
 from nbv.geometry import CAMERA_CONVENTION, CANONICAL_ORDERING, FACE_VISIBILITY_RENDERER
@@ -23,12 +26,19 @@ from nbv.models import (
     PUN_RELEASE_NAME,
     PUN_REPOSITORY,
     PUNUPNet,
+    LightweightProbeHead,
     create_pun_transform,
     ensure_pun_checkpoint,
     load_pun_checkpoint,
     resolve_pun_data_config,
 )
-from nbv.policies import FarthestPolicy, OraclePolicy, PUNPolicy, RandomPolicy
+from nbv.policies import (
+    FarthestPolicy,
+    OraclePolicy,
+    PUNPolicy,
+    RandomPolicy,
+    VGGTPolicy,
+)
 from nbv.reproducibility import initialize_run, resolve_run_directory, seed_everything
 from nbv.visualization import write_closed_loop_visualizations
 
@@ -58,11 +68,11 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
         not isinstance(policies, list)
         or not policies
         or len(set(policies)) != len(policies)
-        or set(policies) - (policy_factories.keys() | {"pun"})
+        or set(policies) - (policy_factories.keys() | {"pun", "vggt"})
     ):
         raise ValueError(
             "policies must be a non-empty unique list drawn from "
-            "random/farthest/pun/oracle"
+            "random/farthest/pun/vggt/oracle"
         )
     if type(settings["skip_missing_caches"]) is not bool:
         raise ValueError("skip_missing_caches must be boolean")
@@ -117,6 +127,9 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
     pun_components = (
         _load_pun_components(config, root) if "pun" in policies else None
     )
+    vggt_components = (
+        _load_vggt_components(config, root) if "vggt" in policies else None
+    )
     cache_root = resolve(config["paths"]["visibility_cache_root"])
     missing = [oid for oid in requested if not visibility_cache_path(cache_root, oid).is_file()]
     # Snapshot availability once, so caches completing mid-run do not change the cohort.
@@ -147,6 +160,8 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
                 policy = (
                     PUNPolicy(**pun_components)
                     if name == "pun" and pun_components is not None
+                    else VGGTPolicy(**vggt_components)
+                    if name == "vggt" and vggt_components is not None
                     else policy_factories[name]()
                 )
                 result = run_rollout(cache, store, policy, rollout_config)
@@ -156,9 +171,9 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
                     "visibility_cache_path": str(cache_path.resolve()),
                     "visibility_cache_sha256": sha256_file(cache_path),
                 })
-                if isinstance(policy, PUNPolicy):
+                if isinstance(policy, (PUNPolicy, VGGTPolicy)):
                     prediction_path = (
-                        run.run_dir / "prediction_maps" / "pun" / f"{oid}.npz"
+                        run.run_dir / "prediction_maps" / policy.name / f"{oid}.npz"
                     )
                     policy.save_prediction_cache(prediction_path)
                     result.metadata["raw_prediction_cache_path"] = str(
@@ -232,7 +247,7 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
         "visibility_cache_manifest": str(manifest_path),
         "ranking_aggregation": "pooled_per_step_mean_excluding_null_with_valid_counts",
         "coverage_aggregation": "per_object_mean; AUC is unnormalized over recorded acquired-view counts",
-        "timing_protocol": "Policy scoring includes PUN preprocessing, uncached image inference, and aggregation; excludes geometry and evaluator RGB loading. No warm-up, synchronization, or memory profiling yet.",
+        "timing_protocol": "Policy scoring includes learned-policy cache lookup or preprocessing/inference plus aggregation; excludes geometry and evaluator RGB loading. No warm-up, synchronization, or memory profiling yet.",
     }
     if all_results:
         figure_paths = write_closed_loop_visualizations(
@@ -345,11 +360,156 @@ def _load_pun_components(
     }
 
 
+def _load_vggt_components(
+    config: Mapping[str, Any], root: Path
+) -> dict[str, Any]:
+    """Load the pinned Phase 1 VGGT head and compatible fixed-vector cache."""
+
+    settings = config["phase2"].get("vggt")
+    if not isinstance(settings, Mapping):
+        raise ValueError("phase2.vggt settings are required when vggt is selected")
+    if settings.get("variant") != "vggt_max_pooled_patch":
+        raise ValueError("The validation-selected Phase 2 variant is vggt_max_pooled_patch")
+    if settings.get("target_name") != "PSNR" or settings.get("target_direction") != "lower":
+        raise ValueError("Phase 2 VGGT must retain the lower-is-better PSNR target")
+    components = settings.get("feature_components")
+    if components != ["max_pooled_patch"]:
+        raise ValueError("phase2.vggt.feature_components must be [max_pooled_patch]")
+    if settings.get("selection_split") != "val":
+        raise ValueError("Phase 2 VGGT selection_split must be val")
+    expected_selection = "best_vggt_validation_ranking_across_regret_spearman_ndcg_at_5"
+    if settings.get("selection_metric") != expected_selection:
+        raise ValueError(f"phase2.vggt.selection_metric must be {expected_selection}")
+    if settings.get("map_frame") != "source_relative_canonical_anchor_zero":
+        raise ValueError("Phase 2 VGGT must retain the Phase 1 source-relative map frame")
+    if type(settings.get("allow_live_extraction")) is not bool:
+        raise ValueError("phase2.vggt.allow_live_extraction must be boolean")
+
+    def pinned_path(section: Mapping[str, Any], label: str) -> tuple[Path, str]:
+        path = Path(section.get("path", ""))
+        if not path.is_absolute():
+            path = root / path
+        digest = section.get("sha256")
+        if not isinstance(digest, str) or len(digest) != 64:
+            raise ValueError(f"phase2.vggt.{label}.sha256 must be a SHA-256 digest")
+        if not path.is_file() or sha256_file(path) != digest:
+            raise ValueError(f"phase2.vggt.{label} is missing or its checksum differs")
+        return path, digest
+
+    checkpoint_settings = settings.get("checkpoint")
+    summary_settings = settings.get("summary")
+    cache_settings = settings.get("feature_cache")
+    phase1_config_settings = settings.get("phase1_config")
+    if not all(isinstance(item, Mapping) for item in (
+        checkpoint_settings, summary_settings, cache_settings, phase1_config_settings
+    )):
+        raise ValueError(
+            "phase2.vggt checkpoint, summary, phase1_config, and feature_cache are required"
+        )
+    checkpoint_path, checkpoint_sha = pinned_path(checkpoint_settings, "checkpoint")
+    summary_path, summary_sha = pinned_path(summary_settings, "summary")
+    cache_path, cache_sha = pinned_path(cache_settings, "feature_cache")
+    phase1_config_path, phase1_config_sha = pinned_path(
+        phase1_config_settings, "phase1_config"
+    )
+
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    if (
+        summary.get("variant") != settings["variant"]
+        or summary.get("feature_components") != components
+        or summary.get("target_name") != "PSNR"
+        or summary.get("target_direction") != "lower"
+    ):
+        raise ValueError("Pinned Phase 1 summary does not match the VGGT policy")
+    try:
+        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+        head_config = checkpoint["head"]
+        variant_config = checkpoint["variant"]
+        head = LightweightProbeHead(**head_config)
+        head.load_state_dict(checkpoint["head_state_dict"], strict=True)
+    except (KeyError, RuntimeError, TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid Phase 1 VGGT checkpoint: {exc}") from exc
+    if (
+        variant_config.get("name") != settings["variant"]
+        or variant_config.get("backbone") != "vggt"
+        or variant_config.get("feature_components") != components
+    ):
+        raise ValueError("Pinned checkpoint variant does not match phase2.vggt")
+
+    feature_cache = load_feature_cache(cache_path)
+    metadata = dict(feature_cache.metadata)
+    expected_cache_fields = {
+        "backbone": "vggt",
+        "variant": settings["variant"],
+        "feature_components": components,
+        "split": config["phase2"]["evaluation"]["split"],
+        "target_name": "PSNR",
+        "num_anchors": 48,
+        "history_mode": "single_image",
+    }
+    for key, expected in expected_cache_fields.items():
+        if metadata.get(key) != expected:
+            raise ValueError(f"Pinned VGGT feature cache has incompatible {key}")
+    split_manifest = root / config["phase2"]["evaluation"]["split_manifest"]
+    if metadata.get("split_manifest_sha256") != sha256_file(split_manifest):
+        raise ValueError("Pinned VGGT feature cache uses a different split manifest")
+    if feature_cache.features.shape[1] != head.input_dim:
+        raise ValueError("VGGT feature-cache dimension does not match the Phase 1 head")
+    cached_features = dict(zip(feature_cache.sample_ids, feature_cache.features, strict=True))
+
+    model_settings = settings.get("model")
+    if not isinstance(model_settings, Mapping):
+        raise ValueError("phase2.vggt.model must be a mapping")
+    allowed_model_fields = {"model_id", "image_size", "layer_index"}
+    if set(model_settings) != allowed_model_fields:
+        raise ValueError(f"phase2.vggt.model must contain {sorted(allowed_model_fields)}")
+    extractor_factory = None
+    if settings["allow_live_extraction"]:
+        extractor_factory = lambda: create_feature_extractor(
+            "vggt",
+            device=settings["device"],
+            model_cache_root=root / config["paths"]["model_cache_root"],
+            **model_settings,
+        )
+    provenance = {
+        "predictor": "phase1_validation_selected_frozen_vggt_num_head",
+        "variant": settings["variant"],
+        "selection_split": "val",
+        "selection_metric": settings.get("selection_metric"),
+        "checkpoint_path": str(checkpoint_path.resolve()),
+        "checkpoint_sha256": checkpoint_sha,
+        "phase1_summary_path": str(summary_path.resolve()),
+        "phase1_summary_sha256": summary_sha,
+        "phase1_config_path": str(phase1_config_path.resolve()),
+        "phase1_config_sha256": phase1_config_sha,
+        "feature_cache_path": str(cache_path.resolve()),
+        "feature_cache_sha256": cache_sha,
+        "feature_cache_metadata": metadata,
+        "model": dict(model_settings),
+        "allow_live_extraction": settings["allow_live_extraction"],
+        "trainable_parameter_count": sum(p.numel() for p in head.parameters()),
+        "frozen_vggt_parameter_count": None,
+        "true_surface_gain_supervision": False,
+        "map_frame": settings["map_frame"],
+    }
+    return {
+        "head": head,
+        "feature_components": tuple(components),
+        "cached_features": cached_features,
+        "extractor_factory": extractor_factory,
+        "device": settings["device"],
+        "inference_batch_size": int(settings["inference_batch_size"]),
+        "interpolation_degrees": float(settings["interpolation_degrees"]),
+        "suppression_threshold": float(settings["suppression_threshold"]),
+        "provenance": provenance,
+    }
+
+
 def _summarize_policy_provenance(results: list[Any]) -> dict[str, Any]:
     if not results:
         return {}
     provenance = dict(results[0].metadata.get("policy_provenance", {}))
-    if results[0].metadata["policy"] != "pun":
+    if results[0].metadata["policy"] not in {"pun", "vggt"}:
         return provenance
     fallbacks = {
         result.metadata["object_id"]: result.metadata["policy_provenance"][

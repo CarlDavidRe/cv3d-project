@@ -11,7 +11,8 @@ from torch import nn
 
 from nbv.data.observation_store import AcquiredObservation
 from nbv.geometry import CANONICAL_ORDERING, canonical_anchors
-from nbv.policies import ObservationState, PUNPolicy
+from nbv.features import FrozenFeatures
+from nbv.policies import ObservationState, PUNPolicy, VGGTPolicy
 from nbv.policies.aggregation import (
     aggregate_pun_psnr,
     align_pun_history,
@@ -64,6 +65,30 @@ class _FakeUPNet(nn.Module):
 def _transform(image: Image.Image) -> torch.Tensor:
     array = np.asarray(image, dtype=np.float32).copy()
     return torch.from_numpy(array).permute(2, 0, 1)
+
+
+class _FakeVGGTExtractor:
+    def __init__(self) -> None:
+        self.calls: list[int] = []
+
+    def extract(self, images: torch.Tensor | np.ndarray) -> FrozenFeatures:
+        batch = torch.as_tensor(images)
+        self.calls.append(batch.shape[0])
+        marker = batch[:, 0, 0, 0]
+        patches = torch.stack([
+            torch.stack([marker, marker + 1], dim=1),
+            torch.stack([marker + 2, marker + 3], dim=1),
+        ], dim=1)
+        return FrozenFeatures(
+            pooled_patch=patches.mean(dim=1),
+            patch_tokens=patches,
+        )
+
+
+class _FakeNUMHead(nn.Module):
+    def forward(self, features: torch.Tensor) -> torch.Tensor:
+        anchors = torch.linspace(10.0, 20.0, 48, device=features.device)
+        return features.sum(dim=1, keepdim=True) + anchors
 
 
 class PUNAggregationTests(unittest.TestCase):
@@ -129,7 +154,7 @@ class PUNAggregationTests(unittest.TestCase):
         self.assertTrue(np.isfinite(result.policy_scores).all())
 
 
-class PUNPolicyTests(unittest.TestCase):
+class _PolicyStateMixin:
     def observation(self, anchor_id: int) -> AcquiredObservation:
         rgb = np.full((3, 4, 3), anchor_id, dtype=np.uint8)
         rgb.setflags(write=False)
@@ -147,6 +172,9 @@ class PUNPolicyTests(unittest.TestCase):
             seed=0,
             anchor_ordering=CANONICAL_ORDERING,
         )
+
+
+class PUNPolicyTests(_PolicyStateMixin, unittest.TestCase):
 
     def test_policy_infers_only_new_images_and_saves_raw_maps_separately(self) -> None:
         model = _FakeUPNet()
@@ -192,6 +220,75 @@ class PUNPolicyTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "at least one"):
             policy.score(empty)
+
+
+class VGGTPolicyTests(_PolicyStateMixin, unittest.TestCase):
+    def test_cached_and_live_predictions_match_and_history_is_incremental(self) -> None:
+        extractor = _FakeVGGTExtractor()
+        # RGB value 0 produces max-pooled [2, 3]. Anchor 12 is extracted live.
+        cached = {"category/object/0": torch.tensor([2.0, 3.0])}
+        mixed = VGGTPolicy(
+            _FakeNUMHead(), ["max_pooled_patch"],
+            cached_features=cached, extractor=extractor,
+            provenance={"checkpoint_sha256": "fixture"},
+        )
+        mixed.score(self.state((0,), 0))
+        mixed_scores = mixed.score(self.state((0, 12), 1))
+        self.assertEqual(extractor.calls, [1])
+        self.assertEqual(
+            mixed.provenance["prediction_source_counts"],
+            {"feature_cache": 1, "live_vggt": 1},
+        )
+
+        live_extractor = _FakeVGGTExtractor()
+        live = VGGTPolicy(
+            _FakeNUMHead(), ["max_pooled_patch"], extractor=live_extractor
+        )
+        live_scores = live.score(self.state((0, 12), 1))
+        np.testing.assert_allclose(mixed_scores, live_scores, atol=1e-10)
+        self.assertEqual(live_extractor.calls, [2])
+
+        with tempfile.TemporaryDirectory() as temporary:
+            path = mixed.save_prediction_cache(Path(temporary) / "maps.npz")
+            with np.load(path, allow_pickle=False) as payload:
+                self.assertEqual(payload["anchor_ids"].tolist(), [0, 12])
+                self.assertEqual(
+                    payload["prediction_sources"].tolist(),
+                    ["feature_cache", "live_vggt"],
+                )
+                self.assertEqual(payload["raw_prediction_maps"].shape, (2, 48))
+
+    def test_cache_miss_requires_explicit_live_extraction(self) -> None:
+        policy = VGGTPolicy(_FakeNUMHead(), ["max_pooled_patch"])
+        with self.assertRaisesRegex(ValueError, "live VGGT extraction is disabled"):
+            policy.score(self.state((0,), 0))
+
+    def test_pun_and_vggt_consume_the_identical_supplied_history(self) -> None:
+        pun_model = _FakeUPNet()
+        pun = PUNPolicy(pun_model, _transform)
+        extractor = _FakeVGGTExtractor()
+        vggt = VGGTPolicy(
+            _FakeNUMHead(), ["max_pooled_patch"], extractor=extractor
+        )
+        for state in (self.state((0,), 0), self.state((0, 12), 1)):
+            pun.score(state)
+            vggt.score(state)
+        self.assertEqual(pun_model.calls, [1, 1])
+        self.assertEqual(extractor.calls, [1, 1])
+
+        with tempfile.TemporaryDirectory() as temporary:
+            pun_path = pun.save_prediction_cache(Path(temporary) / "pun.npz")
+            vggt_path = vggt.save_prediction_cache(Path(temporary) / "vggt.npz")
+            with (
+                np.load(pun_path, allow_pickle=False) as pun_cache,
+                np.load(vggt_path, allow_pickle=False) as vggt_cache,
+            ):
+                np.testing.assert_array_equal(
+                    pun_cache["anchor_ids"], vggt_cache["anchor_ids"]
+                )
+                np.testing.assert_array_equal(
+                    pun_cache["image_paths"], vggt_cache["image_paths"]
+                )
 
 
 if __name__ == "__main__":
