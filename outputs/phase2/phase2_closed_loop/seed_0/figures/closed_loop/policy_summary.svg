@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1460" height="560" viewBox="0 0 1460 560">
+<style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;fill:#475569}.panel{font-size:14px;font-weight:650}.tick{font-size:10px;fill:#475569}.axis{stroke:#64748b;stroke-width:1}.grid{stroke:#e2e8f0;stroke-width:1}.legend{font-size:12px}.value{font-size:10px;font-weight:600}</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="730.00" y="32" class="title" text-anchor="middle">Closed-loop policy summary</text>
+<text x="730.00" y="54" class="subtitle" text-anchor="middle">Mean over 300 objects; coverage target: vis_a.</text>
+<text x="220.00" y="108" class="panel" text-anchor="middle">Final coverage ↑</text>
+<line x1="70.00" y1="455.00" x2="370.00" y2="455.00" class="grid"/>
+<text x="62.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="70.00" y1="389.00" x2="370.00" y2="389.00" class="grid"/>
+<text x="62.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="70.00" y1="323.00" x2="370.00" y2="323.00" class="grid"/>
+<text x="62.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="70.00" y1="257.00" x2="370.00" y2="257.00" class="grid"/>
+<text x="62.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="70.00" y1="191.00" x2="370.00" y2="191.00" class="grid"/>
+<text x="62.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="70.00" y1="125.00" x2="370.00" y2="125.00" class="grid"/>
+<text x="62.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="70.00" y1="125.00" x2="70.00" y2="455.00" class="axis"/>
+<line x1="70.00" y1="455.00" x2="370.00" y2="455.00" class="axis"/>
+<rect x="80.80" y="174.14" width="38.40" height="280.86" fill="#64748b" data-policy="random" data-value="0.85108702"/>
+<text x="100.00" y="167.14" class="value" text-anchor="middle">0.851</text>
+<text x="100.00" y="479.00" class="tick" text-anchor="middle">random</text>
+<rect x="140.80" y="170.43" width="38.40" height="284.57" fill="#2563eb" data-policy="farthest" data-value="0.86232887"/>
+<text x="160.00" y="163.43" class="value" text-anchor="middle">0.862</text>
+<text x="160.00" y="479.00" class="tick" text-anchor="middle">farthest</text>
+<rect x="200.80" y="174.61" width="38.40" height="280.39" fill="#dc2626" data-policy="pun" data-value="0.84966257"/>
+<text x="220.00" y="167.61" class="value" text-anchor="middle">0.850</text>
+<text x="220.00" y="479.00" class="tick" text-anchor="middle">pun</text>
+<rect x="260.80" y="185.67" width="38.40" height="269.33" fill="#7c3aed" data-policy="vggt" data-value="0.81614745"/>
+<text x="280.00" y="178.67" class="value" text-anchor="middle">0.816</text>
+<text x="280.00" y="479.00" class="tick" text-anchor="middle">vggt</text>
+<rect x="320.80" y="162.97" width="38.40" height="292.03" fill="#059669" data-policy="oracle" data-value="0.88494706"/>
+<text x="340.00" y="155.97" class="value" text-anchor="middle">0.885</text>
+<text x="340.00" y="479.00" class="tick" text-anchor="middle">oracle</text>
+<text x="560.00" y="108" class="panel" text-anchor="middle">Coverage AUC ↑</text>
+<line x1="410.00" y1="455.00" x2="710.00" y2="455.00" class="grid"/>
+<text x="402.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="410.00" y1="389.00" x2="710.00" y2="389.00" class="grid"/>
+<text x="402.00" y="393.00" class="tick" text-anchor="end">1.48</text>
+<line x1="410.00" y1="323.00" x2="710.00" y2="323.00" class="grid"/>
+<text x="402.00" y="327.00" class="tick" text-anchor="end">2.96</text>
+<line x1="410.00" y1="257.00" x2="710.00" y2="257.00" class="grid"/>
+<text x="402.00" y="261.00" class="tick" text-anchor="end">4.45</text>
+<line x1="410.00" y1="191.00" x2="710.00" y2="191.00" class="grid"/>
+<text x="402.00" y="195.00" class="tick" text-anchor="end">5.93</text>
+<line x1="410.00" y1="125.00" x2="710.00" y2="125.00" class="grid"/>
+<text x="402.00" y="129.00" class="tick" text-anchor="end">7.41</text>
+<line x1="410.00" y1="125.00" x2="410.00" y2="455.00" class="axis"/>
+<line x1="410.00" y1="455.00" x2="710.00" y2="455.00" class="axis"/>
+<rect x="420.80" y="179.67" width="38.40" height="275.33" fill="#64748b" data-policy="random" data-value="6.1844279"/>
+<text x="440.00" y="172.67" class="value" text-anchor="middle">6.184</text>
+<text x="440.00" y="479.00" class="tick" text-anchor="middle">random</text>
+<rect x="480.80" y="177.52" width="38.40" height="277.48" fill="#2563eb" data-policy="farthest" data-value="6.2325808"/>
+<text x="500.00" y="170.52" class="value" text-anchor="middle">6.233</text>
+<text x="500.00" y="479.00" class="tick" text-anchor="middle">farthest</text>
+<rect x="540.80" y="170.90" width="38.40" height="284.10" fill="#dc2626" data-policy="pun" data-value="6.3812811"/>
+<text x="560.00" y="163.90" class="value" text-anchor="middle">6.381</text>
+<text x="560.00" y="479.00" class="tick" text-anchor="middle">pun</text>
+<rect x="600.80" y="195.86" width="38.40" height="259.14" fill="#7c3aed" data-policy="vggt" data-value="5.8206436"/>
+<text x="620.00" y="188.86" class="value" text-anchor="middle">5.821</text>
+<text x="620.00" y="479.00" class="tick" text-anchor="middle">vggt</text>
+<rect x="660.80" y="143.68" width="38.40" height="311.32" fill="#059669" data-policy="oracle" data-value="6.9927865"/>
+<text x="680.00" y="136.68" class="value" text-anchor="middle">6.993</text>
+<text x="680.00" y="479.00" class="tick" text-anchor="middle">oracle</text>
+<text x="900.00" y="108" class="panel" text-anchor="middle">Mean regret ↓</text>
+<line x1="750.00" y1="455.00" x2="1050.00" y2="455.00" class="grid"/>
+<text x="742.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="750.00" y1="389.00" x2="1050.00" y2="389.00" class="grid"/>
+<text x="742.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="750.00" y1="323.00" x2="1050.00" y2="323.00" class="grid"/>
+<text x="742.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="750.00" y1="257.00" x2="1050.00" y2="257.00" class="grid"/>
+<text x="742.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="750.00" y1="191.00" x2="1050.00" y2="191.00" class="grid"/>
+<text x="742.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="750.00" y1="125.00" x2="1050.00" y2="125.00" class="grid"/>
+<text x="742.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="750.00" y1="125.00" x2="750.00" y2="455.00" class="axis"/>
+<line x1="750.00" y1="455.00" x2="1050.00" y2="455.00" class="axis"/>
+<rect x="760.80" y="268.06" width="38.40" height="186.94" fill="#64748b" data-policy="random" data-value="0.56649034"/>
+<text x="780.00" y="261.06" class="value" text-anchor="middle">0.566</text>
+<text x="780.00" y="479.00" class="tick" text-anchor="middle">random</text>
+<rect x="820.80" y="300.91" width="38.40" height="154.09" fill="#2563eb" data-policy="farthest" data-value="0.46692863"/>
+<text x="840.00" y="293.91" class="value" text-anchor="middle">0.467</text>
+<text x="840.00" y="479.00" class="tick" text-anchor="middle">farthest</text>
+<rect x="880.80" y="273.53" width="38.40" height="181.47" fill="#dc2626" data-policy="pun" data-value="0.54989713"/>
+<text x="900.00" y="266.53" class="value" text-anchor="middle">0.550</text>
+<text x="900.00" y="479.00" class="tick" text-anchor="middle">pun</text>
+<rect x="940.80" y="227.98" width="38.40" height="227.02" fill="#7c3aed" data-policy="vggt" data-value="0.68794877"/>
+<text x="960.00" y="220.98" class="value" text-anchor="middle">0.688</text>
+<text x="960.00" y="479.00" class="tick" text-anchor="middle">vggt</text>
+<rect x="1000.80" y="455.00" width="38.40" height="1.00" fill="#059669" data-policy="oracle" data-value="0"/>
+<text x="1020.00" y="448.00" class="value" text-anchor="middle">0.000</text>
+<text x="1020.00" y="479.00" class="tick" text-anchor="middle">oracle</text>
+<text x="1240.00" y="108" class="panel" text-anchor="middle">Mean NDCG@5 ↑</text>
+<line x1="1090.00" y1="455.00" x2="1390.00" y2="455.00" class="grid"/>
+<text x="1082.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="1090.00" y1="389.00" x2="1390.00" y2="389.00" class="grid"/>
+<text x="1082.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="1090.00" y1="323.00" x2="1390.00" y2="323.00" class="grid"/>
+<text x="1082.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="1090.00" y1="257.00" x2="1390.00" y2="257.00" class="grid"/>
+<text x="1082.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="1090.00" y1="191.00" x2="1390.00" y2="191.00" class="grid"/>
+<text x="1082.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="1090.00" y1="125.00" x2="1390.00" y2="125.00" class="grid"/>
+<text x="1082.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="1090.00" y1="125.00" x2="1090.00" y2="455.00" class="axis"/>
+<line x1="1090.00" y1="455.00" x2="1390.00" y2="455.00" class="axis"/>
+<rect x="1100.80" y="288.00" width="38.40" height="167.00" fill="#64748b" data-policy="random" data-value="0.50605444"/>
+<text x="1120.00" y="281.00" class="value" text-anchor="middle">0.506</text>
+<text x="1120.00" y="479.00" class="tick" text-anchor="middle">random</text>
+<rect x="1160.80" y="234.27" width="38.40" height="220.73" fill="#2563eb" data-policy="farthest" data-value="0.66887176"/>
+<text x="1180.00" y="227.27" class="value" text-anchor="middle">0.669</text>
+<text x="1180.00" y="479.00" class="tick" text-anchor="middle">farthest</text>
+<rect x="1220.80" y="280.74" width="38.40" height="174.26" fill="#dc2626" data-policy="pun" data-value="0.52806659"/>
+<text x="1240.00" y="273.74" class="value" text-anchor="middle">0.528</text>
+<text x="1240.00" y="479.00" class="tick" text-anchor="middle">pun</text>
+<rect x="1280.80" y="309.95" width="38.40" height="145.05" fill="#7c3aed" data-policy="vggt" data-value="0.43954347"/>
+<text x="1300.00" y="302.95" class="value" text-anchor="middle">0.440</text>
+<text x="1300.00" y="479.00" class="tick" text-anchor="middle">vggt</text>
+<rect x="1340.80" y="126.22" width="38.40" height="328.78" fill="#059669" data-policy="oracle" data-value="0.9962963"/>
+<text x="1360.00" y="119.22" class="value" text-anchor="middle">0.996</text>
+<text x="1360.00" y="479.00" class="tick" text-anchor="middle">oracle</text>
+</svg>

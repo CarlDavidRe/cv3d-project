@@ -1,0 +1,287 @@
+{
+  "complete_fixed_split": true,
+  "complete_requested_cohort": true,
+  "coverage_aggregation": "per_object_mean; AUC is unnormalized over recorded acquired-view counts",
+  "coverage_target": "vis_a",
+  "evaluated_object_count": 300,
+  "figures": {
+    "coverage": "figures/closed_loop/coverage_curves.svg",
+    "per_step": "figures/closed_loop/per_step_policy_quality.svg",
+    "rollout_demo": "figures/closed_loop/rollout_demo.svg",
+    "summary": "figures/closed_loop/policy_summary.svg"
+  },
+  "geometry_validation_status": "num_camera_bbox_centered",
+  "memory_protocol": "Per-step process RSS plus RSS delta and CUDA peak allocated bytes; CUDA peak stats reset immediately before each score call.",
+  "original_num_target_results": {
+    "namespace": "phase1_num_target_metrics",
+    "note": "Original NUM-target metrics remain in the pinned Phase 1 summary and are not geometric gain metrics.",
+    "vggt_summary_path": "outputs/phase1/backbone_sweep/seed_1/variants/vggt_max_pooled_patch/summary.json"
+  },
+  "phase": "phase2",
+  "policies": [
+    {
+      "coverage_auc_mean": 6.184427925345356,
+      "final_coverage_mean": 0.8510870184076302,
+      "frozen_parameter_count": 0,
+      "median_policy_ms": 0.12596850137924775,
+      "ndcg_at_5_mean": 0.5060544350819294,
+      "ndcg_at_5_valid_count": 2700,
+      "normalized_regret_mean": 0.5664903434239239,
+      "normalized_regret_valid_count": 2700,
+      "object_count": 300,
+      "peak_peak_cuda_allocated_bytes": null,
+      "peak_process_rss_bytes": 956227584,
+      "peak_process_rss_delta_bytes": 180224,
+      "policy": "random",
+      "policy_score_semantics": "seeded_random_ranking",
+      "profiling_modes": [
+        "analytic_cpu"
+      ],
+      "spearman_mean": 0.003721929994095982,
+      "spearman_valid_count": 2699,
+      "trainable_parameter_count": 0,
+      "training_target_semantics": "none"
+    },
+    {
+      "coverage_auc_mean": 6.232580795026915,
+      "final_coverage_mean": 0.8623288668564715,
+      "frozen_parameter_count": 0,
+      "median_policy_ms": 0.06506699719466269,
+      "ndcg_at_5_mean": 0.6688717556151781,
+      "ndcg_at_5_valid_count": 2700,
+      "normalized_regret_mean": 0.4669286310653181,
+      "normalized_regret_valid_count": 2700,
+      "object_count": 300,
+      "peak_peak_cuda_allocated_bytes": null,
+      "peak_process_rss_bytes": 956227584,
+      "peak_process_rss_delta_bytes": 4096,
+      "policy": "farthest",
+      "policy_score_semantics": "max_min_angular_distance_radians",
+      "profiling_modes": [
+        "analytic_cpu"
+      ],
+      "spearman_mean": 0.3886206238858222,
+      "spearman_valid_count": 2700,
+      "trainable_parameter_count": 0,
+      "training_target_semantics": "none"
+    },
+    {
+      "coverage_auc_mean": 6.381281103849706,
+      "final_coverage_mean": 0.8496625655957196,
+      "frozen_parameter_count": 21684144,
+      "median_policy_ms": 85.43820250270073,
+      "ndcg_at_5_mean": 0.5280665861837073,
+      "ndcg_at_5_valid_count": 2700,
+      "normalized_regret_mean": 0.5498971283649058,
+      "normalized_regret_valid_count": 2700,
+      "object_count": 300,
+      "peak_peak_cuda_allocated_bytes": null,
+      "peak_process_rss_bytes": 956227584,
+      "peak_process_rss_delta_bytes": 16654336,
+      "policy": "pun",
+      "policy_score_semantics": "negative_product_of_aligned_raw_psnr_after_small_filter",
+      "profiling_modes": [
+        "live_model_inference_incremental"
+      ],
+      "spearman_mean": 0.18509179964981948,
+      "spearman_valid_count": 2700,
+      "trainable_parameter_count": 0,
+      "training_target_semantics": "official_single_image_num_psnr"
+    },
+    {
+      "coverage_auc_mean": 5.820643618426652,
+      "final_coverage_mean": 0.816147450195187,
+      "frozen_parameter_count": null,
+      "median_policy_ms": 2.728387000388466,
+      "ndcg_at_5_mean": 0.4395434650719056,
+      "ndcg_at_5_valid_count": 2700,
+      "normalized_regret_mean": 0.6879487664448901,
+      "normalized_regret_valid_count": 2700,
+      "object_count": 300,
+      "peak_peak_cuda_allocated_bytes": null,
+      "peak_process_rss_bytes": 956227584,
+      "peak_process_rss_delta_bytes": 397312,
+      "policy": "vggt",
+      "policy_score_semantics": "negative_product_of_aligned_raw_psnr_after_small_filter",
+      "profiling_modes": [
+        "cached_features_plus_live_head"
+      ],
+      "spearman_mean": 0.03757286906062612,
+      "spearman_valid_count": 2698,
+      "trainable_parameter_count": 272560,
+      "training_target_semantics": "phase1_single_image_num_psnr"
+    },
+    {
+      "coverage_auc_mean": 6.992786477015874,
+      "final_coverage_mean": 0.8849470611338567,
+      "frozen_parameter_count": 0,
+      "median_policy_ms": 0.003697001375257969,
+      "ndcg_at_5_mean": 0.9962962962962963,
+      "ndcg_at_5_valid_count": 2700,
+      "normalized_regret_mean": 0.0,
+      "normalized_regret_valid_count": 2700,
+      "object_count": 300,
+      "peak_peak_cuda_allocated_bytes": null,
+      "peak_process_rss_bytes": 956227584,
+      "peak_process_rss_delta_bytes": 0,
+      "policy": "oracle",
+      "policy_score_semantics": "true_incremental_surface_gain",
+      "profiling_modes": [
+        "analytic_cpu"
+      ],
+      "spearman_mean": 1.0,
+      "spearman_valid_count": 2690,
+      "trainable_parameter_count": 0,
+      "training_target_semantics": "none"
+    }
+  ],
+  "policy_provenance": {
+    "farthest": {
+      "frozen_parameter_count": 0,
+      "trainable_parameter_count": 0
+    },
+    "oracle": {
+      "frozen_parameter_count": 0,
+      "trainable_parameter_count": 0
+    },
+    "pun": {
+      "aggregation": "official_small_filter_then_raw_product_psnr_argmin_v1",
+      "alignment": "official_minimal_rotation_exp30_interpolation_v1",
+      "baseline": "official_pretrained_pun_upnet",
+      "candidate_mask_adaptation": "shared acquired/invalid anchor mask applied by common evaluator",
+      "candidate_set_adaptation": "official fresh 512-point spherical samples replaced by evaluator canonical 48 anchors",
+      "checkpoint_path": "/home/reese/computer_vision/cv3d-project/data/cache/models/pun/vit_small_patch16_224_PSNR_250425172703/best_vit_regressor.pth",
+      "checkpoint_sha256": "91b2065f7652aac0c84386d4af10cd0c1ae723c049c91e45ccc78722f70907ae",
+      "common_score_orientation": "negative_raw_product_higher_is_better",
+      "empty_small_filter_fallback": "ignore small suppression when it removes every valid canonical candidate",
+      "filter_fallback_count": 0,
+      "filter_fallback_object_steps": {},
+      "filtered_candidate_count_mean": 9.136296296296296,
+      "filtered_candidate_count_valid_steps": 2700,
+      "frozen_parameter_count": 21684144,
+      "interpolation_degrees": 30.0,
+      "locally_trained": false,
+      "model_name": "vit_small_patch16_224",
+      "official_antipodal_rotation_behavior_retained": true,
+      "preprocessing": {
+        "crop_mode": "center",
+        "crop_pct": 0.9,
+        "input_size": [
+          3,
+          224,
+          224
+        ],
+        "interpolation": "bicubic",
+        "mean": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "std": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "release_name": "vit_small_patch16_224_PSNR_250425172703",
+      "source_commit": "aa6f8f4f12154854a4c1867209725c80475af102",
+      "source_policy_file": "fep_nbv/baseline/our_policy_single.py",
+      "source_policy_file_sha256": "09a7ad1f0cc2e54c8032dc38169995c75707601c68cace6a013c2e9bb085445c",
+      "source_repository": "https://github.com/ZhangLab-DeepNeuroCogLab/PUN",
+      "source_viewpoint_file": "fep_nbv/utils/generate_viewpoints.py",
+      "source_viewpoint_file_sha256": "2f0abec6c5405f3d21cd70f0fa0b628f5560200341bff338573a65b2c9c696f7",
+      "suppression_threshold": 0.1,
+      "target_direction": "lower_is_more_uncertain",
+      "target_name": "PSNR",
+      "tie_breaking_adaptation": "lowest valid canonical anchor ID",
+      "trainable_parameter_count": 0,
+      "training_overlap_limitation": "official release has no machine-readable training manifest; overlap with test objects/categories cannot be ruled out"
+    },
+    "random": {
+      "frozen_parameter_count": 0,
+      "trainable_parameter_count": 0
+    },
+    "vggt": {
+      "aggregation": "official_small_filter_then_raw_product_psnr_argmin_v1",
+      "alignment": "official_minimal_rotation_exp30_interpolation_v1",
+      "allow_live_extraction": false,
+      "checkpoint_path": "/home/reese/computer_vision/cv3d-project/outputs/phase1/backbone_sweep/seed_1/variants/vggt_max_pooled_patch/best.pt",
+      "checkpoint_sha256": "6256e28c056615f699c6c5364a9aeaf141f730f4561a5af7f4c96ce7ab2d4938",
+      "common_score_orientation": "negative_raw_product_higher_is_better",
+      "feature_cache_metadata": {
+        "backbone": "vggt",
+        "backbone_configuration": {
+          "history_mode": "single_image",
+          "image_size": 518,
+          "input_resolution": [
+            518,
+            518
+          ],
+          "layer_index": -1,
+          "model_id": "facebook/VGGT-1B",
+          "preprocessing": "square_resize_rgb_0_1"
+        },
+        "cache_dtype": "float16",
+        "cache_schema": 1,
+        "extraction_precision": "bfloat16",
+        "feature_components": [
+          "max_pooled_patch"
+        ],
+        "feature_pooling": {
+          "max_pooled_patch": "max"
+        },
+        "history_mode": "single_image",
+        "mask_source_view": true,
+        "num_anchors": 48,
+        "sample_count": 14400,
+        "sample_ids_sha256": "260f6912ce7212308972c145fa060015dd07f107019bd997625c5fd011166d66",
+        "split": "test",
+        "split_manifest_sha256": "17fd089bd5bbbe13325ad106659e00a1acb8ccd82a743398905de69d0d97f51d",
+        "target_name": "PSNR",
+        "variant": "vggt_max_pooled_patch"
+      },
+      "feature_cache_path": "/home/reese/computer_vision/cv3d-project/data/cache/features/vggt/vggt_max_pooled_patch/test_3334dd9c7e19faf6.pt",
+      "feature_cache_sha256": "5fd6c6f2e264fad7aa0e36a4351c4a0ac9222f0567195da700580b414ef19308",
+      "feature_components": [
+        "max_pooled_patch"
+      ],
+      "filter_fallback_count": 0,
+      "filter_fallback_object_steps": {},
+      "filtered_candidate_count_mean": 9.062592592592592,
+      "filtered_candidate_count_valid_steps": 2700,
+      "frozen_parameter_count": null,
+      "frozen_parameter_count_unavailable": "VGGT is not loaded in cache-only evaluation; profile a live run to record its instantiated aggregator count",
+      "history_mode": "independent_single_image",
+      "interpolation_degrees": 30.0,
+      "map_frame": "source_relative_canonical_anchor_zero",
+      "model": {
+        "image_size": 518,
+        "layer_index": -1,
+        "model_id": "facebook/VGGT-1B"
+      },
+      "phase1_config_path": "/home/reese/computer_vision/cv3d-project/outputs/phase1/backbone_sweep/seed_1/config.yaml",
+      "phase1_config_sha256": "5a742cb7e58a894a9329263a3f8440931a0294fc7e5785ebb778adc1e2a94b85",
+      "phase1_summary_path": "/home/reese/computer_vision/cv3d-project/outputs/phase1/backbone_sweep/seed_1/variants/vggt_max_pooled_patch/summary.json",
+      "phase1_summary_sha256": "65b7b4548292dfdf2e36161c2b4de0d1e40487ea454d7acec8e8ef500911e96f",
+      "prediction_source_counts": {
+        "feature_cache": 9,
+        "live_vggt": 0
+      },
+      "predictor": "phase1_validation_selected_frozen_vggt_num_head",
+      "selection_metric": "best_vggt_validation_ranking_across_regret_spearman_ndcg_at_5",
+      "selection_split": "val",
+      "suppression_threshold": 0.1,
+      "target_direction": "lower_is_more_uncertain",
+      "target_name": "PSNR",
+      "trainable_parameter_count": 272560,
+      "true_surface_gain_supervision": false,
+      "variant": "vggt_max_pooled_patch"
+    }
+  },
+  "ranking_aggregation": "pooled_per_step_mean_excluding_null_with_valid_counts",
+  "requested_object_count": 300,
+  "schema_version": 1,
+  "timing_protocol": "Policy scoring includes cache lookup or preprocessing/inference plus aggregation; excludes geometry and evaluator RGB loading. CUDA is synchronized around scoring; medians include the cold first decision.",
+  "training_target_semantics": "policy_specific; see policy rows and rollouts",
+  "visibility_cache_manifest": "/home/reese/computer_vision/cv3d-project/outputs/phase2/phase2_closed_loop/seed_0/metrics/visibility_cache_manifest.json"
+}
