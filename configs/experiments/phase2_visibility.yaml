@@ -9,6 +9,7 @@ experiment:
 paths:
   data_root: data/NUM
   mesh_root: data/ShapeNetCore.v2
+  # NUM RGB camera calibration and tracking convention.
   visibility_cache_root: data/cache/visibility
   output_root: outputs
   model_cache_root: data/cache/models
@@ -24,12 +25,14 @@ phase2:
     # vis_a = visible-face area / total mesh area.
     target: vis_a
 
-    # The prepared ShapeNet subset uses model_normalized.ply at scale 2.0.
+    # Center source bounds at the origin, then apply the fixed PUN scale.
+    mesh_centering: bounding_box
     mesh_scale: 2.0
 
-    # Camera geometry from the pinned PUN generator and Splatter NMR config.
+    # Blender RGB calibration.
+    # fx / width = fy / height = 525 / 512. See docs/num_camera_alignment.md.
     camera_radius: 2.73
-    horizontal_fov_degrees: 30.0
+    horizontal_fov_degrees: 51.98948897809546
     render_resolution: [256, 256]
     near: 1.2
     far: 4.0

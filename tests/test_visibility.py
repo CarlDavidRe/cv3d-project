@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 import numpy as np
+from nbv.geometry.mesh import prepare_visibility_mesh
 
 from nbv.data import (
     IncompatibleVisibilityCacheError,
@@ -57,6 +58,34 @@ def cube_mesh() -> TriangleMesh:
 
 
 class MeshLoadingTests(unittest.TestCase):
+    def test_visibility_normalization_removes_source_translation_and_preserves_faces(self):
+        original = cube_mesh()
+        offset = np.array([3., -2., 0.75])
+        translated = TriangleMesh(original.vertices + offset, original.faces)
+        prepared, transform = prepare_visibility_mesh(translated, scale=2.)
+        np.testing.assert_array_equal(prepared.vertices, original.vertices * 2.)
+        np.testing.assert_array_equal(prepared.faces, original.faces)
+        homogeneous = np.column_stack((translated.vertices, np.ones(len(translated.vertices))))
+        np.testing.assert_array_equal((homogeneous @ transform.T)[:, :3], prepared.vertices)
+        np.testing.assert_allclose(
+            triangle_areas(prepared.vertices, prepared.faces),
+            4 * triangle_areas(original.vertices, original.faces),
+        )
+        camera = PerspectiveCamera(height=32, width=32)
+        pose = canonical_anchors()[12].camera_to_world(2.73)
+        np.testing.assert_array_equal(
+            render_face_index_map(prepared, pose, camera),
+            render_face_index_map(original.scaled(2.), pose, camera),
+        )
+        np.testing.assert_array_equal(translated.vertices, original.vertices + offset)
+
+    def test_visibility_normalization_rejects_unknown_centering_and_invalid_scale(self):
+        with self.assertRaisesRegex(ValueError, "mesh_centering"):
+            prepare_visibility_mesh(cube_mesh(), scale=2., centering="unknown")
+        for scale in (0., -1., float("nan"), float("inf")):
+            with self.assertRaises(ValueError):
+                prepare_visibility_mesh(cube_mesh(), scale=scale)
+
     def test_obj_loader_triangulates_and_resolves_negative_indices(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "model_normalized.obj"

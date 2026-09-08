@@ -12,6 +12,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 
+MESH_CENTERING = "bounding_box"
+
+
 class MeshError(ValueError):
     """Raised when a mesh cannot be loaded safely."""
 
@@ -51,6 +54,24 @@ class TriangleMesh:
         if not math.isfinite(scale) or scale <= 0:
             raise ValueError("scale must be finite and greater than zero")
         return TriangleMesh(self.vertices * scale, self.faces)
+
+
+def prepare_visibility_mesh(
+    mesh: TriangleMesh, *, scale: float, centering: str = MESH_CENTERING,
+) -> tuple[TriangleMesh, NDArray[np.float64]]:
+    """Center the source bounds, then scale; return geometry and source-to-world.
+
+    This mesh-only normalization preserves face IDs, winding, and relative
+    dimensions. It never uses RGB or fits individual camera views.
+    """
+    if centering != MESH_CENTERING:
+        raise ValueError(f"Unsupported mesh_centering: {centering!r}")
+    center = mesh.bounds.mean(axis=0)
+    prepared = TriangleMesh(mesh.vertices - center, mesh.faces).scaled(scale)
+    transform = np.eye(4, dtype=np.float64)
+    transform[:3, :3] *= scale
+    transform[:3, 3] = -scale * center
+    return prepared, transform
 
 
 def load_obj_mesh(path: str | Path) -> TriangleMesh:

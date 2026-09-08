@@ -41,12 +41,10 @@ from nbv.geometry import (  # noqa: E402
     load_mesh,
     triangle_areas,
 )
-from nbv.geometry.mesh import sha256_file  # noqa: E402
+from nbv.geometry.mesh import MESH_CENTERING, prepare_visibility_mesh, sha256_file  # noqa: E402
+from nbv.geometry.num_camera import PUN_SOURCE_REVISION  # noqa: E402
 from nbv.reproducibility import seed_everything  # noqa: E402
 from nbv.visualization import write_visibility_debug_svg  # noqa: E402
-
-
-PUN_SOURCE_REVISION = "aa6f8f4f12154854a4c1867209725c80475af102"
 
 
 def parse_args() -> argparse.Namespace:
@@ -132,13 +130,16 @@ def main() -> int:
             continue
         mesh_sha256 = sha256_file(mesh_path)
         try:
-            mesh = load_mesh(mesh_path).scaled(settings["mesh_scale"])
+            mesh, mesh_to_world = prepare_visibility_mesh(
+                load_mesh(mesh_path), scale=settings["mesh_scale"],
+                centering=settings["mesh_centering"],
+            )
         except (OSError, ValueError) as exc:
             print(f"ERROR {object_id}: {exc}", file=sys.stderr)
             failures += 1
             continue
         expected = _expected_metadata(
-            object_id, mesh_sha256, len(mesh.faces), settings
+            object_id, mesh_sha256, len(mesh.faces), settings, mesh_to_world
         )
         if destination.exists() and not args.overwrite:
             try:
@@ -231,6 +232,7 @@ def _visibility_settings(config: Mapping[str, Any]) -> dict[str, Any]:
         "split_manifest",
         "mesh_relative_path",
         "mesh_scale",
+        "mesh_centering",
         "camera_radius",
         "horizontal_fov_degrees",
         "render_resolution",
@@ -242,6 +244,8 @@ def _visibility_settings(config: Mapping[str, Any]) -> dict[str, Any]:
     missing = required - set(raw)
     if missing:
         raise ValueError(f"phase2.visibility is missing {sorted(missing)}")
+    if raw["mesh_centering"] != MESH_CENTERING:
+        raise ValueError(f"mesh_centering must be {MESH_CENTERING!r}")
     resolution = raw["render_resolution"]
     if (
         not isinstance(resolution, list)
@@ -322,6 +326,7 @@ def _expected_metadata(
     mesh_sha256: str,
     n_faces: int,
     settings: Mapping[str, Any],
+    mesh_to_world: np.ndarray,
 ) -> dict[str, Any]:
     return {
         "schema_version": VISIBILITY_CACHE_SCHEMA_VERSION,
@@ -330,6 +335,8 @@ def _expected_metadata(
         "n_faces": n_faces,
         "numpy_version": np.__version__,
         "mesh_scale": float(settings["mesh_scale"]),
+        "mesh_centering": settings["mesh_centering"],
+        "mesh_to_world": mesh_to_world.tolist(),
         "anchor_ordering": CANONICAL_ORDERING,
         "anchor_count": 48,
         "render_resolution": list(settings["render_resolution"]),

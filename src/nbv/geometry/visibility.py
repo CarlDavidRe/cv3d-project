@@ -1,7 +1,7 @@
 """Rasterized mesh-face visibility matching the PUN evaluation metric.
 
-The renderer is a small deterministic CPU z-buffer. It uses OpenGL/Blender
-look-at poses (camera looks along local -Z), perspective-correct depth, pixel
+The renderer is a small deterministic CPU z-buffer. It uses corrected NUM
+camera poses (camera looks along local -Z), perspective-correct depth, pixel
 centres, and a top-left image origin. Faces are two-sided by default, matching
 the PUN Blender generation path's lack of explicit back-face culling.
 
@@ -22,19 +22,23 @@ from numpy.typing import NDArray
 
 from nbv.geometry.anchors import AnchorSet, canonical_anchors
 from nbv.geometry.mesh import TriangleMesh
+from nbv.geometry.num_camera import (
+    CAMERA_CONVENTION,
+    NUM_HORIZONTAL_FOV_DEGREES,
+    anchor_camera_to_world,
+)
 
 
 FACE_VISIBILITY_RENDERER = "numpy_cpu_triangle_id_zbuffer_perspective_v1"
-CAMERA_CONVENTION = "opengl_camera_minus_z_y_up_image_y_down_pixel_centers_v1"
 
 
 @dataclass(frozen=True, slots=True)
 class PerspectiveCamera:
-    """Square-pixel pinhole camera matching the official PUN NMR setup."""
+    """Square-pixel pinhole camera using PUN's actual Blender RGB calibration."""
 
     height: int = 64
     width: int = 64
-    horizontal_fov_degrees: float = 30.0
+    horizontal_fov_degrees: float = NUM_HORIZONTAL_FOV_DEGREES
     near: float = 1.2
     far: float = 4.0
 
@@ -173,7 +177,7 @@ def compute_anchor_visibility(
     for row_index, anchor in enumerate(anchor_set):
         if row_index != anchor.anchor_id:
             raise ValueError("anchor sequence index and anchor_id must be identical")
-        camera_to_world = anchor.camera_to_world(camera_radius)
+        camera_to_world = anchor_camera_to_world(anchor, camera_radius)
         face_index_map = render_face_index_map(
             mesh, camera_to_world, camera, cull_backfaces=cull_backfaces
         )

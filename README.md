@@ -1,10 +1,10 @@
 # Frozen-feature next-best-view study
 
 This repository implements the phased project described in
-[`project_overview.md`](project_overview.md). Phase 1 is stable. The first
-Phase 2 infrastructure component—deterministic PUN-style ground-truth mesh-face
-visibility caching—is also available. The learned
-policies and closed-loop evaluator remain future work.
+[`project_overview.md`](project_overview.md). Phase 1 is complete. Phase 2 now
+includes mesh-face visibility caching and a deterministic closed-loop evaluator
+with Random and one-step Oracle policies. Farthest and the learned policy
+adapters remain future work.
 
 ## Steps 1–4: setup and dataset verification
 
@@ -211,10 +211,15 @@ python3 scripts/precompute_visibility.py \
   --debug-anchor 0
 ```
 
-The defaults in `configs/experiments/phase2_visibility.yaml` reproduce the
-official PUN generation geometry: normalized mesh scale 2.0, camera radius
-2.73, 30-degree pinhole field of view, near/far 1.2/4.0, and the existing
-canonical 48-anchor order. A 256×256 triangle-ID z-buffer records every mesh
+The defaults in `configs/experiments/phase2_visibility.yaml` use PUN's actual
+RGB calibration: mesh scale 2.0, camera radius 2.73, **51.98948897809546°**
+field of view, Blender tracking roll with explicit NUM pole poses, near/far
+1.2/4.0, and the existing canonical 48-anchor order. See the
+[source analysis and validation protocol](docs/num_camera_alignment.md).
+Caches use `data/cache/visibility` with validated camera and mesh-transform
+metadata. Prepared meshes are centered by their bounding boxes before the
+fixed scale is applied (`mesh_centering: bounding_box`).
+A 256×256 triangle-ID z-buffer records every mesh
 face that wins at least one pixel and is therefore directly visible without
 occlusion, matching PUN's rasterized face-set definition.
 
@@ -269,6 +274,78 @@ vis_coverage = cache.coverage([0, 12], target="vis")
 vis_a_coverage = cache.coverage([0, 12], target="vis_a")
 candidate_gains = cache.candidate_gains([0, 12])
 ```
+
+## Step 10: Random/Oracle closed-loop simulator
+
+The common evaluator in `src/nbv/eval/closed_loop.py` uses the existing face
+cache's coverage and candidate-gain helpers. Its defaults are anchor 0, ten
+**total** acquired views (including the initial view), and `vis_a` coverage.
+Random assigns reproducible scores using the seed, object ID, and decision
+index; changing object or policy execution order does not change its scores.
+Oracle greedily selects the largest current true gain. Both use the same
+candidate mask and choose the lowest canonical anchor ID on ties.
+
+Run a small fixed subset while caches are being generated:
+
+```bash
+python3 scripts/evaluate_closed_loop.py \
+  --limit 10 --skip-missing-caches \
+  --set experiment.name=random_oracle_subset
+```
+
+Omit `--limit` and `--skip-missing-caches` for the complete configured test
+split. Repeat `--object CATEGORY/OBJECT` for an explicit subset of that split.
+Missing caches fail by default. The opt-in skip mode records every missing
+object and labels the result partial; corrupt or incompatible caches remain
+errors. Availability is fixed at run start. A nonempty output directory is
+rejected; choose a new `experiment.name` for another run.
+
+Configuration lives in `configs/experiments/phase2_closed_loop.yaml`. For
+example, `--set phase2.evaluation.initial_anchor_ids='[0,12]'` supplies two
+initial views, and `--set phase2.evaluation.max_acquired_views=15` changes the
+total budget. `invalid_anchor_ids` excludes additional anchors. No acquired
+anchor can be selected again. Zero-gain steps continue until the budget is
+reached or no valid candidates remain; both stop reasons are recorded.
+
+Each run saves resolved config and geometry settings, environment metadata,
+a completeness/cache-provenance manifest, per-object and per-step CSVs,
+coverage-vs-view counts, and a strict JSON summary. Saved NPZ rollouts under
+`rollouts/<policy>/<category>/<object>.npz` contain initial coverage, history,
+scores, masks, evaluator-only true gains, image references, and a fingerprint
+of the visibility arrays and metadata. Verify a saved rollout with:
+
+```bash
+python3 scripts/evaluate_closed_loop.py \
+  --replay outputs/phase2/random_oracle_subset/seed_0/rollouts/oracle/CATEGORY/OBJECT.npz
+```
+
+Replay runs saved scores through the same evaluator and checks actions,
+masks, gains, coverage, and ranking diagnostics. Optional `--cache PATH` and
+`--data-root PATH` support relocated data. Wall-clock timings are excluded
+from replay equality. Regret, Spearman, and NDCG@5 measure true geometric gain;
+undefined Spearman values become JSON `null` with valid counts in summaries.
+Coverage AUC retains the unnormalized trapezoidal definition. Timing currently
+measures CPU policy scoring separately from RGB loading and excludes geometry;
+live model and memory profiling belong to the later learned-policy steps.
+
+The evaluator owns the observation store and geometry. Policy snapshots
+contain only acquired RGB/references, history anchor IDs, known camera poses,
+and the candidate mask. No NUM targets, unacquired image table, visibility
+cache, seen-face state, or true gains are passed to ordinary policies. Oracle
+uses an explicit privileged evaluator branch.
+
+**Step 9 validation:** camera calibration and tracking follow the PUN/Blender
+source, with pole rolls pinned to the released NUM images. See the
+[RGB/mesh validation report](outputs/phase2/visibility_alignment/report.json)
+and [precomputation instructions](docs/num_camera_alignment.md).
+Runs record `geometry_validation_status: num_camera_bbox_centered`.
+The retained [Random/Oracle results](outputs/phase2/random_oracle/seed_0/metrics/summary.json)
+cover three objects; split completeness is reported separately.
+Bounding-box centering improves mean silhouette overlap from 51.3% to 86.8%
+on six independent validation objects (30 views). The three available caches
+and the saved run use this normalization. This is subset validation, not a
+pixel-perfect or full-dataset guarantee. See the
+[normalization validation](docs/num_camera_alignment.md#independent-validation).
 
 ## Step 5: model smoke tests
 
@@ -661,6 +738,17 @@ The ShapeNet command keeps the extracted NUM-relevant object subset but omits
 the original `data/ShapeNetCore.v2/archive.zip`; retaining it in the tarball
 would upload a second, unnecessary copy of the full source archive.
 
+If you have already precomputed visibility locally, also archive
+`data/cache/visibility` from the same local `data` directory:
+
+```bash
+tar -czf visibility-cache.tar.gz -C cache visibility
+tar -tzf visibility-cache.tar.gz | head
+```
+
+Upload `data/visibility-cache.tar.gz` to `MyDrive/cv3d-datasets` alongside the
+dataset archives below. This preserves the per-category `.npz` cache layout.
+
 Do not use VS Code's `Upload to Colab` action for these dataset archives. That
 action uses the extension's file API and large archives may exceed its memory,
 request, or timeout limits. It remains useful for small files only.
@@ -698,11 +786,34 @@ find /content/cv3d-project/data/ShapeNetCore.v2 \
 Reading the archive once and extracting it into `/content` is normally faster
 than training against thousands of small files directly on Drive.
 
+Restore the visibility cache onto temporary storage too. The local archive
+provides the initial cache; the directory saved in step 8 restores subsequent
+Colab results over it. Repeat this after each runtime reset:
+
+```bash
+mkdir -p /content/cv3d-project/data/cache/visibility
+if [ -f /content/drive/MyDrive/cv3d-datasets/visibility-cache.tar.gz ]; then
+  tar -xzf /content/drive/MyDrive/cv3d-datasets/visibility-cache.tar.gz \
+    -C /content/cv3d-project/data/cache
+fi
+if [ -d /content/drive/MyDrive/cv3d-project/data/cache/visibility ]; then
+  rsync -av /content/drive/MyDrive/cv3d-project/data/cache/visibility/ \
+    /content/cv3d-project/data/cache/visibility/
+fi
+find /content/cv3d-project/data/cache/visibility -type f -name '*.npz' | head
+```
+
+If neither saved copy exists, generate the cache using the Phase 2 precompute
+commands above, then save it with step 8. Precomputation skips compatible
+restored entries; incompatible metadata or mesh checksums require an explicit
+`--overwrite` rebuild.
+
 ### 5. Run tests and model smoke tests
 
 Keep generated files in a semantic Phase 1 run directory until the workflow is
-complete. Workflow step numbers are not used as directory names. Restore only
-the frozen-feature cache from Drive; model downloads and external-source caches
+complete. Workflow step numbers are not used as directory names. In addition
+to the visibility cache restored in step 4, restore the frozen-feature cache
+from Drive; model downloads and external-source caches
 remain local to the runtime. If the Drive feature cache does not exist yet, the
 conditional prints a message and continues:
 
@@ -837,15 +948,25 @@ rsync -av /content/cv3d-project/outputs/ \
   /content/drive/MyDrive/cv3d-project/outputs/
 
 mkdir -p /content/drive/MyDrive/cv3d-project/data/cache/features
-rsync -av /content/cv3d-project/data/cache/features \
-  /content/drive/MyDrive/cv3d-project/data/cache/features
+rsync -av /content/cv3d-project/data/cache/features/ \
+  /content/drive/MyDrive/cv3d-project/data/cache/features/
+
+if [ -d /content/cv3d-project/data/cache/visibility ]; then
+  mkdir -p /content/drive/MyDrive/cv3d-project/data/cache/visibility
+  rsync -av /content/cv3d-project/data/cache/visibility/ \
+    /content/drive/MyDrive/cv3d-project/data/cache/visibility/
+fi
 
 find /content/drive/MyDrive/cv3d-project/outputs -type f | sort
+find /content/drive/MyDrive/cv3d-project/data/cache/visibility \
+  -type f -name '*.npz' | head
 ```
 
 Colab's `/content` storage is temporary. The final copy preserves test logs,
 feature summaries, checkpoints, metrics, and any other repository outputs in
-`MyDrive/cv3d-project/outputs`; the second copy preserves feature caches,
-pretrained-model downloads, and cached external sources under the same
-`data/cache` name used locally. Run the copy after feature extraction finishes
-so only complete cache files are persisted.
+`MyDrive/cv3d-project/outputs`. The cache copies preserve frozen features and
+visibility under `MyDrive/cv3d-project/data/cache/{features,visibility}/`, using
+the same layout as the local cache. Run the copies after feature extraction
+and visibility precomputation finish so only complete cache files are
+persisted. Retrieve visibility caches with step 4 and feature caches with
+step 5 or 7 on the next runtime.

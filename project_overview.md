@@ -358,7 +358,7 @@ Repository audit as of 2026-09-07:
 | Runtime/memory profiling | Deferred to Phase 2 | Trainable parameter counts are reported. A common inference-time and peak-memory protocol remains useful for the closed-loop system but does not block the frozen Phase 1 feature-probe result. |
 | PUN comparison | Complete | The official released PSNR UPNet checkpoint was checksum-verified, evaluated last with official timm preprocessing, and recorded with both official unmasked MSE and common masked metrics. The full row covers all 5,232 validation and 14,400 test samples. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
-| Phase 2 visibility infrastructure | Implemented and synthetic-tested; full real-object run pending | Mesh loading, canonical 48-anchor CPU triangle-ID z-buffering, `Vis`/`VisA` coverage and marginal-gain helpers, schema-2 face caches, split/subset precompute CLI, and debug SVG output exist and remain the geometry foundation for Phases 2/3. The prepared local ShapeNetCore.v2 subset uses `model_normalized.ply`; a complete real-object precompute is still pending. No policy, closed-loop simulator, history dataset, or joint VGGT implementation is present. |
+| Phase 2 visibility and simulator | Implemented and subset-validated; full-split work pending | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Oracle simulator are implemented. Prepared PLY meshes use bounding-box centering supported by six independent validation objects. Three local caches and their replayable rollouts use this convention. Full-split precomputation, learned policy adapters, the history dataset, and joint VGGT remain pending. |
 
 The Phase 1 audit recorded 104 passing tests. This historical count does not
 validate the planned Phase 2/3 changes or replace real-data, real-checkpoint,
@@ -1917,6 +1917,29 @@ remaining correctness checks are not already covered.
 
 ### Step 10 — deterministic closed-loop simulator with Random and Oracle
 
+**Implementation status:** implemented with `scripts/evaluate_closed_loop.py`
+and `configs/experiments/phase2_closed_loop.yaml`. The shared evaluator uses
+acquired-only RGB snapshots, explicit Oracle privilege, deterministic Random
+scores, common masks/ties, total-view budgets, zero-gain continuation, and
+candidate-exhaustion stopping. NPZ rollouts and per-step/per-object metrics
+support replay through the same evaluator; missing caches require an explicit
+partial-run option and are listed in the completeness manifest.
+
+**Step 9 camera validation:** PUN's Blender renderer uses a pixel focal length of
+`(525/512) * width`, giving a 51.98948897809546° FOV; its tracking convention
+uses world Z to determine roll. The implementation pins the pole
+rolls to the released RGB and matches an independent PUN/Blender reference at
+all 46 non-pole anchors. Mesh scale remains 2.0 and radius remains 2.73.
+See `docs/num_camera_alignment.md` and the real-object validation report in
+`outputs/phase2/visibility_alignment`. Schema-2 face caches use
+`data/cache/visibility` with an explicit camera-convention identifier.
+The retained `random_oracle` run covers three objects; full-split
+precomputation is tracked separately. Prepared meshes use bounding-box
+centering before scale 2.0, supported by six independent validation objects
+(30 views; mean silhouette IoU 51.3% to 86.8%). Cache metadata pins centering
+and the source-to-world transform. Exact original-OBJ equivalence and
+full-dataset RGB registration are not claimed.
+
 Add the observation store, policy-visible/private state separation, common
 result schema, and `src/nbv/eval/closed_loop.py`. Wrap the existing face-cache
 coverage/gain helpers; do not duplicate geometry logic inside policies.
@@ -2541,12 +2564,13 @@ after Phase 2 is frozen.
 - [x] Mesh loading, canonical face rasterization, and schema-2 face caches.
 - [x] `Vis`/`VisA` coverage and candidate marginal-gain helpers with synthetic tests.
 - [x] Split/subset precompute CLI and debug visibility visualization.
-- [ ] Validate existing visibility/camera alignment on real NUM objects.
+- [x] Check camera calibration and reference poses; retain explicit NUM pole-roll convention.
+- [x] Apply bounding-box centering and validate on six independent validation objects; record transforms in caches.
 - [ ] Complete fixed-test-split cache precomputation and completeness manifest.
-- [ ] Verify explicit coverage differences and pin one `Vis`/`VisA` definition.
-- [ ] Add acquired-RGB observation store and evaluator-private face state.
-- [ ] Implement deterministic shared closed-loop simulator and result schema.
-- [ ] Add Random/Oracle replay, masks, zero-gain, and exhaustion checks.
+- [x] Verify explicit coverage differences and pin one `Vis`/`VisA` definition (`vis_a` in the evaluator).
+- [x] Add acquired-RGB observation store and evaluator-private geometry access.
+- [x] Implement deterministic shared closed-loop simulator and result schema.
+- [x] Add Random/Oracle replay, masks, zero-gain, and exhaustion checks.
 - [ ] Add the max-min angular-distance Farthest policy.
 
 ### Milestone 6 — complete Phase 2 (Steps 12–14)

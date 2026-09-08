@@ -71,18 +71,18 @@ class Anchor:
         return -np.asarray(self.direction, dtype=np.float64)
 
     def camera_to_world(self, radius: float = 1.0) -> NDArray[np.float64]:
-        """Return an OpenGL/Blender-style look-at camera-to-world transform.
+        """Return the NUM camera pose, looking at the origin along local -Z.
 
-        The camera is placed on the anchor direction, looks at the origin along
-        local -Z, and uses world +Y as the preferred up direction.
+        Camera Y follows projected world Z away from the poles. At the two
+        poles, world +Y remains image-up, matching the released NUM images.
         """
 
         position = self.camera_position(radius)
         camera_z = np.asarray(self.direction, dtype=np.float64)
-        preferred_up = np.array([0.0, 1.0, 0.0])
+        preferred_up = np.array([0.0, 0.0, 1.0])
         camera_x = np.cross(preferred_up, camera_z)
         if np.linalg.norm(camera_x) < _UNIT_TOLERANCE:
-            preferred_up = np.array([0.0, 0.0, 1.0])
+            preferred_up = np.array([0.0, 1.0, 0.0])
             camera_x = np.cross(preferred_up, camera_z)
         camera_x /= np.linalg.norm(camera_x)
         camera_y = np.cross(camera_z, camera_x)

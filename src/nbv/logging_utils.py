@@ -13,7 +13,9 @@ def configure_logging(log_path: str | Path, verbose: bool = False) -> logging.Lo
     destination.parent.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger("nbv")
     logger.setLevel(logging.DEBUG if verbose else logging.INFO)
-    logger.handlers.clear()
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+        handler.close()
     formatter = logging.Formatter(
         "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
     )

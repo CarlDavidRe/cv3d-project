@@ -1,0 +1,3 @@
+policy,object_count,final_coverage_mean,coverage_auc_mean,normalized_regret_mean,normalized_regret_valid_count,spearman_mean,spearman_valid_count,ndcg_at_5_mean,ndcg_at_5_valid_count
+random,3,0.9308290813745801,7.06427333329125,0.5389915513919069,27,0.007290223865687098,27,0.5000039021843201,27
+oracle,3,0.9554510040569012,7.5907304485897145,0.0,27,1.0,27,1.0,27

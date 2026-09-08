@@ -10,6 +10,7 @@ import numpy as np
 from nbv.data.visibility_cache import VisibilityCache
 from nbv.geometry.anchors import canonical_anchors
 from nbv.geometry.mesh import TriangleMesh
+from nbv.geometry.num_camera import anchor_camera_to_world
 from nbv.geometry.visibility import (
     PerspectiveCamera,
     project_camera_points,
@@ -36,7 +37,10 @@ def write_visibility_debug_svg(
         near=float(metadata["near"]),
         far=float(metadata["far"]),
     )
-    camera_to_world = anchor.camera_to_world(float(metadata["camera_radius"]))
+    camera_to_world = anchor_camera_to_world(
+        anchor, float(metadata["camera_radius"]),
+        convention=metadata["camera_convention"],
+    )
     face_centroids = mesh.vertices[mesh.faces].mean(axis=1)
     camera_points = world_to_camera(face_centroids, camera_to_world)
     u, v, depth = project_camera_points(camera_points, camera)

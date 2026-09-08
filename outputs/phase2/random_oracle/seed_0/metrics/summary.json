@@ -1,0 +1,41 @@
+{
+  "complete_fixed_split": false,
+  "complete_requested_cohort": true,
+  "coverage_aggregation": "per_object_mean; AUC is unnormalized over recorded acquired-view counts",
+  "coverage_target": "vis_a",
+  "evaluated_object_count": 3,
+  "geometry_validation_status": "num_camera_bbox_centered",
+  "phase": "phase2",
+  "policies": [
+    {
+      "coverage_auc_mean": 7.06427333329125,
+      "final_coverage_mean": 0.9308290813745801,
+      "ndcg_at_5_mean": 0.5000039021843201,
+      "ndcg_at_5_valid_count": 27,
+      "normalized_regret_mean": 0.5389915513919069,
+      "normalized_regret_valid_count": 27,
+      "object_count": 3,
+      "policy": "random",
+      "spearman_mean": 0.007290223865687098,
+      "spearman_valid_count": 27
+    },
+    {
+      "coverage_auc_mean": 7.5907304485897145,
+      "final_coverage_mean": 0.9554510040569012,
+      "ndcg_at_5_mean": 1.0,
+      "ndcg_at_5_valid_count": 27,
+      "normalized_regret_mean": 0.0,
+      "normalized_regret_valid_count": 27,
+      "object_count": 3,
+      "policy": "oracle",
+      "spearman_mean": 1.0,
+      "spearman_valid_count": 27
+    }
+  ],
+  "ranking_aggregation": "pooled_per_step_mean_excluding_null_with_valid_counts",
+  "requested_object_count": 3,
+  "schema_version": 1,
+  "timing_protocol": "CPU scoring only, excludes geometry and RGB; no live model or memory profiling in Step 10",
+  "training_target_semantics": "none",
+  "visibility_cache_manifest": "/home/reese/computer_vision/cv3d-project/outputs/phase2/random_oracle/seed_0/metrics/visibility_cache_manifest.json"
+}

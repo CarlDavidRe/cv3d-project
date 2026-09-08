@@ -1,0 +1,29 @@
+schema_version: 1
+
+experiment:
+  phase: phase2
+  name: random_oracle
+  seed: 0
+  deterministic: true
+
+paths:
+  data_root: data/NUM
+  visibility_cache_root: data/cache/visibility
+  output_root: outputs
+  model_cache_root: data/cache/models
+
+phase2:
+  # Load and save the resolved Step 9 camera/render settings with each run.
+  visibility_config: configs/experiments/phase2_visibility.yaml
+  evaluation:
+    geometry_validation_status: num_camera_bbox_centered
+    split: test
+    split_manifest: data/splits/num_v1.json
+    object_ids: []              # Optional explicit subset of this split.
+    limit: null
+    skip_missing_caches: false  # Opt in for provisional runs during precompute.
+    policies: [random, oracle]
+    max_acquired_views: 10      # Includes the initial views.
+    initial_anchor_ids: [0]
+    invalid_anchor_ids: []
+    coverage_target: vis_a      # Explicit override of a cache's default target.
