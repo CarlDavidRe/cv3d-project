@@ -314,7 +314,11 @@ VGGT sequence: real views are independently extracted (or loaded), combined
 with a padding-aware permutation-invariant mean, and mapped to 48 direct
 surface-gain predictions. The run saves the validation-selected checkpoint,
 epoch diagnostics, validation/test one-step metrics, and a replay-verified
-validation-object closed-loop smoke rollout. The Phase 2 NUM head is not used.
+validation-object closed-loop smoke rollout. It also emits the same automatic
+reporting artifacts as the Phase 1 sweep: per-model loss and validation-metric
+SVGs, a validation-loss comparison SVG, and comparison tables in CSV, JSON,
+and Markdown formats. Progress is logged after the initial baseline evaluation
+and every completed epoch. The Phase 2 NUM head is not used.
 The retained full-data Step 16 validation artifact is under
 `outputs/phase3/independent_history_validation/seed_0`; it uses a deliberately
 bounded one-epoch budget to validate the workflow on CPU. It is not the final

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
+import logging
 import math
 from typing import Any, Mapping
 
@@ -52,6 +53,7 @@ def fit_history_model(
     patience: int | None = None,
     device: str | torch.device = "cpu",
     seed: int = 0,
+    logger: logging.Logger | None = None,
 ) -> HistoryFitResult:
     """Train on direct surface gain and restore the best validation state."""
 
@@ -91,6 +93,17 @@ def fit_history_model(
     history: list[Mapping[str, float | int | None]] = [
         _history_row(0, None, float(optimizer.param_groups[0]["lr"]), initial_train, initial_validation, ndcg_k)
     ]
+    if logger is not None:
+        logger.info(
+            "Epoch 0/%d baseline: train loss %.6f, validation loss %.6f, "
+            "regret %s, NDCG@%d %s",
+            epochs,
+            initial_train["loss"],
+            best_validation_loss,
+            _format_metric(initial_validation.summary["normalized_regret_mean"]),
+            ndcg_k,
+            _format_metric(initial_validation.summary[f"ndcg_at_{ndcg_k}_mean"]),
+        )
     without_improvement = 0
 
     for epoch in range(1, epochs + 1):
@@ -133,9 +146,38 @@ def fit_history_model(
             best_epoch = epoch
             best_state = deepcopy(model.state_dict())
             without_improvement = 0
+            improved = True
         else:
             without_improvement += 1
+            improved = False
+        if logger is not None:
+            logger.info(
+                "Epoch %d/%d complete: optimization loss %.6f, train loss %.6f, "
+                "validation loss %.6f, regret %s, NDCG@%d %s, "
+                "best epoch %d%s%s",
+                epoch,
+                epochs,
+                optimization_loss,
+                train_result["loss"],
+                validation_loss,
+                _format_metric(validation_result.summary["normalized_regret_mean"]),
+                ndcg_k,
+                _format_metric(validation_result.summary[f"ndcg_at_{ndcg_k}_mean"]),
+                best_epoch,
+                " (improved)" if improved else "",
+                (
+                    ""
+                    if patience is None
+                    else f", early-stop wait {without_improvement}/{patience}"
+                ),
+            )
         if patience is not None and without_improvement >= patience:
+            if logger is not None:
+                logger.info(
+                    "Early stopping after epoch %d; restoring epoch %d",
+                    epoch,
+                    best_epoch,
+                )
             break
 
     model.load_state_dict(best_state)
@@ -360,6 +402,10 @@ def _mean_finite(values: list[float]) -> float | None:
 
 def _finite_or_none(value: float) -> float | None:
     return float(value) if math.isfinite(value) else None
+
+
+def _format_metric(value: float | int | None) -> str:
+    return "undefined" if value is None else f"{float(value):.4f}"
 
 
 __all__ = [

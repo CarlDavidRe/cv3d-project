@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass
 import hashlib
 import json
@@ -22,8 +23,12 @@ from nbv.features.selection import validate_feature_selection
 from nbv.geometry.anchors import CANONICAL_ANCHOR_COUNT, CANONICAL_ORDERING
 from nbv.models import IndependentHistoryGainModel, count_trainable_parameters
 from nbv.policies import IndependentHistoryPolicy
-from nbv.reproducibility import initialize_run, seed_everything
-from nbv.training import evaluate_history_model, fit_history_model
+from nbv.reproducibility import RunContext, initialize_run, seed_everything
+from nbv.training import HistoryFitResult, evaluate_history_model, fit_history_model
+from nbv.visualization import (
+    write_validation_loss_comparison,
+    write_variant_training_curves,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,6 +192,7 @@ def run_phase3_independent(
         device=settings.device,
         seed=seed,
         ndcg_k=settings.ndcg_k,
+        logger=active_logger,
         **settings.training,
     )
     evaluation_kwargs = {
@@ -278,6 +284,14 @@ def run_phase3_independent(
             model, lookups, histories, settings, context.run_dir, checkpoint, seed
         )
     write_json(summary, context.metrics_dir / "summary.json")
+    _write_phase1_style_reports(
+        context,
+        summary,
+        fit,
+        variant_name=str(config["experiment"]["name"]),
+        epochs_requested=int(settings.training["epochs"]),
+        ndcg_k=settings.ndcg_k,
+    )
     active_logger.info(
         "Phase 3 independent test: Huber %.6f, regret %.4f, NDCG@%d %.4f",
         test.summary["huber_loss"],
@@ -286,6 +300,88 @@ def run_phase3_independent(
         test.summary[f"ndcg_at_{settings.ndcg_k}_mean"],
     )
     return context.run_dir
+
+
+def _write_phase1_style_reports(
+    context: RunContext,
+    summary: Mapping[str, Any],
+    fit: HistoryFitResult,
+    *,
+    variant_name: str,
+    epochs_requested: int,
+    ndcg_k: int,
+) -> None:
+    """Emit the training figures and comparison tables used by Phase 1."""
+
+    write_variant_training_curves(
+        fit.history,
+        context.figure_dir / "training",
+        variant_name=variant_name,
+        best_epoch=fit.best_epoch,
+        epochs_completed=fit.epochs_completed,
+        stopped_early=fit.epochs_completed < epochs_requested,
+        ndcg_k=ndcg_k,
+    )
+    write_validation_loss_comparison(
+        {variant_name: fit.history},
+        context.figure_dir / "training" / "validation_loss_comparison.svg",
+        best_epochs={variant_name: fit.best_epoch},
+    )
+
+    test = summary["test"]
+    row = {
+        "variant": variant_name,
+        "backbone": "vggt",
+        "feature": summary["feature_variant"],
+        "input_dim": summary["model"]["feature_dim"] + (
+            3 if summary["model"]["include_anchor_directions"] else 0
+        ),
+        "trainable_parameters": summary["trainable_parameters"],
+        "best_epoch": summary["best_epoch"],
+        "huber_loss": test["huber_loss"],
+        "normalized_regret_mean": test["normalized_regret_mean"],
+        "spearman_mean": test["spearman_mean"],
+        f"ndcg_at_{ndcg_k}_mean": test[f"ndcg_at_{ndcg_k}_mean"],
+    }
+    columns = (
+        "variant",
+        "backbone",
+        "feature",
+        "input_dim",
+        "trainable_parameters",
+        "best_epoch",
+        "huber_loss",
+        "official_unmasked_mse_loss",
+        "normalized_regret_mean",
+        "spearman_mean",
+        f"ndcg_at_{ndcg_k}_mean",
+    )
+    with (context.metrics_dir / "comparison.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as output:
+        writer = csv.DictWriter(output, fieldnames=columns)
+        writer.writeheader()
+        writer.writerow({column: row.get(column) for column in columns})
+    write_json(
+        {"schema_version": 1, "results": [row]},
+        context.metrics_dir / "comparison.json",
+    )
+    header = "| " + " | ".join(columns) + " |"
+    separator = "| " + " | ".join("---" for _ in columns) + " |"
+    values = "| " + " | ".join(
+        _format_table_value(row.get(column)) for column in columns
+    ) + " |"
+    (context.metrics_dir / "comparison.md").write_text(
+        "\n".join((header, separator, values)) + "\n", encoding="utf-8"
+    )
+
+
+def _format_table_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, float):
+        return f"{value:.6g}"
+    return str(value).replace("|", "\\|")
 
 
 def _run_smoke(

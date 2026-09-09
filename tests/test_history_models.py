@@ -404,6 +404,29 @@ class Phase3IndependentExperimentTests(unittest.TestCase):
             )
             self.assertEqual(loaded.feature_dim, 4)
             self.assertEqual(payload["supervision"]["target"], "target_surface_gain")
+            self.assertTrue((run_dir / "metrics/comparison.csv").is_file())
+            comparison = json.loads(
+                (run_dir / "metrics/comparison.json").read_text()
+            )
+            self.assertEqual(
+                comparison["results"][0]["variant"], "independent_fixture"
+            )
+            self.assertEqual(comparison["results"][0]["input_dim"], 7)
+            self.assertTrue((run_dir / "metrics/comparison.md").is_file())
+            self.assertTrue(
+                (
+                    run_dir / "figures/training/independent_fixture_losses.svg"
+                ).is_file()
+            )
+            self.assertTrue(
+                (
+                    run_dir
+                    / "figures/training/independent_fixture_validation_metrics.svg"
+                ).is_file()
+            )
+            self.assertTrue(
+                (run_dir / "figures/training/validation_loss_comparison.svg").is_file()
+            )
             rollout = load_rollout(run_dir / "closed_loop_smoke/rollout.npz")
             self.assertEqual(rollout.metadata["training_target_semantics"], "phase3_history_dependent_surface_gain")
 
