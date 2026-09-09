@@ -28,6 +28,7 @@ from nbv.features.selection import (
     validate_feature_selection,
 )
 from nbv.features.vggt import VGGTExtractor
+from nbv.features.vggt_joint import JointVGGTFeatures, VGGTJointExtractor
 
 
 def create_feature_extractor(name: str, **kwargs: Any) -> FrozenFeatureExtractor:
@@ -61,6 +62,8 @@ __all__ = [
     "ImageNetViTExtractor",
     "RawRGBExtractor",
     "VGGTExtractor",
+    "JointVGGTFeatures",
+    "VGGTJointExtractor",
     "cache_fingerprint",
     "create_feature_extractor",
     "feature_cache_path",

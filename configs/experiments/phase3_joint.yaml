@@ -1,0 +1,61 @@
+schema_version: 1
+
+experiment:
+  phase: phase3
+  name: joint_history_control
+  seed: 0
+  deterministic: true
+
+paths:
+  data_root: data/NUM
+  visibility_cache_root: data/cache/visibility
+  output_root: outputs
+  model_cache_root: data/cache/models
+
+phase3:
+  joint_control:
+    # Identical Step 15 records and direct VisA labels used by Step 16.
+    history_manifest: data/processed/histories/random_unique_v1/manifest.json
+    coverage_target: vis_a
+    device: auto
+    matched_independent_config: configs/experiments/phase3_independent.yaml
+
+    # This is a live history-level forward. Independent feature caches are
+    # read only for provenance validation and are never used as joint inputs.
+    backbone:
+      model_id: facebook/VGGT-1B
+      image_size: 518
+      layer_index: -1
+      components: [max_pooled_patch]
+      expected_feature_dim: 2048
+
+    # Masked mean is applied to history-conditioned view vectors so the head
+    # has exactly the same dimensions and trainable capacity as Step 16.
+    model:
+      aggregation: masked_mean
+      include_anchor_directions: true
+      hidden_dim: 128
+      dropout: 0.1
+
+    # Optimizer, loss, epochs, patience, seed, and effective batch size match
+    # phase3_independent.yaml. A one-history microbatch bounds VGGT memory.
+    training:
+      epochs: 80
+      batch_size: 1
+      gradient_accumulation_steps: 64
+      learning_rate: 0.001
+      weight_decay: 0.0001
+      huber_delta: 0.01
+      ranking_weight: 0.1
+      ranking_margin: 0.0
+      patience: 10
+
+    evaluation:
+      batch_size: 1
+      ndcg_k: 5
+
+    # Runs before optimization and records accelerator peak memory for short
+    # real histories. CPU runs record latency and an explicit null memory.
+    memory_preflight:
+      enabled: true
+      history_lengths: [1, 2]

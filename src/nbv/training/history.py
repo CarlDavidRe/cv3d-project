@@ -18,6 +18,11 @@ from nbv.data.history_features import (
     HistoryFeatureDataset,
     collate_history_features,
 )
+from nbv.data.history_dataset import (
+    HistoryBatch,
+    HistoryDataset,
+    collate_history_samples,
+)
 from nbv.eval.metrics import ndcg_at_k, normalized_regret, spearman_rank
 from nbv.training.phase1 import combined_probe_loss
 
@@ -39,8 +44,8 @@ class HistoryEvaluationResult:
 
 def fit_history_model(
     model: nn.Module,
-    train: HistoryFeatureDataset,
-    validation: HistoryFeatureDataset,
+    train: HistoryFeatureDataset | HistoryDataset,
+    validation: HistoryFeatureDataset | HistoryDataset,
     *,
     epochs: int,
     batch_size: int,
@@ -54,6 +59,7 @@ def fit_history_model(
     device: str | torch.device = "cpu",
     seed: int = 0,
     logger: logging.Logger | None = None,
+    gradient_accumulation_steps: int = 1,
 ) -> HistoryFitResult:
     """Train on direct surface gain and restore the best validation state."""
 
@@ -68,6 +74,7 @@ def fit_history_model(
     _finite_number(ranking_weight, "ranking_weight", minimum=0.0)
     _finite_number(ranking_margin, "ranking_margin", minimum=0.0)
     _positive_integer(ndcg_k, "ndcg_k")
+    _positive_integer(gradient_accumulation_steps, "gradient_accumulation_steps")
     resolved_device = _resolve_device(device)
     model.to(resolved_device)
     optimizer = torch.optim.AdamW(
@@ -110,9 +117,11 @@ def fit_history_model(
         model.train()
         weighted_loss = 0.0
         sample_count = 0
+        accumulated_batches = 0
+        accumulated_samples = 0
+        optimizer.zero_grad(set_to_none=True)
         for cpu_batch in train_loader:
             batch = cpu_batch.to(resolved_device)
-            optimizer.zero_grad(set_to_none=True)
             predictions = _predict(model, batch)
             total, _, _ = combined_probe_loss(
                 predictions,
@@ -122,11 +131,18 @@ def fit_history_model(
                 ranking_weight=ranking_weight,
                 ranking_margin=ranking_margin,
             )
-            total.backward()
-            optimizer.step()
             count = len(batch.sample_ids)
+            (total * count).backward()
+            accumulated_batches += 1
+            accumulated_samples += count
+            if accumulated_batches == gradient_accumulation_steps:
+                _optimizer_step(optimizer, model, accumulated_samples)
+                accumulated_batches = 0
+                accumulated_samples = 0
             weighted_loss += float(total.item()) * count
             sample_count += count
+        if accumulated_batches:
+            _optimizer_step(optimizer, model, accumulated_samples)
         optimization_loss = weighted_loss / sample_count
         train_result = _mean_loss_components(model, train, **evaluation_kwargs)
         validation_result = evaluate_history_model(model, validation, **evaluation_kwargs)
@@ -191,7 +207,7 @@ def fit_history_model(
 
 def evaluate_history_model(
     model: nn.Module,
-    dataset: HistoryFeatureDataset,
+    dataset: HistoryFeatureDataset | HistoryDataset,
     *,
     batch_size: int,
     huber_delta: float = 1.0,
@@ -271,7 +287,7 @@ def evaluate_history_model(
 
 def _mean_loss_components(
     model: nn.Module,
-    dataset: HistoryFeatureDataset,
+    dataset: HistoryFeatureDataset | HistoryDataset,
     *,
     batch_size: int,
     huber_delta: float,
@@ -306,12 +322,21 @@ def _mean_loss_components(
     }
 
 
-def _predict(model: nn.Module, batch: HistoryFeatureBatch) -> Tensor:
-    predictions = model(
-        batch.history_features,
-        batch.history_anchor_ids,
-        batch.history_padding_mask,
-    )
+def _predict(model: nn.Module, batch: HistoryFeatureBatch | HistoryBatch) -> Tensor:
+    if isinstance(batch, HistoryFeatureBatch):
+        predictions = model(
+            batch.history_features,
+            batch.history_anchor_ids,
+            batch.history_padding_mask,
+        )
+    else:
+        if batch.history_images is None:
+            raise ValueError("joint history training requires loaded RGB images")
+        predictions = model(
+            batch.history_images,
+            batch.history_anchor_ids,
+            batch.history_padding_mask,
+        )
     expected = (len(batch.sample_ids), batch.target_surface_gain.shape[1])
     if predictions.shape != expected:
         raise ValueError(f"history model must return {expected}, got {tuple(predictions.shape)}")
@@ -345,29 +370,60 @@ def _history_row(
 
 
 def _loader(
-    dataset: HistoryFeatureDataset,
+    dataset: HistoryFeatureDataset | HistoryDataset,
     *,
     batch_size: int,
     shuffle: bool,
     generator: torch.Generator | None = None,
 ) -> DataLoader:
+    collate = (
+        collate_history_features
+        if isinstance(dataset, HistoryFeatureDataset)
+        else collate_history_samples
+    )
     return DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         generator=generator,
         num_workers=0,
-        collate_fn=collate_history_features,
+        collate_fn=collate,
     )
 
 
-def _validate_datasets(train: HistoryFeatureDataset, validation: HistoryFeatureDataset) -> None:
+def _validate_datasets(
+    train: HistoryFeatureDataset | HistoryDataset,
+    validation: HistoryFeatureDataset | HistoryDataset,
+) -> None:
     if len(train) < 1 or len(validation) < 1:
         raise ValueError("training and validation histories must be non-empty")
-    if train.lookup.feature_dim != validation.lookup.feature_dim:
-        raise ValueError("training and validation feature dimensions differ")
-    if train.histories.manifest["dataset_id"] != validation.histories.manifest["dataset_id"]:
+    if type(train) is not type(validation):
+        raise TypeError("training and validation must use the same history dataset type")
+    if isinstance(train, HistoryFeatureDataset):
+        if train.lookup.feature_dim != validation.lookup.feature_dim:
+            raise ValueError("training and validation feature dimensions differ")
+        train_histories = train.histories
+        validation_histories = validation.histories
+    else:
+        if not train.load_images or not validation.load_images:
+            raise ValueError("joint history datasets must load RGB images")
+        train_histories = train
+        validation_histories = validation
+    if train_histories.manifest["dataset_id"] != validation_histories.manifest["dataset_id"]:
         raise ValueError("training and validation histories must share one dataset manifest")
+
+
+def _optimizer_step(
+    optimizer: torch.optim.Optimizer, model: nn.Module, sample_count: int
+) -> None:
+    if sample_count < 1:
+        raise ValueError("optimizer accumulation must contain at least one sample")
+    inverse = 1.0 / sample_count
+    for parameter in model.parameters():
+        if parameter.grad is not None:
+            parameter.grad.mul_(inverse)
+    optimizer.step()
+    optimizer.zero_grad(set_to_none=True)
 
 
 def _resolve_device(device: str | torch.device) -> torch.device:

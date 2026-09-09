@@ -13,10 +13,12 @@ The implementation follows the research plan in
 - **Phase 2 — complete:** Random, Farthest, PUN, VGGT, and Oracle were evaluated
   on the complete 300-object test split in a deterministic closed loop using
   mesh-face coverage.
-- **Phase 3 — independent control validated:** the complete 1,279-object,
+- **Phase 3 — Step 17 implemented:** the complete 1,279-object,
   51,160-history direct-gain dataset is generated, and the cache-backed
   independent VGGT history workflow has passed a full-data training/evaluation
-  smoke run. Joint-history processing remains Step 17.
+  smoke run. A capacity-matched joint frozen-VGGT training path now processes
+  complete histories; the controlled held-out and closed-loop comparison
+  remains Step 18.
 
 ## Quick start
 
@@ -324,6 +326,21 @@ The retained full-data Step 16 validation artifact is under
 bounded one-epoch budget to validate the workflow on CPU. It is not the final
 full-budget Phase 3 research result.
 
+Train the Step 17 joint frozen-VGGT control on the identical history dataset:
+
+```bash
+python3 scripts/train_joint_history.py \
+  --config configs/experiments/phase3_joint.yaml
+```
+
+Variable-length batches are grouped by real history length, so padded views
+never enter VGGT. The config matches the Step 16 supervision, optimizer, loss,
+training budget, effective batch size, and 272,950-parameter head, and performs
+a length-1/2 accelerator-memory preflight before training. See
+[`docs/phase3_joint_control.md`](docs/phase3_joint_control.md). Held-out and
+closed-loop independent-versus-joint evaluation is intentionally deferred to
+Step 18.
+
 ## Configuration and reproducibility
 
 Primary experiment configurations live in
@@ -338,6 +355,7 @@ Primary experiment configurations live in
 | `phase2_closed_loop.yaml` | closed-loop policy evaluation |
 | `phase3_histories.yaml` | surface-gain history dataset |
 | `phase3_independent.yaml` | independent history direct-gain control |
+| `phase3_joint.yaml` | joint frozen-VGGT history direct-gain control |
 
 CLI settings can be overridden repeatably with `--set KEY=VALUE`. Use a new
 `experiment.name` for a distinct run; completed output directories are not
