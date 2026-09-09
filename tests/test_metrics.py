@@ -5,7 +5,32 @@ import unittest
 
 import numpy as np
 
-from nbv.eval import coverage_auc, ndcg_at_k, normalized_regret, spearman_rank
+from nbv.eval import (
+    coverage_auc,
+    ndcg_at_k,
+    normalized_regret,
+    reachable_normalized_coverage,
+    spearman_rank,
+)
+
+
+class ReachableNormalizedCoverageTests(unittest.TestCase):
+    def test_uses_explicit_reachable_ceiling(self) -> None:
+        self.assertAlmostEqual(reachable_normalized_coverage(0.7, 0.8), 0.875)
+        self.assertEqual(reachable_normalized_coverage(0.0, 0.0), 0.0)
+        self.assertEqual(reachable_normalized_coverage(1.0, 1.0), 1.0)
+
+    def test_rejects_invalid_values(self) -> None:
+        with self.assertRaisesRegex(ValueError, "cannot exceed"):
+            reachable_normalized_coverage(0.9, 0.8)
+        for coverage, ceiling in (
+            (-0.1, 0.8),
+            (0.5, 1.1),
+            (float("nan"), 1.0),
+        ):
+            with self.subTest(coverage=coverage, ceiling=ceiling):
+                with self.assertRaises(ValueError):
+                    reachable_normalized_coverage(coverage, ceiling)
 
 
 class NormalizedRegretTests(unittest.TestCase):

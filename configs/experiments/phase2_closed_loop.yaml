@@ -26,6 +26,8 @@ phase2:
     max_acquired_views: 10      # Includes the initial views.
     initial_anchor_ids: [0]
     invalid_anchor_ids: []
+    # Report both absolute VisA and coverage normalized by the union reachable
+    # from every available, non-invalid anchor.
     coverage_target: vis_a      # Explicit override of a cache's default target.
 
   # Released PUN/UPNet inference only; no optimizer or local training.

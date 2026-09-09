@@ -18,6 +18,47 @@ from numpy.typing import ArrayLike, NDArray
 _DEFAULT_EPSILON = 1e-12
 
 
+def reachable_normalized_coverage(
+    coverage: float,
+    reachable_coverage_ceiling: float,
+    *,
+    epsilon: float = _DEFAULT_EPSILON,
+) -> float:
+    """Normalize absolute coverage by the surface reachable by eligible views.
+
+    The ceiling is the absolute coverage obtained by taking the union of every
+    eligible camera's visibility mask.  A zero ceiling produces zero rather
+    than an undefined value; this keeps degenerate all-invisible synthetic
+    caches representable without claiming that they cover any surface.
+    """
+
+    for name, value in (
+        ("coverage", coverage),
+        ("reachable_coverage_ceiling", reachable_coverage_ceiling),
+        ("epsilon", epsilon),
+    ):
+        if isinstance(value, (bool, np.bool_)) or not isinstance(
+            value, (int, float, np.integer, np.floating)
+        ):
+            raise TypeError(f"{name} must be a real number")
+    coverage = float(coverage)
+    ceiling = float(reachable_coverage_ceiling)
+    epsilon = float(epsilon)
+    if not math.isfinite(coverage) or not 0.0 <= coverage <= 1.0:
+        raise ValueError("coverage must be finite and lie in [0, 1]")
+    if not math.isfinite(ceiling) or not 0.0 <= ceiling <= 1.0:
+        raise ValueError(
+            "reachable_coverage_ceiling must be finite and lie in [0, 1]"
+        )
+    if not math.isfinite(epsilon) or epsilon <= 0:
+        raise ValueError("epsilon must be finite and greater than zero")
+    if coverage > ceiling + epsilon:
+        raise ValueError("coverage cannot exceed the reachable coverage ceiling")
+    if ceiling == 0.0:
+        return 0.0
+    return float(np.clip(coverage / ceiling, 0.0, 1.0))
+
+
 def normalized_regret(
     predicted_scores: ArrayLike,
     target_utilities: ArrayLike,

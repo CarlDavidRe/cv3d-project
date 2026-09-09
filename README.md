@@ -13,8 +13,10 @@ The implementation follows the research plan in
 - **Phase 2 — complete:** Random, Farthest, PUN, VGGT, and Oracle were evaluated
   on the complete 300-object test split in a deterministic closed loop using
   mesh-face coverage.
-- **Phase 3 — dataset builder available:** generate variable-length observation
-  histories with direct surface-gain targets.
+- **Phase 3 — independent control validated:** the complete 1,279-object,
+  51,160-history direct-gain dataset is generated, and the cache-backed
+  independent VGGT history workflow has passed a full-data training/evaluation
+  smoke run. Joint-history processing remains Step 17.
 
 ## Quick start
 
@@ -226,6 +228,12 @@ records `status: complete` with every required completion check passing.
 
 Each run records configuration and cache provenance, per-step and per-object
 metrics, replayable policy rollouts, resource profiling, and SVG summaries.
+New schema-2 rollout and summary exports include both absolute `VisA` and a
+companion reachable-normalized value. The latter divides each object's coverage
+by the union visible from all available, non-invalid anchors before averaging
+across objects; it is zero for a degenerate object with no reachable surface.
+Retained schema-1 rollouts remain readable and expose this new metric as
+unavailable.
 `metrics/phase2_completion.json` is the machine-readable completeness gate.
 
 Replay a saved rollout with:
@@ -294,6 +302,26 @@ Each sample contains an ordered, duplicate-free anchor history, RGB paths,
 48 direct surface-gain targets, a valid-candidate mask, split identity, cache
 fingerprint, and deterministic sampling metadata.
 
+Train the Step 16 independent-history control after all three history shards
+have been generated:
+
+```bash
+python3 scripts/train_history.py \
+  --config configs/experiments/phase3_independent.yaml
+```
+
+The default control reads the existing per-image
+`vggt_max_pooled_patch` caches. It never feeds more than one observation per
+VGGT sequence: real views are independently extracted (or loaded), combined
+with a padding-aware permutation-invariant mean, and mapped to 48 direct
+surface-gain predictions. The run saves the validation-selected checkpoint,
+epoch diagnostics, validation/test one-step metrics, and a replay-verified
+validation-object closed-loop smoke rollout. The Phase 2 NUM head is not used.
+The retained full-data Step 16 validation artifact is under
+`outputs/phase3/independent_history_validation/seed_0`; it uses a deliberately
+bounded one-epoch budget to validate the workflow on CPU. It is not the final
+full-budget Phase 3 research result.
+
 ## Configuration and reproducibility
 
 Primary experiment configurations live in
@@ -307,6 +335,7 @@ Primary experiment configurations live in
 | `phase2_visibility.yaml` | camera model and visibility cache |
 | `phase2_closed_loop.yaml` | closed-loop policy evaluation |
 | `phase3_histories.yaml` | surface-gain history dataset |
+| `phase3_independent.yaml` | independent history direct-gain control |
 
 CLI settings can be overridden repeatably with `--set KEY=VALUE`. Use a new
 `experiment.name` for a distinct run; completed output directories are not

@@ -66,6 +66,19 @@ class ClosedLoopTests(unittest.TestCase):
             self.assertEqual(result.acquired_anchor_ids.tolist(), [0, 3, 1, 2, 4])
             self.assertEqual(result.acquired_view_counts.tolist(), [1, 2, 3, 4, 5])
             self.assertAlmostEqual(result.coverage[-1], expected)
+            self.assertAlmostEqual(result.metadata["reachable_coverage_ceiling"], expected)
+            self.assertEqual(
+                result.metadata["reachable_coverage_anchor_ids"], list(range(48))
+            )
+            self.assertAlmostEqual(result.reachable_normalized_coverage[-1], 1.0)
+            summary = result.summary()
+            self.assertAlmostEqual(
+                summary["final_reachable_normalized_coverage"], 1.0
+            )
+            self.assertAlmostEqual(
+                summary["reachable_normalized_coverage_auc"],
+                summary["coverage_auc"] / expected,
+            )
             self.assertTrue((np.diff(result.coverage) >= 0).all())
             for step in result.steps:
                 history = step["history_anchor_ids"]
@@ -74,6 +87,10 @@ class ClosedLoopTests(unittest.TestCase):
                 index = step["step_index"]
                 np.testing.assert_allclose(result.candidate_gains[index], brute, atol=1e-12)
                 self.assertAlmostEqual(step["selected_true_gain"], step["coverage_after"] - step["coverage_before"])
+                self.assertAlmostEqual(
+                    step["reachable_normalized_coverage_after"],
+                    step["coverage_after"] / expected,
+                )
                 self.assertEqual(step["normalized_regret"], 0.)
                 self.assertEqual(step["selected_true_gain"], step["oracle_true_gain"])
 
@@ -121,6 +138,9 @@ class ClosedLoopTests(unittest.TestCase):
         self.assertEqual(result.acquired_anchor_ids.tolist(), [2, 0, 1])
         self.assertEqual(result.acquired_view_counts.tolist(), [2, 3])
         self.assertEqual(result.metadata["stop_reason"], "no_valid_candidates")
+        self.assertEqual(result.metadata["reachable_coverage_anchor_ids"], [0, 1, 2])
+        self.assertAlmostEqual(result.metadata["reachable_coverage_ceiling"], 0.7)
+        self.assertAlmostEqual(result.reachable_normalized_coverage[-1], 1.0)
         self.assertEqual(np.flatnonzero(result.valid_masks[0]).tolist(), [1])
         self.assertIsNone(result.steps[0]["spearman"])
 
@@ -139,6 +159,7 @@ class ClosedLoopTests(unittest.TestCase):
         result = run_rollout(cache, self.store(), OraclePolicy(), RolloutConfig(max_acquired_views=48))
         self.assertEqual(result.acquired_anchor_ids.tolist(), list(range(48)))
         self.assertTrue((result.coverage == 0).all())
+        self.assertTrue((result.reachable_normalized_coverage == 0).all())
         self.assertTrue(all(s["normalized_regret"] == s["ndcg_at_5"] == 0 for s in result.steps))
         self.assertTrue(all(s["spearman"] is None for s in result.steps))
 
@@ -286,10 +307,16 @@ class ClosedLoopTests(unittest.TestCase):
         for relative in expected_figures.values():
             ET.parse(run / relative)
         coverage_svg = (run / expected_figures["coverage"]).read_text()
+        self.assertIn("Reachable-normalized coverage", coverage_svg)
         self.assertIn('data-policy="random"', coverage_svg)
         self.assertIn('data-policy="farthest"', coverage_svg)
         self.assertIn('data-policy="oracle"', coverage_svg)
         result = load_rollout(run / "rollouts/oracle" / f"{self.object_id}.npz")
+        self.assertIsNotNone(result.reachable_normalized_coverage)
+        comparison_header = (run / "metrics/comparison.csv").read_text().splitlines()[0]
+        self.assertIn("final_reachable_normalized_coverage_mean", comparison_header)
+        coverage_header = (run / "metrics/coverage.csv").read_text().splitlines()[0]
+        self.assertIn("reachable_normalized_coverage_mean", coverage_header)
         self.assertEqual(result.metadata["visibility_cache_metadata"]["visibility_target"], "vis")
         with self.assertRaisesRegex(ValueError, "not empty"):
             run_closed_loop_experiment(config, ROOT)

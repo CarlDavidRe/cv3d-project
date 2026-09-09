@@ -358,7 +358,7 @@ Repository audit as of 2026-09-07:
 | Runtime/memory profiling | Deferred to Phase 2 | Trainable parameter counts are reported. A common inference-time and peak-memory protocol remains useful for the closed-loop system but does not block the frozen Phase 1 feature-probe result. |
 | PUN comparison | Complete | The official released PSNR UPNet checkpoint was checksum-verified, evaluated last with official timm preprocessing, and recorded with both official unmasked MSE and common masked metrics. The full row covers all 5,232 validation and 14,400 test samples. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
-| Phase 2 visibility and simulator | Steps 9–14 implemented and subset-validated; final full-split run pending cache completion | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Farthest/official-PUN/independent-VGGT/Oracle simulator are implemented. PUN and VGGT share the reproduced map alignment/filter/product rule under the fixed 48-anchor protocol. VGGT uses the checksum-pinned validation-selected Phase 1 max-pooled-patch head and cached single-image features. Step 14 now adds cached/live profiling, memory and parameter exports, a replay-verified rollout demo, separate NUM-result provenance, and a strict completion manifest that cannot freeze a partial cohort. Prepared PLY meshes use bounding-box centering supported by six independent validation objects. The full test-split run remains intentionally pending while visibility caches are computed. Phase 3 Step 15 is implemented and validated on synthetic data plus one real training object; the complete history build awaits training/validation visibility caches. |
+| Phase 2 visibility and simulator | Steps 9–14 implemented and validated | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Farthest/official-PUN/independent-VGGT/Oracle simulator are implemented. PUN and VGGT share the reproduced map alignment/filter/product rule under the fixed 48-anchor protocol. VGGT uses the checksum-pinned validation-selected Phase 1 max-pooled-patch head and cached single-image features. The complete five-policy, 300-object result is retained under `outputs/phase2/phase2_closed_loop/seed_0`. Phase 3 Steps 15 and 16 are implemented and real-data validated; Step 17 joint processing remains. |
 
 The Phase 1 audit recorded 104 passing tests. This historical count does not
 validate the planned Phase 2/3 changes or replace real-data, real-checkpoint,
@@ -613,6 +613,20 @@ faces unreachable from the candidate set; maximum achievable coverage can be
 below 1. Report the chosen face-based definition explicitly when describing
 true geometric gain.
 
+Also report reachable-normalized coverage as a companion metric. For the
+eligible anchor set `A` of an object:
+
+```text
+reachable_ceiling = Coverage(A, W)
+reachable_normalized_coverage_t = Coverage(P_t, W) / reachable_ceiling
+```
+
+Compute this ratio per object before aggregating across objects. Here `A`
+contains every available, non-invalid anchor, including initial anchors. If no
+surface is reachable, define the normalized value as zero. Keep absolute
+`Vis`/`VisA` as the primary geometric measurement so this companion metric
+does not hide differences in candidate-set reachability.
+
 ---
 
 ### Closed-loop Phase 2 evaluator
@@ -660,7 +674,9 @@ Add after the core comparison is stable:
 These are the primary Phase 2 outcome metrics:
 
 * surface coverage versus number of acquired views,
+* reachable-normalized surface coverage versus number of acquired views,
 * coverage AUC,
+* reachable-normalized coverage AUC,
 * final coverage at the maximum view budget,
 * median inference time,
 * peak memory,
@@ -997,7 +1013,7 @@ Only the policy's method for generating the 48 candidate scores changes.
 * [x] Training and evaluation dataset configuration pins the same visibility definition.
 * [x] Multiple history lengths are supported.
 * [ ] Independent and joint models receive exactly the same histories.
-* [ ] Independent VGGT processing never allows cross-view backbone interaction.
+* [x] Independent VGGT processing never allows cross-view backbone interaction.
 * [ ] Joint VGGT genuinely processes multiple views together.
 * [ ] Trainable capacities are documented and approximately matched.
 * [ ] Both models use the same direct surface-gain supervision.
@@ -1117,9 +1133,9 @@ Keep this strictly optional. Do not delay the main ShapeNet evaluation for it.
 
 ## Current implementation tree
 
-The repository contains the completed Phase 1 implementation, the implemented
-Phase 2 pipeline, and the Step 15 Phase 3 history dataset infrastructure shown
-below.
+The repository contains the completed Phase 1 and Phase 2 implementations,
+the Step 15 Phase 3 history dataset infrastructure, and the implemented Step
+16 independent history control shown below.
 Generated directories such as `.venv/`, `build/`, `*.egg-info/`, `__pycache__/`,
 downloaded model weights, and feature-cache payloads are intentionally omitted.
 
@@ -1140,7 +1156,8 @@ project_root/
 │       ├── phase1_sweep.yaml
 │       ├── phase2_visibility.yaml
 │       ├── phase2_closed_loop.yaml
-│       └── phase3_histories.yaml
+│       ├── phase3_histories.yaml
+│       └── phase3_independent.yaml
 │
 ├── data/
 │   ├── NUM/                         # local dataset; not tracked
@@ -1158,17 +1175,22 @@ project_root/
 │   ├── data/
 │   │   ├── __init__.py
 │   │   ├── history_dataset.py
+│   │   ├── history_features.py
 │   │   ├── num_dataset.py
 │   │   ├── num_splits.py
 │   │   └── visibility_cache.py
 │   │
 │   ├── eval/
 │   │   ├── __init__.py
-│   │   └── metrics.py
+│   │   ├── closed_loop.py
+│   │   ├── metrics.py
+│   │   └── result_schema.py
 │   │
 │   ├── experiments/
 │   │   ├── __init__.py
-│   │   └── phase1.py
+│   │   ├── closed_loop.py
+│   │   ├── phase1.py
+│   │   └── phase3_independent.py
 │   │
 │   ├── features/
 │   │   ├── __init__.py
@@ -1198,10 +1220,21 @@ project_root/
 │   ├── models/
 │   │   ├── __init__.py
 │   │   ├── heads.py
+│   │   ├── independent_multiview.py
 │   │   └── pun.py
+│   ├── policies/
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── farthest_policy.py
+│   │   ├── history_policy.py
+│   │   ├── oracle_policy.py
+│   │   ├── pun_policy.py
+│   │   ├── random_policy.py
+│   │   └── vggt_policy.py
 │   │
 │   ├── training/
 │   │   ├── __init__.py
+│   │   ├── history.py
 │   │   ├── phase1.py
 │   │   ├── probe.py
 │   │   └── pun.py
@@ -1219,6 +1252,7 @@ project_root/
 │   ├── prepare_num_split.py
 │   ├── precompute_visibility.py
 │   ├── build_history_dataset.py
+│   ├── train_history.py
 │   ├── run_phase1.py
 │   ├── train_probe.py
 │   └── visualize_phase1.py
@@ -1229,6 +1263,7 @@ project_root/
 │   ├── test_feature_cache.py
 │   ├── test_features.py
 │   ├── test_history_dataset.py
+│   ├── test_history_models.py
 │   ├── test_metrics.py
 │   ├── test_num_dataset.py
 │   ├── test_num_splits.py
@@ -1255,7 +1290,9 @@ for `Vis` and `VisA`. The repository now also contains the acquired-only
 observation store, shared closed-loop evaluator, Random/Farthest/Oracle
 policies, official-checkpoint PUN adapter with history aggregation, independent
 VGGT policy, and the deterministic Phase 3 direct-gain history dataset
-builder/loader. The independent and joint Phase 3 models are not implemented.
+builder/loader. The independent Phase 3 model, cache-backed training and
+one-step evaluation, direct-gain policy adapter, and closed-loop smoke path are
+implemented. The joint Phase 3 model is not implemented.
 Extend the existing `src/nbv` package without reorganizing completed Phase 1
 modules.
 
@@ -1274,11 +1311,9 @@ project_root/
 ├── src/nbv/
 │   ├── data/prediction_cache.py
 │   ├── models/
-│   │   ├── independent_multiview.py     # Phase 3 feature aggregation + head
 │   │   └── joint_multiview.py           # Phase 3 joint history + head
 │   ├── features/vggt_joint.py           # separate from single-image VGGT
 │   ├── policies/
-│   │   ├── history_policy.py           # Phase 3 direct gain predictions
 │   │   └── geometry_policy.py          # optional depth baselines
 │   ├── eval/
 │   │   ├── one_step.py
@@ -1288,10 +1323,7 @@ project_root/
 │       └── coverage_plot.py
 ├── scripts/
 │   ├── make_demo_results.py
-│   ├── train_history.py                # Phase 3 only
 │   └── evaluate_one_step.py
-└── tests/
-    └── test_history_models.py
 ```
 
 Keep the existing geometry implementation and `precompute_visibility.py` as
@@ -2050,16 +2082,17 @@ or justify changing its target semantics.
 
 ### Step 15 — Phase 3 direct surface-gain history dataset
 
-**Implementation status:** implemented and tested. The dataset builder writes
+**Implementation status:** complete. The dataset builder writes
 deterministic, checksum-verified split shards with seeded unique-anchor
 histories, direct `target_surface_gain`, candidate masks, relative image
 paths, cache fingerprints, identity-rotation metadata, and complete sampling
 provenance. The loader supports path-only or decoded-RGB samples and its
 collator keeps a true-for-padding observation mask separate from the
 48-candidate mask. Configuration cross-checks the Phase 2 visibility and
-closed-loop target. Synthetic end-to-end tests and a 40-history real-cache
-smoke build pass. The complete train/validation/test artifact awaits the
-corresponding visibility-cache precomputation.
+closed-loop target. The generated artifact contains all 1,279 split objects
+and 51,160 histories: 34,800 train, 4,360 validation, and 12,000 test, balanced
+across lengths 1, 2, 4, 6, and 8. All recorded visibility fingerprints and one
+independently recomputed label per object were validated after generation.
 
 With the Phase 2 implementation stable and its final full run pending, use
 `history_dataset.py` and `scripts/build_history_dataset.py`. Extend
@@ -2075,6 +2108,23 @@ one visibility definition. Verify non-rotated data first; add consistent random
 rotations or policy-generated histories only as later documented ablations.
 
 ### Step 16 — Phase 3 independent history control
+
+**Implementation status:** complete and real-data validated. `IndependentHistoryGainModel`
+uses independently cached/extracted single-image VGGT vectors, optional fixed
+canonical camera directions, padding-aware masked-mean aggregation, and a new
+lightweight direct-gain head. `train_history.py` verifies history/cache/split
+provenance, trains only on `target_surface_gain`, restores the validation-loss
+checkpoint, exports regression and ranking metrics, and runs an optional
+replay-verified validation-object smoke rollout through the unchanged Phase 2
+evaluator. Tests cover variable lengths, padding isolation, exact permutation
+invariance, the one-image VGGT sequence boundary, tiny-set overfitting, and the
+complete synthetic train/evaluate/checkpoint/rollout workflow. A bounded
+one-epoch validation run over every generated train/validation/test history is
+retained under `outputs/phase3/independent_history_validation/seed_0`. It saves
+a reloadable validation-selected checkpoint, metrics for all 4,360 validation
+and 12,000 test histories, and a replay-verified five-view validation-object
+rollout. This completion smoke validates Step 16 plumbing and invariants; it is
+not a substitute for the full-budget controlled experiment in Step 18.
 
 Build a new history-trained model from independent frozen VGGT features,
 permutation-invariant feature aggregation, and a lightweight 48-gain head.
@@ -2434,7 +2484,10 @@ The planned common summary separates training and evaluation semantics:
     "spearman_valid_count": null,
     "ndcg_at_5_mean": null,
     "coverage_auc_mean": null,
-    "final_coverage_mean": null
+    "final_coverage_mean": null,
+    "reachable_coverage_ceiling_mean": null,
+    "reachable_normalized_coverage_auc_mean": null,
+    "final_reachable_normalized_coverage_mean": null
   },
   "profiling": {
     "median_live_inference_ms": null,

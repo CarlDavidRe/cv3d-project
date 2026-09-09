@@ -13,10 +13,11 @@ from typing import Any
 import numpy as np
 
 from nbv.data.visibility_cache import VisibilityCache, visibility_cache_fingerprint
-from nbv.eval.metrics import coverage_auc
+from nbv.eval.metrics import coverage_auc, reachable_normalized_coverage
 
 
-ROLLOUT_SCHEMA_VERSION = 1
+ROLLOUT_SCHEMA_VERSION = 2
+SUPPORTED_ROLLOUT_SCHEMA_VERSIONS = (1, ROLLOUT_SCHEMA_VERSION)
 
 
 def visibility_fingerprint(cache: VisibilityCache) -> str:
@@ -36,7 +37,20 @@ class RolloutResult:
     valid_masks: np.ndarray
     image_paths: tuple[str, ...]
 
+    @property
+    def reachable_normalized_coverage(self) -> np.ndarray | None:
+        """Coverage normalized by the eligible-view union, when recorded."""
+
+        ceiling = self.metadata.get("reachable_coverage_ceiling")
+        if ceiling is None:
+            return None
+        return np.asarray(
+            [reachable_normalized_coverage(value, ceiling) for value in self.coverage],
+            dtype=np.float64,
+        )
+
     def summary(self) -> dict[str, Any]:
+        reachable = self.reachable_normalized_coverage
         result = {
             "object_id": self.metadata["object_id"],
             "policy": self.metadata["policy"],
@@ -47,6 +61,19 @@ class RolloutResult:
             "initial_coverage": float(self.coverage[0]),
             "final_coverage": float(self.coverage[-1]),
             "coverage_auc": coverage_auc(self.coverage, self.acquired_view_counts),
+            "reachable_coverage_ceiling": self.metadata.get(
+                "reachable_coverage_ceiling"
+            ),
+            "initial_reachable_normalized_coverage": (
+                float(reachable[0]) if reachable is not None else None
+            ),
+            "final_reachable_normalized_coverage": (
+                float(reachable[-1]) if reachable is not None else None
+            ),
+            "reachable_normalized_coverage_auc": (
+                coverage_auc(reachable, self.acquired_view_counts)
+                if reachable is not None else None
+            ),
             "coverage_interval_start": int(self.acquired_view_counts[0]),
             "coverage_interval_end": int(self.acquired_view_counts[-1]),
             "num_steps": len(self.steps),
@@ -99,8 +126,15 @@ def save_rollout(result: RolloutResult, path: str | Path) -> Path:
 def load_rollout(path: str | Path) -> RolloutResult:
     with np.load(path, allow_pickle=False) as payload:
         metadata = json.loads(str(payload["metadata_json"].item()))
-        if metadata.get("schema_version") != ROLLOUT_SCHEMA_VERSION:
+        if metadata.get("schema_version") not in SUPPORTED_ROLLOUT_SCHEMA_VERSIONS:
             raise ValueError("Unsupported rollout schema_version")
+        if (
+            metadata["schema_version"] >= 2
+            and "reachable_coverage_ceiling" not in metadata
+        ):
+            raise ValueError(
+                "Rollout schema 2 requires metadata.reachable_coverage_ceiling"
+            )
         return RolloutResult(
             metadata=metadata,
             steps=json.loads(str(payload["steps_json"].item())),

@@ -218,8 +218,17 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
                 results[0].metadata["training_target_semantics"] if results else None
             ),
         }
-        for metric in ("final_coverage", "coverage_auc"):
-            comparison[f"{metric}_mean"] = float(np.mean([row[metric] for row in rows])) if rows else None
+        for metric in (
+            "final_coverage",
+            "coverage_auc",
+            "reachable_coverage_ceiling",
+            "final_reachable_normalized_coverage",
+            "reachable_normalized_coverage_auc",
+        ):
+            values = [row[metric] for row in rows if row[metric] is not None]
+            comparison[f"{metric}_mean"] = (
+                float(np.mean(values)) if values else None
+            )
         for metric in ("normalized_regret", "spearman", "ndcg_at_5"):
             values = [step[metric] for result in results for step in result.steps if step[metric] is not None]
             comparison[f"{metric}_mean"] = float(np.mean(values)) if values else None
@@ -243,9 +252,34 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
         comparisons.append(comparison)
         for count in sorted({int(c) for result in results for c in result.acquired_view_counts}):
             values = [float(result.coverage[np.flatnonzero(result.acquired_view_counts == count)[0]]) for result in results if count in result.acquired_view_counts]
-            curves.append({"policy": policy, "acquired_view_count": count, "coverage_mean": float(np.mean(values)), "object_count": len(values)})
+            reachable_values = [
+                float(result.reachable_normalized_coverage[
+                    np.flatnonzero(result.acquired_view_counts == count)[0]
+                ])
+                for result in results
+                if count in result.acquired_view_counts
+                and result.reachable_normalized_coverage is not None
+            ]
+            ceilings = [
+                float(result.metadata["reachable_coverage_ceiling"])
+                for result in results
+                if count in result.acquired_view_counts
+                and "reachable_coverage_ceiling" in result.metadata
+            ]
+            curves.append({
+                "policy": policy,
+                "acquired_view_count": count,
+                "coverage_mean": float(np.mean(values)),
+                "reachable_normalized_coverage_mean": (
+                    float(np.mean(reachable_values)) if reachable_values else None
+                ),
+                "reachable_coverage_ceiling_mean": (
+                    float(np.mean(ceilings)) if ceilings else None
+                ),
+                "object_count": len(values),
+            })
     summary = {
-        "schema_version": 1, "phase": "phase2", "coverage_target": rollout_config.coverage_target,
+        "schema_version": 2, "phase": "phase2", "coverage_target": rollout_config.coverage_target,
         "training_target_semantics": "policy_specific; see policy rows and rollouts",
         "policies": comparisons,
         "policy_provenance": {
@@ -262,7 +296,15 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
         "complete_requested_cohort": manifest["complete_requested_cohort"], "complete_fixed_split": manifest["complete_fixed_split"],
         "visibility_cache_manifest": str(manifest_path),
         "ranking_aggregation": "pooled_per_step_mean_excluding_null_with_valid_counts",
-        "coverage_aggregation": "per_object_mean; AUC is unnormalized over recorded acquired-view counts",
+        "coverage_aggregation": (
+            "per_object_mean; AUC is unnormalized over recorded acquired-view "
+            "counts; reachable-normalized coverage divides each object's "
+            "absolute coverage by its eligible-view union before aggregation"
+        ),
+        "reachable_normalized_coverage_definition": (
+            "absolute coverage divided by the union coverage of every available, "
+            "non-invalid anchor for that object; zero when that union is empty"
+        ),
         "timing_protocol": "Policy scoring includes cache lookup or preprocessing/inference plus aggregation; excludes geometry and evaluator RGB loading. CUDA is synchronized around scoring; medians include the cold first decision.",
         "memory_protocol": "Per-step process RSS plus RSS delta and CUDA peak allocated bytes; CUDA peak stats reset immediately before each score call.",
         "original_num_target_results": {
@@ -310,6 +352,12 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
         "five_core_policies": set(policies) == required_policies,
         "all_rollouts_replay_verified": len(all_results) == len(manifest["evaluated_object_ids"]) * len(policies),
         "per_object_and_per_step_exports": bool(per_object) and bool([s for r in all_results for s in r.steps]),
+        "reachable_normalized_coverage_exports": bool(per_object) and all(
+            result.reachable_normalized_coverage is not None
+            and "reachable_normalized_coverage_before" in step
+            and "reachable_normalized_coverage_after" in step
+            for result in all_results for step in result.steps
+        ),
         "profiling_records": all(
             "policy_ms" in step and "process_rss_bytes" in step
             for result in all_results for step in result.steps

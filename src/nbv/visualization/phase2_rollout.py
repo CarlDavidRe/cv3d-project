@@ -27,6 +27,13 @@ def write_phase2_rollout_demo(
     if decision >= len(result.steps):
         raise ValueError("decision_index is out of range")
     step = result.steps[decision]
+    reachable_before = step.get("reachable_normalized_coverage_before")
+    reachable_after = step.get("reachable_normalized_coverage_after")
+    reachable_note = (
+        f"; reachable-normalized {reachable_before:.4f} → {reachable_after:.4f}"
+        if reachable_before is not None and reachable_after is not None
+        else ""
+    )
     history = tuple(step["history_anchor_ids"])
     selected = int(step["selected_anchor"])
     seen = np.any(cache.face_visibility[np.asarray(history, dtype=int)], axis=0)
@@ -46,7 +53,7 @@ def write_phase2_rollout_demo(
         '<style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:24px;font-weight:700}.label{font-size:14px;font-weight:650}.small{font-size:11px;fill:#475569}.axis{stroke:#94a3b8}.grid{stroke:#e2e8f0}</style>',
         '<rect width="100%" height="100%" fill="white"/>',
         f'<text x="750" y="34" text-anchor="middle" class="title">Phase 2 rollout: {escape(result.metadata["policy"])} — {escape(result.metadata["object_id"])}</text>',
-        f'<text x="750" y="58" text-anchor="middle" class="small">decision {decision + 1}; selected anchor {selected}; {escape(result.metadata["coverage_target"])} coverage {step["coverage_before"]:.4f} → {step["coverage_after"]:.4f}</text>',
+        f'<text x="750" y="58" text-anchor="middle" class="small">decision {decision + 1}; selected anchor {selected}; {escape(result.metadata["coverage_target"])} coverage {step["coverage_before"]:.4f} → {step["coverage_after"]:.4f}{reachable_note}</text>',
         '<text x="35" y="92" class="label">Acquired observations available to the policy</text>',
     ]
     thumb_w, thumb_h = 132, 112

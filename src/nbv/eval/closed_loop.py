@@ -13,7 +13,12 @@ import torch
 
 from nbv.data.observation_store import ObservationStore
 from nbv.data.visibility_cache import VisibilityCache
-from nbv.eval.metrics import ndcg_at_k, normalized_regret, spearman_rank
+from nbv.eval.metrics import (
+    ndcg_at_k,
+    normalized_regret,
+    reachable_normalized_coverage,
+    spearman_rank,
+)
 from nbv.eval.result_schema import ROLLOUT_SCHEMA_VERSION, RolloutResult, visibility_fingerprint
 from nbv.geometry.anchors import CANONICAL_ORDERING, canonical_anchors
 from nbv.geometry.coverage import VISIBILITY_TARGETS
@@ -109,6 +114,14 @@ def run_rollout(
         raise ValueError("Every initial anchor must have available RGB")
     for anchor_id in history:
         observations.acquire(anchor_id)
+    reachable_anchor_ids = np.flatnonzero(available)
+    reachable_ceiling = float(
+        np.clip(
+            cache.coverage(reachable_anchor_ids, target=config.coverage_target),
+            0,
+            1,
+        )
+    )
     radius = float(cache.metadata.get("camera_radius", 1.0))
     camera_poses = np.stack([
         anchor_camera_to_world(
@@ -173,6 +186,12 @@ def run_rollout(
             "valid_candidate_mask": valid.tolist(), "selected_anchor": selected,
             "selected_true_gain": float(gains[selected]), "oracle_true_gain": float(gains[valid].max()),
             "coverage_before": before, "coverage_after": after,
+            "reachable_normalized_coverage_before": reachable_normalized_coverage(
+                before, reachable_ceiling
+            ),
+            "reachable_normalized_coverage_after": reachable_normalized_coverage(
+                after, reachable_ceiling
+            ),
             "normalized_regret": normalized_regret(scores, gains, valid),
             "spearman": float(correlation) if np.isfinite(correlation) else None,
             "ndcg_at_5": ndcg_at_k(scores, gains, valid),
@@ -197,6 +216,12 @@ def run_rollout(
         "policy_provenance": getattr(policy, "provenance", {}),
         "training_target_semantics": getattr(policy, "training_target_semantics", "none"),
         "coverage_target": config.coverage_target,
+        "reachable_coverage_ceiling": reachable_ceiling,
+        "reachable_coverage_anchor_ids": reachable_anchor_ids.tolist(),
+        "reachable_normalized_coverage_definition": (
+            "absolute_coverage_divided_by_union_coverage_of_all_available_"
+            "non_invalid_anchors; zero_when_ceiling_is_zero"
+        ),
         "visibility_definition": cache.metadata["visibility_definition"],
         "visibility_cache_fingerprint": visibility_fingerprint(cache),
         "visibility_cache_metadata": cache.metadata.copy(),

@@ -12,6 +12,14 @@ from nbv.data.history_dataset import (
     build_history_dataset,
     collate_history_samples,
 )
+from nbv.data.history_features import (
+    FrozenFeatureLookup,
+    HistoryFeatureBatch,
+    HistoryFeatureDataset,
+    HistoryFeatureError,
+    HistoryFeatureSample,
+    collate_history_features,
+)
 from nbv.data.num_dataset import (
     NUMDataset,
     NUMDatasetError,
@@ -42,6 +50,11 @@ __all__ = [
     "HISTORY_DATASET_SCHEMA_VERSION",
     "HISTORY_SAMPLING_STRATEGY",
     "HistoryBatch",
+    "FrozenFeatureLookup",
+    "HistoryFeatureBatch",
+    "HistoryFeatureDataset",
+    "HistoryFeatureError",
+    "HistoryFeatureSample",
     "HistoryDataset",
     "HistoryDatasetError",
     "HistorySample",
@@ -54,6 +67,7 @@ __all__ = [
     "build_num_v1_manifest",
     "build_history_dataset",
     "collate_history_samples",
+    "collate_history_features",
     "complete_objects_by_category",
     "load_object_split",
     "pun_compatible_object_split",

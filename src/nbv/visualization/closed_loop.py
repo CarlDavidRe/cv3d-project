@@ -42,11 +42,12 @@ def write_closed_loop_visualizations(
 
 
 def _write_coverage(results: Sequence[Any], policies: tuple[str, ...], path: Path) -> None:
-    series = {}
+    absolute_series = {}
+    reachable_series = {}
     for policy in policies:
         selected = [result for result in results if result.metadata["policy"] == policy]
         counts = sorted({int(value) for result in selected for value in result.acquired_view_counts})
-        series[policy] = [
+        absolute_series[policy] = [
             (
                 float(count),
                 float(np.mean([
@@ -57,14 +58,36 @@ def _write_coverage(results: Sequence[Any], policies: tuple[str, ...], path: Pat
             )
             for count in counts
         ]
+        reachable_series[policy] = [
+            (
+                float(count),
+                float(np.mean([
+                    result.reachable_normalized_coverage[
+                        np.flatnonzero(result.acquired_view_counts == count)[0]
+                    ]
+                    for result in selected
+                    if count in result.acquired_view_counts
+                    and result.reachable_normalized_coverage is not None
+                ])),
+            )
+            for count in counts
+            if any(
+                count in result.acquired_view_counts
+                and result.reachable_normalized_coverage is not None
+                for result in selected
+            )
+        ]
     _write_line_figure(
         path,
         title="Mean surface coverage by acquired-view count",
         subtitle=_cohort_note(results),
         policies=policies,
-        panels=(("Coverage", series, (0.0, 1.0)),),
+        panels=(
+            ("Absolute coverage", absolute_series, (0.0, 1.0)),
+            ("Reachable-normalized coverage", reachable_series, (0.0, 1.0)),
+        ),
         x_label="total acquired views (initial views included)",
-        width=980,
+        width=1460,
         height=590,
     )
 
@@ -107,6 +130,11 @@ def _write_per_step(results: Sequence[Any], policies: tuple[str, ...], path: Pat
 def _write_summary(results: Sequence[Any], policies: tuple[str, ...], path: Path) -> None:
     definitions = (
         ("Final coverage ↑", "final_coverage", (0.0, 1.0)),
+        (
+            "Final reachable-normalized ↑",
+            "final_reachable_normalized_coverage",
+            (0.0, 1.0),
+        ),
         ("Coverage AUC ↑", "coverage_auc", None),
         ("Mean regret ↓", "normalized_regret_mean", (0.0, 1.0)),
         ("Mean NDCG@5 ↑", "ndcg_at_5_mean", (0.0, 1.0)),
@@ -192,7 +220,7 @@ def _write_bar_figure(
     policies: tuple[str, ...],
     panels: tuple[tuple[str, dict[str, float | None], tuple[float, float] | None], ...],
 ) -> None:
-    width, height = 1460, 560
+    width, height = max(1460, 330 * len(panels) + 130), 560
     margin_x, gap, top, bottom = 70.0, 40.0, 125.0, 105.0
     panel_width = (width - 2 * margin_x - gap * (len(panels) - 1)) / len(panels)
     plot_height = height - top - bottom
@@ -298,4 +326,8 @@ def _color(policy: str, policies: tuple[str, ...]) -> str:
 def _cohort_note(results: Sequence[Any]) -> str:
     object_count = len({result.metadata["object_id"] for result in results})
     target = results[0].metadata["coverage_target"]
-    return f"Mean over {object_count} object{'s' if object_count != 1 else ''}; coverage target: {target}."
+    return (
+        f"Mean over {object_count} object{'s' if object_count != 1 else ''}; "
+        f"absolute target: {target}; reachable normalization uses each "
+        "object's eligible-view union."
+    )

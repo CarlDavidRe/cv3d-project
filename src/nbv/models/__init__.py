@@ -5,6 +5,10 @@ from nbv.models.heads import (
     LightweightProbeHead,
     count_trainable_parameters,
 )
+from nbv.models.independent_multiview import (
+    IndependentHistoryGainModel,
+    independent_feature_batch,
+)
 from nbv.models.pun import (
     PUN_CHECKPOINT_FILE_ID,
     PUN_CHECKPOINT_SHA256,
@@ -23,6 +27,7 @@ from nbv.models.pun import (
 __all__ = [
     "FixedMapHead",
     "LightweightProbeHead",
+    "IndependentHistoryGainModel",
     "PUNModelError",
     "PUNUPNet",
     "PUN_CHECKPOINT_FILE_ID",
@@ -32,6 +37,7 @@ __all__ = [
     "PUN_RELEASE_NAME",
     "PUN_REPOSITORY",
     "count_trainable_parameters",
+    "independent_feature_batch",
     "create_pun_transform",
     "ensure_pun_checkpoint",
     "load_pun_checkpoint",

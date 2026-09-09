@@ -1,0 +1,48 @@
+experiment:
+  deterministic: true
+  name: independent_history_validation
+  phase: phase3
+  seed: 0
+paths:
+  data_root: data/NUM
+  model_cache_root: data/cache/models
+  output_root: outputs
+  visibility_cache_root: data/cache/visibility
+phase3:
+  independent_control:
+    closed_loop_smoke:
+      enabled: true
+      initial_anchor_ids:
+      - 0
+      max_acquired_views: 5
+      object_id: null
+      split: val
+    coverage_target: vis_a
+    device: auto
+    evaluation:
+      batch_size: 512
+      ndcg_k: 5
+    features:
+      cache_paths:
+        test: data/cache/features/vggt/vggt_max_pooled_patch/test_3334dd9c7e19faf6.pt
+        train: data/cache/features/vggt/vggt_max_pooled_patch/train_0b3f8faf5af10256.pt
+        val: data/cache/features/vggt/vggt_max_pooled_patch/val_b3ca43046fab867c.pt
+      components:
+      - max_pooled_patch
+      variant: vggt_max_pooled_patch
+    history_manifest: data/processed/histories/random_unique_v1/manifest.json
+    model:
+      aggregation: masked_mean
+      dropout: 0.1
+      hidden_dim: 128
+      include_anchor_directions: true
+    training:
+      batch_size: 512
+      epochs: 1
+      huber_delta: 0.01
+      learning_rate: 0.001
+      patience: 1
+      ranking_margin: 0.0
+      ranking_weight: 0.1
+      weight_decay: 0.0001
+schema_version: 1
