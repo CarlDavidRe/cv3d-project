@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 import torch
@@ -107,6 +108,24 @@ class HistoryDatasetTests(unittest.TestCase):
                 target="vis_a",
             )
 
+    def test_generation_reports_progress(self) -> None:
+        messages: list[str] = []
+        self._build(self.root / "generated", progress=messages.append)
+
+        self.assertEqual(
+            messages,
+            [
+                "Validating inputs for 2 object(s); planning 8 sample(s).",
+                "Building split 'train' (1 object(s)).",
+                "[train] object 1/1: category_a/object_1",
+                "Finished split 'train': wrote 4 sample(s).",
+                "Building split 'val' (1 object(s)).",
+                "[val] object 1/1: category_b/object_2",
+                "Finished split 'val': wrote 4 sample(s).",
+                "Writing dataset manifest and finalizing.",
+            ],
+        )
+
     def test_variable_length_collation_keeps_masks_separate(self) -> None:
         manifest = self._build(self.root / "generated")
         dataset = HistoryDataset(manifest, split="train")
@@ -168,7 +187,9 @@ class HistoryDatasetTests(unittest.TestCase):
         with self.assertRaisesRegex(HistoryDatasetError, "dataset_id"):
             HistoryDataset(manifest, split="train")
 
-    def _build(self, output: Path) -> Path:
+    def _build(
+        self, output: Path, *, progress: Callable[[str], None] | None = None
+    ) -> Path:
         return build_history_dataset(
             output,
             data_root=self.data_root,
@@ -187,6 +208,7 @@ class HistoryDatasetTests(unittest.TestCase):
                     "pun_unoccluded_rasterized_mesh_faces_v1"
                 ),
             },
+            progress=progress,
         )
 
     def _write_images(self, object_id: str, pixel_value: int) -> None:

@@ -403,8 +403,14 @@ from google.colab import drive
 drive.mount("/content/drive")
 ```
 
-Then run the following commands in the Colab terminal after cloning the
-repository to `/content/cv3d-project`:
+In the Colab terminal, authenticate with GitHub and clone the repository:
+
+```bash
+gh auth login
+git clone https://github.com/CarlDavidRe/cv3d-project.git /content/cv3d-project
+```
+
+Then extract the datasets:
 
 ```bash
 mkdir -p /content/cv3d-project/data

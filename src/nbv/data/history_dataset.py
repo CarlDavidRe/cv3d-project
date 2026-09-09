@@ -460,12 +460,14 @@ def build_history_dataset(
     object_ids: Sequence[str] | None = None,
     limit_per_split: int | None = None,
     overwrite: bool = False,
+    progress: Callable[[str], None] | None = None,
 ) -> Path:
     """Generate atomic split shards and a deterministic manifest.
 
     Every label comes from the shared visibility-cache gain helper. Two
     histories per object are additionally checked against explicit coverage
-    differences.
+    differences. When provided, ``progress`` receives human-readable status
+    messages as the build advances.
     """
 
     destination = Path(output_dir).resolve()
@@ -527,6 +529,14 @@ def build_history_dataset(
         for split in selected_splits
         for value in objects_by_split.get(split, [])
     ]
+    total_samples = (
+        len(all_objects) * len(lengths) * histories_per_object_per_length
+    )
+    _report_progress(
+        progress,
+        "Validating inputs for "
+        f"{len(all_objects)} object(s); planning {total_samples} sample(s).",
+    )
     _preflight_inputs(data_root_path, cache_root, all_objects)
     if destination.exists():
         if not overwrite:
@@ -569,8 +579,16 @@ def build_history_dataset(
             selected = objects_by_split.get(split)
             if not selected:
                 continue
+            _report_progress(
+                progress,
+                f"Building split {split!r} ({len(selected)} object(s)).",
+            )
             records: list[dict[str, Any]] = []
-            for object_id in selected:
+            for object_index, object_id in enumerate(selected, start=1):
+                _report_progress(
+                    progress,
+                    f"[{split}] object {object_index}/{len(selected)}: {object_id}",
+                )
                 cache = load_visibility_cache(
                     object_id,
                     cache_root=cache_root,
@@ -615,6 +633,10 @@ def build_history_dataset(
                 "rotation_metadata": NO_ROTATION_METADATA,
             }
             _save_shard(records, shard_path, shard_metadata, max(lengths))
+            _report_progress(
+                progress,
+                f"Finished split {split!r}: wrote {len(records)} sample(s).",
+            )
             split_entries[split] = {
                 "file": shard_path.name,
                 "sha256": sha256_file(shard_path),
@@ -660,6 +682,7 @@ def build_history_dataset(
             },
         }
         manifest = dict(manifest_core, dataset_id=_json_sha256(manifest_core))
+        _report_progress(progress, "Writing dataset manifest and finalizing.")
         _write_json(manifest, temporary / "manifest.json")
         if destination.exists():
             shutil.rmtree(destination)
@@ -669,6 +692,13 @@ def build_history_dataset(
             shutil.rmtree(temporary)
         raise
     return destination / "manifest.json"
+
+
+def _report_progress(
+    progress: Callable[[str], None] | None, message: str
+) -> None:
+    if progress is not None:
+        progress(message)
 
 
 def assert_surface_gain_matches_coverage(

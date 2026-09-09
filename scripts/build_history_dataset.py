@@ -153,6 +153,9 @@ def main() -> int:
                 else settings["limit_per_split"]
             ),
             overwrite=args.overwrite,
+            progress=lambda message: print(
+                f"History dataset: {message}", flush=True
+            ),
         )
     except (
         ConfigError,
@@ -164,7 +167,7 @@ def main() -> int:
     ) as exc:
         print(f"History dataset error: {exc}", file=sys.stderr)
         return 2
-    print(f"WROTE Phase 3 history dataset: {manifest}")
+    print(f"WROTE Phase 3 history dataset: {manifest}", flush=True)
     return 0
 
 
