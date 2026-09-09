@@ -1,0 +1,17 @@
+{
+  "results": [
+    {
+      "backbone": "vggt",
+      "best_epoch": 41,
+      "feature": "vggt_max_pooled_patch",
+      "huber_loss": 0.008260369633634886,
+      "input_dim": 2051,
+      "ndcg_at_5_mean": 0.8488794338129447,
+      "normalized_regret_mean": 0.17576632043823825,
+      "spearman_mean": 0.7065723424199541,
+      "trainable_parameters": 272950,
+      "variant": "independent_history_control"
+    }
+  ],
+  "schema_version": 1
+}

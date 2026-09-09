@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="470" viewBox="0 0 1200 470">
+<style>
+text { font-family: ui-sans-serif, system-ui, sans-serif; fill: #111827; }
+.title { font-size: 22px; font-weight: 700; }
+.panel-title { font-size: 15px; font-weight: 650; }
+.tick { font-size: 11px; fill: #475569; }
+.legend { font-size: 11px; }
+.note { font-size: 11px; fill: #64748b; }
+</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="600.00" y="32" class="title" text-anchor="middle">Validation ranking metrics — independent_history_control</text>
+<text x="236.67" y="68" class="panel-title" text-anchor="middle">Normalized regret (lower is better)</text>
+<rect x="65.00" y="90.00" width="343.33" height="315.00" fill="#f8fafc" stroke="#cbd5e1"/>
+<line x1="65.00" y1="90.00" x2="65.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="65.00" y="424.00" class="tick" text-anchor="middle">0</text>
+<line x1="65.00" y1="405.00" x2="408.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="57.00" y="409.00" class="tick" text-anchor="end">0.129</text>
+<line x1="133.67" y1="90.00" x2="133.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="133.67" y="424.00" class="tick" text-anchor="middle">11</text>
+<line x1="65.00" y1="342.00" x2="408.33" y2="342.00" stroke="#e2e8f0"/>
+<text x="57.00" y="346.00" class="tick" text-anchor="end">0.226</text>
+<line x1="202.33" y1="90.00" x2="202.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="202.33" y="424.00" class="tick" text-anchor="middle">21</text>
+<line x1="65.00" y1="279.00" x2="408.33" y2="279.00" stroke="#e2e8f0"/>
+<text x="57.00" y="283.00" class="tick" text-anchor="end">0.322</text>
+<line x1="271.00" y1="90.00" x2="271.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="271.00" y="424.00" class="tick" text-anchor="middle">32</text>
+<line x1="65.00" y1="216.00" x2="408.33" y2="216.00" stroke="#e2e8f0"/>
+<text x="57.00" y="220.00" class="tick" text-anchor="end">0.419</text>
+<line x1="339.67" y1="90.00" x2="339.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="339.67" y="424.00" class="tick" text-anchor="middle">43</text>
+<line x1="65.00" y1="153.00" x2="408.33" y2="153.00" stroke="#e2e8f0"/>
+<text x="57.00" y="157.00" class="tick" text-anchor="end">0.515</text>
+<line x1="408.33" y1="90.00" x2="408.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="408.33" y="424.00" class="tick" text-anchor="middle">54</text>
+<line x1="65.00" y1="90.00" x2="408.33" y2="90.00" stroke="#e2e8f0"/>
+<text x="57.00" y="94.00" class="tick" text-anchor="end">0.612</text>
+<text x="236.67" y="447.00" class="tick" text-anchor="middle">epoch</text>
+<line x1="391.98" y1="90.0" x2="391.98" y2="405.0" stroke="#64748b" stroke-width="1.5" stroke-dasharray="1 4" data-last-epoch="51" data-stopped-early="true"/>
+<line x1="327.87" y1="90.0" x2="327.87" y2="405.0" stroke="#111827" stroke-width="1.5" stroke-dasharray="3 4" data-best-epoch="41"/>
+<polyline points="65.00,104.32 71.41,322.35 77.82,354.77 84.23,368.18 90.65,371.06 97.06,366.30 103.47,375.18 109.88,373.54 116.29,377.83 122.70,377.90 129.11,375.88 135.53,380.22 141.94,379.11 148.35,379.58 154.76,381.97 161.17,380.61 167.58,381.07 173.99,382.86 180.41,381.60 186.82,381.59 193.23,380.78 199.64,381.48 206.05,383.86 212.46,385.28 218.87,384.12 225.29,384.20 231.70,384.89 238.11,386.58 244.52,388.30 250.93,387.36 257.34,387.71 263.76,388.21 270.17,386.98 276.58,388.11 282.99,389.88 289.40,385.86 295.81,388.45 302.22,387.79 308.64,389.72 315.05,386.64 321.46,389.08 327.87,390.48 334.28,388.74 340.69,390.54 347.10,390.68 353.52,389.63 359.93,389.89 366.34,388.59 372.75,388.83 379.16,390.54 385.57,390.19 391.98,387.16" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" data-series="validation_normalized_regret_mean"/>
+<line x1="75.00" y1="107.00" x2="95.00" y2="107.00" stroke="#7c3aed" stroke-width="2.5"/>
+<text x="102.00" y="111.00" class="legend">validation</text>
+<text x="615.00" y="68" class="panel-title" text-anchor="middle">Spearman (higher is better)</text>
+<rect x="443.33" y="90.00" width="343.33" height="315.00" fill="#f8fafc" stroke="#cbd5e1"/>
+<line x1="443.33" y1="90.00" x2="443.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="443.33" y="424.00" class="tick" text-anchor="middle">0</text>
+<line x1="443.33" y1="405.00" x2="786.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="435.33" y="409.00" class="tick" text-anchor="end">-0.0541</text>
+<line x1="512.00" y1="90.00" x2="512.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="512.00" y="424.00" class="tick" text-anchor="middle">11</text>
+<line x1="443.33" y1="342.00" x2="786.67" y2="342.00" stroke="#e2e8f0"/>
+<text x="435.33" y="346.00" class="tick" text-anchor="end">0.115</text>
+<line x1="580.67" y1="90.00" x2="580.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="580.67" y="424.00" class="tick" text-anchor="middle">21</text>
+<line x1="443.33" y1="279.00" x2="786.67" y2="279.00" stroke="#e2e8f0"/>
+<text x="435.33" y="283.00" class="tick" text-anchor="end">0.285</text>
+<line x1="649.33" y1="90.00" x2="649.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="649.33" y="424.00" class="tick" text-anchor="middle">32</text>
+<line x1="443.33" y1="216.00" x2="786.67" y2="216.00" stroke="#e2e8f0"/>
+<text x="435.33" y="220.00" class="tick" text-anchor="end">0.454</text>
+<line x1="718.00" y1="90.00" x2="718.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="718.00" y="424.00" class="tick" text-anchor="middle">43</text>
+<line x1="443.33" y1="153.00" x2="786.67" y2="153.00" stroke="#e2e8f0"/>
+<text x="435.33" y="157.00" class="tick" text-anchor="end">0.624</text>
+<line x1="786.67" y1="90.00" x2="786.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="786.67" y="424.00" class="tick" text-anchor="middle">54</text>
+<line x1="443.33" y1="90.00" x2="786.67" y2="90.00" stroke="#e2e8f0"/>
+<text x="435.33" y="94.00" class="tick" text-anchor="end">0.794</text>
+<text x="615.00" y="447.00" class="tick" text-anchor="middle">epoch</text>
+<line x1="770.32" y1="90.0" x2="770.32" y2="405.0" stroke="#64748b" stroke-width="1.5" stroke-dasharray="1 4" data-last-epoch="51" data-stopped-early="true"/>
+<line x1="706.20" y1="90.0" x2="706.20" y2="405.0" stroke="#111827" stroke-width="1.5" stroke-dasharray="3 4" data-best-epoch="41"/>
+<polyline points="443.33,390.68 449.74,185.49 456.16,149.06 462.57,130.15 468.98,122.45 475.39,130.78 481.80,118.80 488.21,120.39 494.62,116.15 501.04,118.03 507.45,119.50 513.86,113.87 520.27,117.06 526.68,116.00 533.09,114.34 539.51,114.82 545.92,113.15 552.33,112.07 558.74,113.86 565.15,112.04 571.56,114.65 577.97,113.52 584.39,112.26 590.80,109.65 597.21,111.75 603.62,110.67 610.03,109.32 616.44,107.92 622.85,106.96 629.27,108.05 635.68,106.62 642.09,107.52 648.50,107.27 654.91,107.47 661.32,107.31 667.73,109.35 674.15,106.34 680.56,105.56 686.97,105.29 693.38,109.53 699.79,104.98 706.20,104.32 712.61,104.37 719.03,105.96 725.44,104.54 731.85,106.31 738.26,105.44 744.67,106.05 751.08,106.69 757.49,106.04 763.91,105.14 770.32,106.77" fill="none" stroke="#059669" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" data-series="validation_spearman_mean"/>
+<line x1="453.33" y1="107.00" x2="473.33" y2="107.00" stroke="#059669" stroke-width="2.5"/>
+<text x="480.33" y="111.00" class="legend">validation</text>
+<text x="993.33" y="68" class="panel-title" text-anchor="middle">NDCG@5 (higher is better)</text>
+<rect x="821.67" y="90.00" width="343.33" height="315.00" fill="#f8fafc" stroke="#cbd5e1"/>
+<line x1="821.67" y1="90.00" x2="821.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="821.67" y="424.00" class="tick" text-anchor="middle">0</text>
+<line x1="821.67" y1="405.00" x2="1165.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="813.67" y="409.00" class="tick" text-anchor="end">0.503</text>
+<line x1="890.33" y1="90.00" x2="890.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="890.33" y="424.00" class="tick" text-anchor="middle">11</text>
+<line x1="821.67" y1="342.00" x2="1165.00" y2="342.00" stroke="#e2e8f0"/>
+<text x="813.67" y="346.00" class="tick" text-anchor="end">0.58</text>
+<line x1="959.00" y1="90.00" x2="959.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="959.00" y="424.00" class="tick" text-anchor="middle">21</text>
+<line x1="821.67" y1="279.00" x2="1165.00" y2="279.00" stroke="#e2e8f0"/>
+<text x="813.67" y="283.00" class="tick" text-anchor="end">0.657</text>
+<line x1="1027.67" y1="90.00" x2="1027.67" y2="405.00" stroke="#e2e8f0"/>
+<text x="1027.67" y="424.00" class="tick" text-anchor="middle">32</text>
+<line x1="821.67" y1="216.00" x2="1165.00" y2="216.00" stroke="#e2e8f0"/>
+<text x="813.67" y="220.00" class="tick" text-anchor="end">0.734</text>
+<line x1="1096.33" y1="90.00" x2="1096.33" y2="405.00" stroke="#e2e8f0"/>
+<text x="1096.33" y="424.00" class="tick" text-anchor="middle">43</text>
+<line x1="821.67" y1="153.00" x2="1165.00" y2="153.00" stroke="#e2e8f0"/>
+<text x="813.67" y="157.00" class="tick" text-anchor="end">0.81</text>
+<line x1="1165.00" y1="90.00" x2="1165.00" y2="405.00" stroke="#e2e8f0"/>
+<text x="1165.00" y="424.00" class="tick" text-anchor="middle">54</text>
+<line x1="821.67" y1="90.00" x2="1165.00" y2="90.00" stroke="#e2e8f0"/>
+<text x="813.67" y="94.00" class="tick" text-anchor="end">0.887</text>
+<text x="993.33" y="447.00" class="tick" text-anchor="middle">epoch</text>
+<line x1="1148.65" y1="90.0" x2="1148.65" y2="405.0" stroke="#64748b" stroke-width="1.5" stroke-dasharray="1 4" data-last-epoch="51" data-stopped-early="true"/>
+<line x1="1084.54" y1="90.0" x2="1084.54" y2="405.0" stroke="#111827" stroke-width="1.5" stroke-dasharray="3 4" data-best-epoch="41"/>
+<polyline points="821.67,390.68 828.08,189.32 834.49,149.78 840.90,130.95 847.31,126.53 853.72,135.08 860.14,121.57 866.55,122.92 872.96,119.37 879.37,119.40 885.78,122.71 892.19,115.73 898.60,117.76 905.02,117.06 911.43,114.70 917.84,115.97 924.25,115.92 930.66,113.25 937.07,114.96 943.48,114.63 949.90,115.16 956.31,114.46 962.72,112.45 969.13,110.77 975.54,112.39 981.95,111.62 988.36,110.29 994.78,109.39 1001.19,107.04 1007.60,107.92 1014.01,107.51 1020.42,108.49 1026.83,108.38 1033.24,107.28 1039.66,106.72 1046.07,110.41 1052.48,107.29 1058.89,106.81 1065.30,105.22 1071.71,110.66 1078.12,105.71 1084.54,104.91 1090.95,105.48 1097.36,104.99 1103.77,104.32 1110.18,106.09 1116.59,104.84 1123.00,106.76 1129.42,106.16 1135.83,104.84 1142.24,105.40 1148.65,108.42" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" data-series="validation_ndcg_at_5_mean"/>
+<line x1="831.67" y1="107.00" x2="851.67" y2="107.00" stroke="#d97706" stroke-width="2.5"/>
+<text x="858.67" y="111.00" class="legend">validation</text>
+<text x="600.00" y="452" class="note" text-anchor="middle">Black dashed: validation-selected best epoch. Gray dotted: early-stop epoch. Test data are evaluated only on the restored best checkpoint.</text>
+</svg>

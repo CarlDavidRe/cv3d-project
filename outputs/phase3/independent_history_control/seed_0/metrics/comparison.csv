@@ -1,0 +1,2 @@
+variant,backbone,feature,input_dim,trainable_parameters,best_epoch,huber_loss,official_unmasked_mse_loss,normalized_regret_mean,spearman_mean,ndcg_at_5_mean
+independent_history_control,vggt,vggt_max_pooled_patch,2051,272950,41,0.008260369633634886,,0.17576632043823825,0.7065723424199541,0.8488794338129447

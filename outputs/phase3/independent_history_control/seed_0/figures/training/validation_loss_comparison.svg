@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650">
+<style>
+text { font-family: ui-sans-serif, system-ui, sans-serif; fill: #111827; }
+.title { font-size: 22px; font-weight: 700; }
+.panel-title { font-size: 15px; font-weight: 650; }
+.tick { font-size: 11px; fill: #475569; }
+.legend { font-size: 11px; }
+.note { font-size: 11px; fill: #64748b; }
+</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="600.00" y="32" class="title" text-anchor="middle">Validation loss comparison</text>
+<rect x="90.00" y="85.00" width="760.00" height="490.00" fill="#f8fafc" stroke="#cbd5e1"/>
+<line x1="90.00" y1="85.00" x2="90.00" y2="575.00" stroke="#e2e8f0"/>
+<text x="90.00" y="594.00" class="tick" text-anchor="middle">0</text>
+<line x1="90.00" y1="575.00" x2="850.00" y2="575.00" stroke="#e2e8f0"/>
+<text x="82.00" y="579.00" class="tick" text-anchor="end">0.0515</text>
+<line x1="242.00" y1="85.00" x2="242.00" y2="575.00" stroke="#e2e8f0"/>
+<text x="242.00" y="594.00" class="tick" text-anchor="middle">11</text>
+<line x1="90.00" y1="477.00" x2="850.00" y2="477.00" stroke="#e2e8f0"/>
+<text x="82.00" y="481.00" class="tick" text-anchor="end">0.056</text>
+<line x1="394.00" y1="85.00" x2="394.00" y2="575.00" stroke="#e2e8f0"/>
+<text x="394.00" y="594.00" class="tick" text-anchor="middle">21</text>
+<line x1="90.00" y1="379.00" x2="850.00" y2="379.00" stroke="#e2e8f0"/>
+<text x="82.00" y="383.00" class="tick" text-anchor="end">0.0604</text>
+<line x1="546.00" y1="85.00" x2="546.00" y2="575.00" stroke="#e2e8f0"/>
+<text x="546.00" y="594.00" class="tick" text-anchor="middle">32</text>
+<line x1="90.00" y1="281.00" x2="850.00" y2="281.00" stroke="#e2e8f0"/>
+<text x="82.00" y="285.00" class="tick" text-anchor="end">0.0649</text>
+<line x1="698.00" y1="85.00" x2="698.00" y2="575.00" stroke="#e2e8f0"/>
+<text x="698.00" y="594.00" class="tick" text-anchor="middle">43</text>
+<line x1="90.00" y1="183.00" x2="850.00" y2="183.00" stroke="#e2e8f0"/>
+<text x="82.00" y="187.00" class="tick" text-anchor="end">0.0693</text>
+<line x1="850.00" y1="85.00" x2="850.00" y2="575.00" stroke="#e2e8f0"/>
+<text x="850.00" y="594.00" class="tick" text-anchor="middle">54</text>
+<line x1="90.00" y1="85.00" x2="850.00" y2="85.00" stroke="#e2e8f0"/>
+<text x="82.00" y="89.00" class="tick" text-anchor="end">0.0738</text>
+<text x="470.00" y="617.00" class="tick" text-anchor="middle">epoch</text>
+<text x="18" y="330.00" class="tick" text-anchor="middle" transform="rotate(-90 18 330.00)">combined validation loss</text>
+<polyline points="90.00,107.27 104.19,343.27 118.38,432.18 132.58,474.22 146.77,493.14 160.96,476.13 175.15,502.79 189.35,503.86 203.54,511.63 217.73,509.24 231.92,504.51 246.12,521.54 260.31,512.53 274.50,513.87 288.69,520.03 302.89,517.92 317.08,523.49 331.27,525.54 345.46,521.22 359.65,528.53 373.85,520.92 388.04,522.08 402.23,526.09 416.42,533.54 430.62,528.60 444.81,533.21 459.00,535.62 473.19,539.97 487.39,543.62 501.58,540.23 515.77,544.41 529.96,541.73 544.15,543.89 558.35,540.30 572.54,542.65 586.73,536.42 600.92,546.23 615.12,546.67 629.31,547.43 643.50,536.30 657.69,549.17 671.89,552.73 686.08,549.88 700.27,545.94 714.46,549.20 728.66,543.14 742.85,548.46 757.04,546.14 771.23,542.26 785.42,542.38 799.62,549.66 813.81,541.80" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" data-series="independent_history_control"/>
+<circle cx="671.89" cy="552.73" r="4" fill="#2563eb" data-best-epoch="41" data-variant="independent_history_control"/>
+<line x1="890.0" y1="105.0" x2="915.0" y2="105.0" stroke="#2563eb" stroke-width="3"/>
+<text x="924.0" y="109.0" class="legend">independent_history_control</text>
+<text x="890.0" y="615" class="note">Circles mark validation-selected best epochs. Test data are not plotted.</text>
+</svg>
