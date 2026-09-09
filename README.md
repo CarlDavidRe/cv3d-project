@@ -23,8 +23,6 @@ The implementation follows the research plan in
 Python 3.10 or newer is required.
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
 python3 -m pip install -r requirements.txt
 python3 -m pip install -e .
 python3 -m unittest discover -s tests -v

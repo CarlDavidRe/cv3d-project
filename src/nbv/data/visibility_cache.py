@@ -24,6 +24,9 @@ from nbv.geometry.coverage import (
 
 
 VISIBILITY_CACHE_SCHEMA_VERSION = 2
+# NumPy records provenance for a generated cache, but the serialized arrays are
+# intentionally portable across supported NumPy versions.
+_NON_COMPATIBILITY_METADATA_KEYS = frozenset({"numpy_version"})
 
 
 class VisibilityCacheError(ValueError):
@@ -265,10 +268,16 @@ def load_visibility_cache(
 def visibility_cache_compatibility_errors(
     cache: VisibilityCache, expected_metadata: Mapping[str, Any]
 ) -> list[str]:
-    """Return deterministic, human-readable metadata incompatibilities."""
+    """Return deterministic, human-readable metadata incompatibilities.
+
+    ``numpy_version`` is retained as provenance but does not affect whether a
+    visibility cache can be used.
+    """
 
     errors: list[str] = []
     for key in sorted(expected_metadata):
+        if key in _NON_COMPATIBILITY_METADATA_KEYS:
+            continue
         expected = expected_metadata[key]
         if key not in cache.metadata:
             errors.append(f"missing metadata {key!r}")

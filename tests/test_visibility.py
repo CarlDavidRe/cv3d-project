@@ -226,6 +226,21 @@ class VisibilityTests(unittest.TestCase):
                     path, expected_metadata={"visibility_target": "vis"}
                 )
 
+    def test_numpy_version_does_not_affect_cache_compatibility(self) -> None:
+        mesh = cube_mesh()
+        cache = self._cache(
+            mesh, np.zeros((48, len(mesh.faces)), dtype=np.bool_)
+        )
+        cache.metadata["numpy_version"] = "1.24.0"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "cache.npz"
+            save_visibility_cache(cache, path)
+            loaded = load_visibility_cache(
+                path, expected_metadata={"numpy_version": "2.3.5"}
+            )
+
+        self.assertEqual(loaded.metadata["numpy_version"], "1.24.0")
+
     def test_vis_and_vis_a_are_explicit_and_target_selects_default(self) -> None:
         mesh = TriangleMesh(
             np.asarray(
