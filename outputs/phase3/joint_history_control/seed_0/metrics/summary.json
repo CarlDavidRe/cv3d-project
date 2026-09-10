@@ -1,0 +1,127 @@
+{
+  "backbone": {
+    "feature_components": [
+      "max_pooled_patch"
+    ],
+    "frozen": true,
+    "history_mode": "joint_multiview",
+    "image_size": 518,
+    "layer_index": -1,
+    "model_id": "facebook/VGGT-1B",
+    "name": "vggt",
+    "padding_strategy": "group_by_real_history_length",
+    "training_feature_strategy": "materialize_joint_features_once_in_system_memory"
+  },
+  "best_epoch": 40,
+  "best_validation_loss": 0.05351316874180365,
+  "checkpoint": "/content/cv3d-project/outputs/phase3/joint_history_control/seed_0/checkpoints/best.pt",
+  "checkpoint_sha256": "50b1028db13aeace33f88eb84fa30a6ce8aaff69cddc77904914a71c160348a8",
+  "control_match": {
+    "all_required_fields_match": true,
+    "checkpoint_identity_note": "The Step 16 feature cache records facebook/VGGT-1B but no weight checksum; model ID, preprocessing, layer, and selected component are matched exactly.",
+    "effective_batch_size": 64,
+    "field_checks": {
+      "coverage_target": true,
+      "deterministic_mode": true,
+      "dropout": true,
+      "effective_batch_size": true,
+      "feature_components": true,
+      "hidden_dim": true,
+      "history_manifest": true,
+      "include_anchor_directions": true,
+      "optimizer_loss_and_budget": true,
+      "seed": true
+    },
+    "independent_feature_cache": "/content/cv3d-project/data/cache/features/vggt/vggt_max_pooled_patch/train_0b3f8faf5af10256.pt",
+    "independent_feature_cache_sha256": "e2f06f4a08cf34310c2b94f000c3ac863bba9a1156049efbcaef386b126c20c4",
+    "independent_microbatch_size": 64,
+    "joint_backbone_precompute_batch_size": 4,
+    "joint_gradient_accumulation_steps": 1,
+    "joint_head_microbatch_size": 64,
+    "matched_independent_config": "/content/cv3d-project/configs/experiments/phase3_independent.yaml",
+    "matched_independent_config_sha256": "a232c0e3a886ebaabfdf4788bbc1d0736bc0096d87f040a97380c424418afaf2",
+    "optimizer": "AdamW",
+    "same_vggt_model_id_and_feature_selection": true
+  },
+  "coverage_target": "vis_a",
+  "epochs_completed": 50,
+  "frozen_backbone_parameters": 909112320,
+  "frozen_feature_precompute": {
+    "backbone_forwards_per_history": 1,
+    "cache_every_batches": 64,
+    "cache_root": "/content/cv3d-project/outputs/phase3/joint_history_control/seed_0/joint_feature_cache",
+    "cache_shards": 154,
+    "configured_batch_size": 4,
+    "elapsed_seconds": 19.267991676999827,
+    "enabled": true,
+    "num_workers": 4,
+    "pin_memory": true,
+    "storage": "system_memory_and_resumable_disk_shards",
+    "train_bytes": 1197342720,
+    "validation_bytes": 150011904
+  },
+  "held_out_test_and_closed_loop_comparison": "deferred_to_step_18",
+  "history_dataset_id": "1e03c79186ae3a091368a058721cdb8617fb0ca6b8140b8013bbecfd09ce625a",
+  "matched_independent_trainable_parameters": 272950,
+  "memory_preflight": {
+    "cpu_memory_note": null,
+    "device": "cuda:0",
+    "enabled": true,
+    "measurement_scope": "frozen_joint_vggt_plus_trainable_head_forward",
+    "measurements": [
+      {
+        "batch_size": 1,
+        "elapsed_seconds": 0.6845143179998558,
+        "history_length": 1,
+        "peak_memory_allocated_bytes": 3743779840,
+        "peak_memory_reserved_bytes": 3800039424,
+        "prediction_shape": [
+          1,
+          48
+        ]
+      },
+      {
+        "batch_size": 1,
+        "elapsed_seconds": 0.15625026400039133,
+        "history_length": 2,
+        "peak_memory_allocated_bytes": 3839689216,
+        "peak_memory_reserved_bytes": 3957325824,
+        "prediction_shape": [
+          1,
+          48
+        ]
+      }
+    ]
+  },
+  "model": {
+    "aggregation": "masked_mean",
+    "anchor_ordering": "pun_healpix_nside2_ring_anchor0_positive_z_v1",
+    "backbone_history_mode": "joint_multiview",
+    "dropout": 0.1,
+    "feature_dim": 2048,
+    "hidden_dim": 128,
+    "include_anchor_directions": true,
+    "num_anchors": 48
+  },
+  "resumed": true,
+  "scope": "joint_control_training_and_short_history_preflight",
+  "step": 17,
+  "train_samples": 34800,
+  "trainable_parameters": 272950,
+  "training_checkpoint": "/content/cv3d-project/outputs/phase3/joint_history_control/seed_0/checkpoints/training_state.pt",
+  "training_checkpoint_sha256": "1b27222ed6889a86110f58a213a0f583605670cc0b790a95d4f188aa0ef3b732",
+  "training_resumed": true,
+  "validation": {
+    "huber_loss": 0.008016614967085627,
+    "loss": 0.053487294638922454,
+    "ndcg_at_5_mean": 0.8569199090099876,
+    "ndcg_at_5_valid_count": 4360,
+    "normalized_regret_mean": 0.162318411937461,
+    "normalized_regret_valid_count": 4360,
+    "num_samples": 4360,
+    "ranking_loss": 0.4547067939688306,
+    "spearman_mean": 0.7274446266816694,
+    "spearman_valid_count": 4360
+  },
+  "validation_samples": 4360
+}
