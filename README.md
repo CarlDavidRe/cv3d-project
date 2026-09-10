@@ -357,6 +357,104 @@ independent test cache, restores verified joint-test shards, replays saved
 rollouts, and writes `metrics/phase3_completion.json` only after reporting.
 See [`docs/phase3_controlled_experiment.md`](docs/phase3_controlled_experiment.md).
 
+### Plot all closed-loop policies together
+
+Generate one coverage figure containing the five Phase 2 policies and both
+Phase 3 history policies:
+
+```bash
+python3 scripts/plot_all_policy_coverage.py
+```
+
+The SVG is written to
+[`outputs/all_policy_comparison/coverage_curves.svg`](outputs/all_policy_comparison/coverage_curves.svg).
+Solid curves identify the Phase 2 policies (Random, Farthest, official PUN,
+independent VGGT, and Oracle); dashed curves identify the Phase 3 independent-
+and joint-history policies.
+
+The script always requires the completed Phase 2 `coverage.csv`. It includes
+Phase 3 curves only when
+`outputs/phase3/controlled_history_comparison/seed_0/metrics/phase3_completion.json`
+records `status: complete`. Before that point, the SVG labels both Phase 3
+entries as pending instead of mixing partial or smoke-run results into the
+300-object comparison. Re-run the same command after Step 18 completes to add
+the two curves automatically. Different run locations or an output filename
+can be supplied explicitly:
+
+```bash
+python3 scripts/plot_all_policy_coverage.py \
+  --phase2-run outputs/phase2/phase2_closed_loop/seed_0 \
+  --phase3-run outputs/phase3/controlled_history_comparison/seed_0 \
+  --output outputs/all_policy_comparison/coverage_curves.svg
+```
+
+The plotter rejects mismatched coverage targets and object-cohort sizes.
+
+### Back up and resume the Step 18 controlled run
+
+The Step 17 `JOINT_RUN` backup does not include Step 18. The controlled run has
+its own output directory containing resumable joint test-feature shards,
+completed per-object rollouts, metrics, figures, logs, and resolved config.
+Before starting Step 18 in Colab, start a five-minute background sync to the
+mounted Drive:
+
+```bash
+cd /content/cv3d-project
+CONTROLLED_RUN=outputs/phase3/controlled_history_comparison/seed_0
+CONTROLLED_DRIVE=/content/drive/MyDrive/cv3d-project/outputs/phase3/controlled_history_comparison/seed_0
+
+mkdir -p "$CONTROLLED_RUN" "$CONTROLLED_DRIVE"
+(
+  while true; do
+    rsync -av --exclude='*.tmp' "$CONTROLLED_RUN/" "$CONTROLLED_DRIVE/"
+    sleep 300
+  done
+) > /tmp/cv3d-phase3-controlled-sync.log 2>&1 &
+echo $! > /tmp/cv3d-phase3-controlled-sync.pid
+```
+
+Before intentionally shutting down the runtime, interrupt evaluation with
+`Ctrl-C`, force a final sync, and stop the background process:
+
+```bash
+cd /content/cv3d-project
+CONTROLLED_RUN=outputs/phase3/controlled_history_comparison/seed_0
+CONTROLLED_DRIVE=/content/drive/MyDrive/cv3d-project/outputs/phase3/controlled_history_comparison/seed_0
+
+mkdir -p "$CONTROLLED_DRIVE"
+rsync -av --exclude='*.tmp' "$CONTROLLED_RUN/" "$CONTROLLED_DRIVE/"
+
+if [ -f /tmp/cv3d-phase3-controlled-sync.pid ]; then
+  kill "$(cat /tmp/cv3d-phase3-controlled-sync.pid)" 2>/dev/null || true
+fi
+```
+
+In a fresh runtime, mount Drive and prepare the repository, then restore the
+controlled run. Restart the background sync with the first command block above
+before resuming evaluation:
+
+```bash
+cd /content/cv3d-project
+CONTROLLED_RUN=outputs/phase3/controlled_history_comparison/seed_0
+CONTROLLED_DRIVE=/content/drive/MyDrive/cv3d-project/outputs/phase3/controlled_history_comparison/seed_0
+
+mkdir -p "$CONTROLLED_RUN"
+rsync -av --exclude='*.tmp' "$CONTROLLED_DRIVE/" "$CONTROLLED_RUN/"
+find "$CONTROLLED_RUN" -type f \
+  \( -name 'shard_*.pt' -o -name '*.npz' -o -name 'phase3_completion.json' \) \
+  -print
+
+python3 scripts/evaluate_phase3.py \
+  --config configs/experiments/phase3_controlled.yaml \
+  --resume
+```
+
+`--resume` validates the saved config and each test-feature shard, restores
+completed shards, and computes only missing test histories. It also validates
+and replays existing rollout files, so closed-loop evaluation resumes at
+object granularity. Use matching paths when overriding `experiment.name` or
+the seed.
+
 ### Resume and sync the joint Phase 3 training run
 
 Only the joint control writes a resumable intermediate state. With the default
