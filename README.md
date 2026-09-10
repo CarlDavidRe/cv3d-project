@@ -13,12 +13,13 @@ The implementation follows the research plan in
 - **Phase 2 — complete:** Random, Farthest, PUN, VGGT, and Oracle were evaluated
   on the complete 300-object test split in a deterministic closed loop using
   mesh-face coverage.
-- **Phase 3 — Step 18 runner implemented:** the complete 1,279-object,
+- **Phase 3 — complete:** the complete 1,279-object,
   51,160-history direct-gain dataset is generated, and the cache-backed
   independent and capacity-matched joint frozen-VGGT controls have retained
-  validation-selected checkpoints. The controlled held-out and unchanged-
-  evaluator comparison is reproducible and resumable; its full real test run
-  requires a VGGT-capable CUDA environment.
+  validation-selected checkpoints. The controlled experiment evaluated both
+  models on all 12,000 held-out histories and all 300 test objects through the
+  unchanged evaluator. Joint processing did not improve a clear majority of
+  the prespecified outcomes.
 
 ## Quick start
 
@@ -357,6 +358,29 @@ independent test cache, restores verified joint-test shards, replays saved
 rollouts, and writes `metrics/phase3_completion.json` only after reporting.
 See [`docs/phase3_controlled_experiment.md`](docs/phase3_controlled_experiment.md).
 
+The retained complete run is under
+[`outputs/phase3/controlled_history_comparison/seed_0/`](outputs/phase3/controlled_history_comparison/seed_0/).
+Its completion gate passes every check for both models on 12,000 fixed test
+histories and 300 ten-view closed-loop rollouts per policy:
+
+| Evaluation | Metric | Independent history | Joint history |
+|---|---|---:|---:|
+| One-step | Huber loss ↓ | 0.008110 | **0.007683** |
+| One-step | Normalized regret ↓ | **0.175766** | 0.198544 |
+| One-step | Spearman ↑ | **0.706572** | 0.661221 |
+| One-step | NDCG@5 ↑ | **0.848879** | 0.826619 |
+| Closed loop | Coverage AUC ↑ | **6.783379** | 6.753729 |
+| Closed loop | Final `VisA` coverage ↑ | **0.864034** | 0.862319 |
+| Closed loop | Median policy time ↓ | **1.563 ms** | 242.346 ms |
+| Closed loop | Peak CUDA allocation ↓ | **3.649 GB** | 4.497 GB |
+
+Thus joint processing improves regression error alone; the independent control
+has better ranking and closed-loop outcomes. The recorded descriptive
+conclusion is `does_not_support_h4`; it is not a statistical-significance
+claim. Closed-loop timing also reflects the intended deployment paths:
+independent scoring uses cached per-image features, whereas joint scoring runs
+live VGGT on the complete history.
+
 ### Plot all closed-loop policies together
 
 Generate one coverage figure containing the five Phase 2 policies and both
@@ -377,9 +401,9 @@ Phase 3 curves only when
 `outputs/phase3/controlled_history_comparison/seed_0/metrics/phase3_completion.json`
 records `status: complete`. Before that point, the SVG labels both Phase 3
 entries as pending instead of mixing partial or smoke-run results into the
-300-object comparison. Re-run the same command after Step 18 completes to add
-the two curves automatically. Different run locations or an output filename
-can be supplied explicitly:
+300-object comparison. The retained run passes this gate, so the checked-in SVG
+contains all seven curves. Different run locations or an output filename can
+be supplied explicitly:
 
 ```bash
 python3 scripts/plot_all_policy_coverage.py \

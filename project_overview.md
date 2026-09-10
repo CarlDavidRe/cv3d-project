@@ -358,7 +358,8 @@ Repository audit as of 2026-09-07:
 | Runtime/memory profiling | Deferred to Phase 2 | Trainable parameter counts are reported. A common inference-time and peak-memory protocol remains useful for the closed-loop system but does not block the frozen Phase 1 feature-probe result. |
 | PUN comparison | Complete | The official released PSNR UPNet checkpoint was checksum-verified, evaluated last with official timm preprocessing, and recorded with both official unmasked MSE and common masked metrics. The full row covers all 5,232 validation and 14,400 test samples. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
-| Phase 2 visibility and simulator | Steps 9–14 implemented and validated | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Farthest/official-PUN/independent-VGGT/Oracle simulator are implemented. PUN and VGGT share the reproduced map alignment/filter/product rule under the fixed 48-anchor protocol. VGGT uses the checksum-pinned validation-selected Phase 1 max-pooled-patch head and cached single-image features. The complete five-policy, 300-object result is retained under `outputs/phase2/phase2_closed_loop/seed_0`. Phase 3 Steps 15–17 are implemented and real-data validated. Step 18 has a synthetic-validated, resumable controlled-evaluation runner; its full real test artifact still requires a VGGT-capable CUDA runtime. |
+| Phase 2 visibility and simulator | Steps 9–14 complete | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Farthest/official-PUN/independent-VGGT/Oracle simulator are implemented. PUN and VGGT share the reproduced map alignment/filter/product rule under the fixed 48-anchor protocol. VGGT uses the checksum-pinned validation-selected Phase 1 max-pooled-patch head and cached single-image features. The complete five-policy, 300-object result is retained under `outputs/phase2/phase2_closed_loop/seed_0`. |
+| Phase 3 direct-gain comparison | Steps 15–18 complete | The deterministic 51,160-history dataset, capacity-matched independent and joint frozen-VGGT controls, 12,000-history paired test, and two-policy 300-object closed-loop result are retained under `outputs/phase3/controlled_history_comparison/seed_0`. Every Step 18 completion check passes. Joint processing improves Huber error alone and does not improve a clear majority of the prespecified outcomes. |
 
 The Phase 1 audit recorded 104 passing tests. This historical count does not
 validate the planned Phase 2/3 changes or replace real-data, real-checkpoint,
@@ -1017,10 +1018,10 @@ Only the policy's method for generating the 48 candidate scores changes.
 * [x] Joint VGGT genuinely processes multiple views together.
 * [x] Trainable capacities are documented and approximately matched.
 * [x] Both models use the same direct surface-gain supervision.
-* [ ] Both run through the Phase 2 evaluator unchanged.
-* [ ] One-step and closed-loop results are reported.
-* [ ] Runtime and memory differences are reported.
-* [ ] Negative or inconclusive joint-processing results remain reportable.
+* [x] Both run through the Phase 2 evaluator unchanged.
+* [x] One-step and closed-loop results are reported.
+* [x] Runtime and memory differences are reported.
+* [x] Negative or inconclusive joint-processing results remain reportable.
 
 ### Phase 3 experiments and fallback rule
 
@@ -1136,7 +1137,7 @@ Keep this strictly optional. Do not delay the main ShapeNet evaluation for it.
 The repository contains the completed Phase 1 and Phase 2 implementations,
 the Step 15 Phase 3 history dataset infrastructure, the Step 16 independent
 history control, the completed Step 17 joint frozen-VGGT control, and the
-Step 18 controlled-evaluation runner shown below.
+completed Step 18 controlled comparison shown below.
 Generated directories such as `.venv/`, `build/`, `*.egg-info/`, `__pycache__/`,
 downloaded model weights, and feature-cache payloads are intentionally omitted.
 
@@ -1307,8 +1308,9 @@ implemented. The Step 17 joint frozen-VGGT extractor, capacity-matched direct-
 gain model, training runner, and short-history memory preflight are implemented
 and validated by a retained real checkpoint. The Step 18 paired test-history
 and unchanged-evaluator runner, reporting outputs, resumption, and completion
-gate are implemented and synthetic-tested; only its full GPU result artifact
-remains.
+gate are implemented and real-data validated. Its retained artifact contains
+paired metrics for all 12,000 test histories and 300 closed-loop rollouts per
+policy, and its completion gate passes every check.
 Extend the existing `src/nbv` package without reorganizing completed Phase 1
 modules.
 
@@ -1842,15 +1844,43 @@ Phase 2 evaluator. Official PUN and the Phase 2 VGGT policy remain external
 coverage references with their original NUM semantics. Any optional
 PUN-architecture surface-gain control is a separate, clearly labeled row.
 
+### Retained Phase 3 result
+
+The complete seed-0 result is retained under
+`outputs/phase3/controlled_history_comparison/seed_0`. Both controls have
+272,950 trainable parameters and use the same 909,112,320-parameter frozen
+VGGT backbone reference.
+
+| Evaluation | Metric | Independent history | Joint history |
+|---|---|---:|---:|
+| One-step, 12,000 histories | Huber loss ↓ | 0.008110 | **0.007683** |
+| One-step, 12,000 histories | Normalized regret ↓ | **0.175766** | 0.198544 |
+| One-step, 12,000 histories | Spearman ↑ | **0.706572** | 0.661221 |
+| One-step, 12,000 histories | NDCG@5 ↑ | **0.848879** | 0.826619 |
+| Closed loop, 300 objects | Coverage AUC ↑ | **6.783379** | 6.753729 |
+| Closed loop, 300 objects | Final `VisA` coverage ↑ | **0.864034** | 0.862319 |
+| Closed loop, 300 objects | Final reachable-normalized coverage ↑ | **0.922901** | 0.921013 |
+| Closed loop, 300 objects | Median policy time ↓ | **1.563 ms** | 242.346 ms |
+| Closed loop, 300 objects | Peak CUDA allocation ↓ | **3.649 GB** | 4.497 GB |
+
+Joint processing reduces one-step Huber error, but the independent control has
+better one-step ranking, coverage, latency, and memory outcomes. The
+machine-readable descriptive conclusion is `does_not_support_h4`: joint
+processing does not improve a clear majority of the prespecified outcomes.
+This rule is not a statistical-significance test. Timing reflects the intended
+policy paths—cached per-image features plus a live history head for independent
+scoring, versus live complete-history VGGT plus the head for joint scoring.
+The seven-policy Phase 2/3 coverage figure is retained at
+`outputs/all_policy_comparison/coverage_curves.svg`.
+
 ---
 
 # 17. Recommended development order for VSCode + Codex
 
-Steps 1–8 are complete and remain the record of Phase 1 implementation.
-Continue at Step 9. Steps 9–14 complete the main Phase 2 deliverable without a
-new supervised history dataset; Steps 15–18 are the optional Phase 3 extension.
-Future script/config names below describe planned deliverables, not commands
-that already exist.
+Steps 1–18 are complete and remain the implementation record for Phases 1–3.
+Steps 9–14 form the main Phase 2 deliverable without a new supervised history
+dataset; Steps 15–18 form the completed Phase 3 extension. Step 19 remains
+optional future work.
 
 ### Step 1 — repository and config skeleton
 
@@ -2072,9 +2102,9 @@ ranking and coverage metrics, per-step/per-object records, profiling modes and
 latency/memory fields, parameter counts, comparison figures, an automatically
 generated replay-verified rollout SVG, and a machine-readable completion gate.
 The gate reports `complete` only for an error-free five-policy run on the entire
-fixed test split. The final quantitative run and freeze remain pending until
-all visibility caches are available; do not use the partial-cache option for
-that run.
+fixed test split. The retained quantitative run covers all 300 fixed test
+objects and passes the completion gate; do not use the partial-cache option for
+a replacement final run.
 
 Add geometric regret, Spearman, NDCG@5, coverage AUC/final coverage, complete
 per-object/per-step exports, live/cached runtime profiling, peak memory, and
@@ -2107,7 +2137,7 @@ and 51,160 histories: 34,800 train, 4,360 validation, and 12,000 test, balanced
 across lengths 1, 2, 4, 6, and 8. All recorded visibility fingerprints and one
 independently recomputed label per object were validated after generation.
 
-With the Phase 2 implementation stable and its final full run pending, use
+With the complete Phase 2 implementation frozen, use
 `history_dataset.py` and `scripts/build_history_dataset.py`. Extend
 face-cache precomputation to the
 fixed training/validation splits as needed, preserving the evaluation geometry
@@ -2165,7 +2195,7 @@ A100 artifact is retained under
 after epoch 50, and reports validation Huber 0.008017, regret 0.162318,
 Spearman 0.727445, and NDCG@5 0.856920. Its short-history preflight measured
 3,743,779,840 allocated bytes at length 1 and 3,839,689,216 at length 2.
-Held-out test and full closed-loop comparison remain Step 18.
+Held-out test and full closed-loop outcomes are reported in Step 18.
 
 Add a joint-history extractor separately from the existing single-image path.
 Feed complete histories through one frozen VGGT forward and train history-aware
@@ -2180,8 +2210,8 @@ before longer runs; do not substitute independent caches for joint features.
 
 ### Step 18 — controlled Phase 3 experiment and reporting
 
-**Implementation status:** the reproducible evaluation/reporting path is
-implemented and synthetic-tested. `scripts/evaluate_phase3.py` checksum-pins
+**Implementation status:** complete and real-data validated.
+`scripts/evaluate_phase3.py` checksum-pins
 both validation-selected checkpoints and the independent test feature cache,
 accepts only the fixed object-disjoint test split, verifies repository-relocated
 history identity and empirical length-1 backbone equivalence, materializes
@@ -2189,9 +2219,20 @@ joint test histories without padding, and runs both learned policies through
 `nbv.eval.closed_loop.run_rollout`. It writes paired sample/aggregate/history-
 length tables, replayable rollouts, coverage figures, profiling, external
 Phase 2 references, a Markdown report, and a machine-readable completion gate.
-The checked-in environment has neither CUDA nor the `vggt` package, so no full
-real Step 18 result is claimed here; run the resumable command on the same
-VGGT-capable GPU environment used for Step 17.
+The retained seed-0 artifact evaluates both models on all 12,000 fixed test
+histories and all 300 test objects with 10 total acquired views. Both policies
+have 300 replayable rollouts, and every check in `phase3_completion.json`
+passes.
+
+On fixed histories, joint has lower Huber error (0.007683 versus 0.008110), but
+independent has lower regret (0.175766 versus 0.198544), higher Spearman
+(0.706572 versus 0.661221), and higher NDCG@5 (0.848879 versus 0.826619). In
+closed loop, independent has higher coverage AUC (6.783379 versus 6.753729) and
+final `VisA` coverage (0.864034 versus 0.862319). Its cached-feature policy path
+also has lower median scoring time (1.563 ms versus 242.346 ms) and peak CUDA
+allocation (3.649 GB versus 4.497 GB) than live complete-history joint VGGT.
+The prespecified descriptive conclusion is `does_not_support_h4`; it is not a
+statistical-significance test.
 
 Run both models on identical held-out histories for Huber/regression error,
 geometric regret, Spearman, and NDCG@5. Run their own closed-loop trajectories
@@ -2374,11 +2415,11 @@ For every final table/figure:
 - [ ] Training-target semantics and policy-score direction documented.
 - [ ] PUN map alignment, aggregation rule, and deviations documented.
 - [ ] Initial views, tie-breaking, and stopping behavior documented.
-- [ ] Phase 3 history sampling, cache IDs, and padding/rotation conventions saved.
-- [ ] Phase 3 matched histories, targets, capacity, optimizer, loss, and budget recorded.
-- [ ] Cached versus live inference timing and precomputation cost distinguished.
+- [x] Phase 3 history sampling, cache IDs, and padding/rotation conventions saved.
+- [x] Phase 3 matched histories, targets, capacity, optimizer, loss, and budget recorded.
+- [x] Cached versus live inference timing and precomputation cost distinguished.
 - [ ] Runtime hardware documented.
-- [ ] Number of evaluation objects documented.
+- [x] Number of evaluation objects documented.
 
 ---
 
@@ -2745,11 +2786,11 @@ after Phase 2 is frozen.
 - [x] Train joint frozen VGGT on the identical histories, targets, and masks.
 - [x] Verify absent/present cross-view backbone interaction in independent/joint paths.
 - [x] Approximately match head capacity and use the same optimizer, loss, and training budget.
-- [ ] Compare held-out surface-gain regression, regret, Spearman, and NDCG@5.
-- [ ] Run both models through the unchanged Phase 2 evaluator and compare coverage.
-- [ ] Report runtime, peak memory, parameter counts, and remaining control differences.
+- [x] Compare held-out surface-gain regression, regret, Spearman, and NDCG@5.
+- [x] Run both models through the unchanged Phase 2 evaluator and compare coverage.
+- [x] Report runtime, peak memory, parameter counts, and remaining control differences.
 - [ ] Add history-length/token ablations only if useful and feasible.
-- [ ] Freeze Phase 3 results or document negative/inconclusive outcomes and failure modes.
+- [x] Freeze Phase 3 results and document the negative result for H4.
 
 ### Milestone 9 — stretch only
 

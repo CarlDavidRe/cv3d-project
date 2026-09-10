@@ -18,11 +18,10 @@ text{font-family:Inter,Arial,sans-serif;fill:#172033}
 <text x="983" y="107" class="legend">Phase 2 VGGT (n=300)</text>
 <line x1="60" y1="133" x2="90" y2="133" stroke="#059669" stroke-width="4"/>
 <text x="98" y="137" class="legend">Oracle (n=300)</text>
-<line x1="355" y1="133" x2="385" y2="133" stroke="#a8afbd" stroke-width="4" stroke-dasharray="5 4"/>
-<text x="393" y="137" class="legend">Phase 3 independent (pending)</text>
-<line x1="650" y1="133" x2="680" y2="133" stroke="#a8afbd" stroke-width="4" stroke-dasharray="5 4"/>
-<text x="688" y="137" class="legend">Phase 3 joint (pending)</text>
-<text x="55" y="169" class="note">Pending: Phase 3 independent, Phase 3 joint; no controlled Phase 3 coverage data is present yet.</text>
+<line x1="355" y1="133" x2="385" y2="133" stroke="#ea580c" stroke-width="4"/>
+<text x="393" y="137" class="legend">Phase 3 independent (n=300)</text>
+<line x1="650" y1="133" x2="680" y2="133" stroke="#0891b2" stroke-width="4"/>
+<text x="688" y="137" class="legend">Phase 3 joint (n=300)</text>
 <line x1="105.0" y1="625.00" x2="1225.0" y2="625.00" class="grid"/>
 <text x="91.0" y="629.00" class="axis" text-anchor="end">0.0</text>
 <line x1="105.0" y1="537.00" x2="1225.0" y2="537.00" class="grid"/>
@@ -104,4 +103,26 @@ text{font-family:Inter,Arial,sans-serif;fill:#172033}
 <circle cx="976.11" cy="240.56" r="3" fill="#059669"/>
 <circle cx="1100.56" cy="237.87" r="3" fill="#059669"/>
 <circle cx="1225.00" cy="235.62" r="3" fill="#059669"/>
+<polyline points="105.00,539.07 229.44,394.79 353.89,298.53 478.33,278.81 602.78,265.39 727.22,259.14 851.67,254.19 976.11,250.15 1100.56,247.36 1225.00,244.83" fill="none" stroke="#ea580c" stroke-width="3" stroke-linejoin="round" stroke-dasharray="9 5"/>
+<circle cx="105.00" cy="539.07" r="3" fill="#ea580c"/>
+<circle cx="229.44" cy="394.79" r="3" fill="#ea580c"/>
+<circle cx="353.89" cy="298.53" r="3" fill="#ea580c"/>
+<circle cx="478.33" cy="278.81" r="3" fill="#ea580c"/>
+<circle cx="602.78" cy="265.39" r="3" fill="#ea580c"/>
+<circle cx="727.22" cy="259.14" r="3" fill="#ea580c"/>
+<circle cx="851.67" cy="254.19" r="3" fill="#ea580c"/>
+<circle cx="976.11" cy="250.15" r="3" fill="#ea580c"/>
+<circle cx="1100.56" cy="247.36" r="3" fill="#ea580c"/>
+<circle cx="1225.00" cy="244.83" r="3" fill="#ea580c"/>
+<polyline points="105.00,539.07 229.44,395.18 353.89,302.07 478.33,282.09 602.78,267.36 727.22,260.17 851.67,254.97 976.11,251.11 1100.56,248.08 1225.00,245.58" fill="none" stroke="#0891b2" stroke-width="3" stroke-linejoin="round" stroke-dasharray="9 5"/>
+<circle cx="105.00" cy="539.07" r="3" fill="#0891b2"/>
+<circle cx="229.44" cy="395.18" r="3" fill="#0891b2"/>
+<circle cx="353.89" cy="302.07" r="3" fill="#0891b2"/>
+<circle cx="478.33" cy="282.09" r="3" fill="#0891b2"/>
+<circle cx="602.78" cy="267.36" r="3" fill="#0891b2"/>
+<circle cx="727.22" cy="260.17" r="3" fill="#0891b2"/>
+<circle cx="851.67" cy="254.97" r="3" fill="#0891b2"/>
+<circle cx="976.11" cy="251.11" r="3" fill="#0891b2"/>
+<circle cx="1100.56" cy="248.08" r="3" fill="#0891b2"/>
+<circle cx="1225.00" cy="245.58" r="3" fill="#0891b2"/>
 </svg>

@@ -1,0 +1,54 @@
+{
+  "note": "External Phase 2 references retain original NUM supervision and are not matched Phase 3 controls.",
+  "policies": [
+    {
+      "coverage_auc_mean": 6.381281103849706,
+      "final_coverage_mean": 0.8496625655957196,
+      "frozen_parameter_count": 21684144,
+      "median_policy_ms": 85.43820250270073,
+      "ndcg_at_5_mean": 0.5280665861837073,
+      "ndcg_at_5_valid_count": 2700,
+      "normalized_regret_mean": 0.5498971283649058,
+      "normalized_regret_valid_count": 2700,
+      "object_count": 300,
+      "peak_peak_cuda_allocated_bytes": null,
+      "peak_process_rss_bytes": 956227584,
+      "peak_process_rss_delta_bytes": 16654336,
+      "policy": "pun",
+      "policy_score_semantics": "negative_product_of_aligned_raw_psnr_after_small_filter",
+      "profiling_modes": [
+        "live_model_inference_incremental"
+      ],
+      "spearman_mean": 0.18509179964981948,
+      "spearman_valid_count": 2700,
+      "trainable_parameter_count": 0,
+      "training_target_semantics": "official_single_image_num_psnr"
+    },
+    {
+      "coverage_auc_mean": 5.820643618426652,
+      "final_coverage_mean": 0.816147450195187,
+      "frozen_parameter_count": null,
+      "median_policy_ms": 2.728387000388466,
+      "ndcg_at_5_mean": 0.4395434650719056,
+      "ndcg_at_5_valid_count": 2700,
+      "normalized_regret_mean": 0.6879487664448901,
+      "normalized_regret_valid_count": 2700,
+      "object_count": 300,
+      "peak_peak_cuda_allocated_bytes": null,
+      "peak_process_rss_bytes": 956227584,
+      "peak_process_rss_delta_bytes": 397312,
+      "policy": "vggt",
+      "policy_score_semantics": "negative_product_of_aligned_raw_psnr_after_small_filter",
+      "profiling_modes": [
+        "cached_features_plus_live_head"
+      ],
+      "spearman_mean": 0.03757286906062612,
+      "spearman_valid_count": 2698,
+      "trainable_parameter_count": 272560,
+      "training_target_semantics": "phase1_single_image_num_psnr"
+    }
+  ],
+  "source": "/content/cv3d-project/outputs/phase2/phase2_closed_loop/seed_0/metrics/summary.json",
+  "source_sha256": "0582ad0d366dc0eedd8f3bae4446396404fe5597b0e58699e03fc7fdcd3cd54c",
+  "status": "loaded"
+}

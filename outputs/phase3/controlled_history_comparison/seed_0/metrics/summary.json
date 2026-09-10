@@ -1,0 +1,347 @@
+{
+  "closed_loop": [
+    {
+      "coverage_auc_mean": 6.783378635793952,
+      "final_coverage_mean": 0.8640339220615848,
+      "final_reachable_normalized_coverage_mean": 0.9229008963102907,
+      "median_policy_ms": 1.5632559998266515,
+      "ndcg_at_5_mean": 0.6677054746209357,
+      "ndcg_at_5_valid_count": 2700,
+      "normalized_regret_mean": 0.40382618495926637,
+      "normalized_regret_valid_count": 2700,
+      "object_count": 300,
+      "peak_cuda_allocated_bytes": 3649323520,
+      "peak_process_rss_bytes": 5334568960,
+      "peak_process_rss_delta_bytes": 1064960,
+      "policy": "vggt_independent_history",
+      "profiling_modes": [
+        "cached_independent_features_plus_live_history_head"
+      ],
+      "reachable_coverage_ceiling_mean": 0.9320595447834561,
+      "reachable_normalized_coverage_auc_mean": 7.2311636258544025,
+      "spearman_mean": 0.37306801236329956,
+      "spearman_valid_count": 2699
+    },
+    {
+      "coverage_auc_mean": 6.753728572657072,
+      "final_coverage_mean": 0.8623187791813245,
+      "final_reachable_normalized_coverage_mean": 0.9210130263779093,
+      "median_policy_ms": 242.34572900058993,
+      "ndcg_at_5_mean": 0.6513584486697945,
+      "ndcg_at_5_valid_count": 2700,
+      "normalized_regret_mean": 0.41751639967832255,
+      "normalized_regret_valid_count": 2700,
+      "object_count": 300,
+      "peak_cuda_allocated_bytes": 4496655872,
+      "peak_process_rss_bytes": 5334560768,
+      "peak_process_rss_delta_bytes": 76816384,
+      "policy": "vggt_joint_history",
+      "profiling_modes": [
+        "live_joint_vggt_plus_history_head"
+      ],
+      "reachable_coverage_ceiling_mean": 0.9320595447834561,
+      "reachable_normalized_coverage_auc_mean": 7.199462768476125,
+      "spearman_mean": 0.3367776501390001,
+      "spearman_valid_count": 2699
+    }
+  ],
+  "cohort": {
+    "complete_fixed_test_split": true,
+    "complete_requested_cohort": true,
+    "evaluated_object_count": 300,
+    "failures": [],
+    "initial_anchor_ids": [
+      0
+    ],
+    "max_acquired_views": 10,
+    "missing_object_ids": [],
+    "requested_object_count": 300,
+    "same_evaluator": "nbv.eval.closed_loop.run_rollout",
+    "split": "test",
+    "split_object_count": 300
+  },
+  "conclusion": {
+    "caution": "This descriptive rule is not a statistical significance test.",
+    "indicators": {
+      "coverage_auc_improved": false,
+      "final_coverage_improved": false,
+      "one_step_huber_improved": true,
+      "one_step_ndcg_improved": false,
+      "one_step_regret_improved": false,
+      "one_step_spearman_improved": false
+    },
+    "statement": "Joint processing does not improve a clear majority of the prespecified outcomes.",
+    "status": "does_not_support_h4"
+  },
+  "controlled_match": {
+    "all_required_fields_match": true,
+    "field_checks": {
+      "aggregation": true,
+      "anchor_ordering": true,
+      "coverage_target": true,
+      "dropout": true,
+      "feature_components": true,
+      "feature_dim": true,
+      "hidden_dim": true,
+      "include_anchor_directions": true,
+      "joint_backbone_frozen": true,
+      "num_anchors": true,
+      "target": true,
+      "trainable_capacity": true,
+      "vggt_image_size": true,
+      "vggt_layer_index": true,
+      "vggt_model_id": true,
+      "vggt_preprocessing": true
+    },
+    "huber_delta": 0.01,
+    "independent_checkpoint_sha256": "fc6246064c9d76562af9b59ccecdcc1fe1751c9bb067b1e8ff67f5d0a335be96",
+    "joint_checkpoint_sha256": "50b1028db13aeace33f88eb84fa30a6ce8aaff69cddc77904914a71c160348a8",
+    "ranking_margin": 0.0,
+    "ranking_weight": 0.1,
+    "trainable_parameters_each": 272950,
+    "training_configuration_source": "validation-selected Step 16/17 checkpoint artifacts"
+  },
+  "coverage_target": "vis_a",
+  "external_references": {
+    "note": "External Phase 2 references retain original NUM supervision and are not matched Phase 3 controls.",
+    "policies": [
+      {
+        "coverage_auc_mean": 6.381281103849706,
+        "final_coverage_mean": 0.8496625655957196,
+        "frozen_parameter_count": 21684144,
+        "median_policy_ms": 85.43820250270073,
+        "ndcg_at_5_mean": 0.5280665861837073,
+        "ndcg_at_5_valid_count": 2700,
+        "normalized_regret_mean": 0.5498971283649058,
+        "normalized_regret_valid_count": 2700,
+        "object_count": 300,
+        "peak_peak_cuda_allocated_bytes": null,
+        "peak_process_rss_bytes": 956227584,
+        "peak_process_rss_delta_bytes": 16654336,
+        "policy": "pun",
+        "policy_score_semantics": "negative_product_of_aligned_raw_psnr_after_small_filter",
+        "profiling_modes": [
+          "live_model_inference_incremental"
+        ],
+        "spearman_mean": 0.18509179964981948,
+        "spearman_valid_count": 2700,
+        "trainable_parameter_count": 0,
+        "training_target_semantics": "official_single_image_num_psnr"
+      },
+      {
+        "coverage_auc_mean": 5.820643618426652,
+        "final_coverage_mean": 0.816147450195187,
+        "frozen_parameter_count": null,
+        "median_policy_ms": 2.728387000388466,
+        "ndcg_at_5_mean": 0.4395434650719056,
+        "ndcg_at_5_valid_count": 2700,
+        "normalized_regret_mean": 0.6879487664448901,
+        "normalized_regret_valid_count": 2700,
+        "object_count": 300,
+        "peak_peak_cuda_allocated_bytes": null,
+        "peak_process_rss_bytes": 956227584,
+        "peak_process_rss_delta_bytes": 397312,
+        "policy": "vggt",
+        "policy_score_semantics": "negative_product_of_aligned_raw_psnr_after_small_filter",
+        "profiling_modes": [
+          "cached_features_plus_live_head"
+        ],
+        "spearman_mean": 0.03757286906062612,
+        "spearman_valid_count": 2698,
+        "trainable_parameter_count": 272560,
+        "training_target_semantics": "phase1_single_image_num_psnr"
+      }
+    ],
+    "source": "/content/cv3d-project/outputs/phase2/phase2_closed_loop/seed_0/metrics/summary.json",
+    "source_sha256": "0582ad0d366dc0eedd8f3bae4446396404fe5597b0e58699e03fc7fdcd3cd54c",
+    "status": "loaded"
+  },
+  "figures": {
+    "coverage": "figures/closed_loop/coverage_curves.svg",
+    "per_step": "figures/closed_loop/per_step_policy_quality.svg",
+    "summary": "figures/closed_loop/policy_summary.svg"
+  },
+  "history_identity": {
+    "artifact_repository_root": "/content/cv3d-project",
+    "checkpoint_dataset_id": "1e03c79186ae3a091368a058721cdb8617fb0ca6b8140b8013bbecfd09ce625a",
+    "checkpoint_manifest_sha256": "35ca3213c8453e662c17e03a8534618afaa41a12950f5d081f6a33845db4a8f3",
+    "history_data_fingerprint": "cc311c6fc95a78208ee8776662ce437b69f8e2415e62125ecb90ca74a6efc5ef",
+    "local_dataset_id": "1e03c79186ae3a091368a058721cdb8617fb0ca6b8140b8013bbecfd09ce625a",
+    "local_manifest_sha256": "35ca3213c8453e662c17e03a8534618afaa41a12950f5d081f6a33845db4a8f3",
+    "match": true,
+    "mode": "exact"
+  },
+  "length_one_feature_equivalence": {
+    "acceptance_threshold_min_cosine": 0.999,
+    "cosine_similarity_mean": 0.9999999287724495,
+    "cosine_similarity_min": 0.9999995231628418,
+    "interpretation": "Length-1 equivalence checks the effective frozen VGGT weights and preprocessing without assuming an unavailable backbone-file digest.",
+    "maximum_absolute_difference": 0.03125,
+    "mean_absolute_difference": 0.00023355692974291742,
+    "root_mean_squared_difference": 0.0005361845251172781,
+    "sample_count": 2400
+  },
+  "negative_or_inconclusive_results_reportable": true,
+  "one_step": [
+    {
+      "huber_loss": 0.008110306225717068,
+      "ndcg_at_5_mean": 0.8488794338129447,
+      "ndcg_at_5_valid_count": 12000,
+      "normalized_regret_mean": 0.17576632043823825,
+      "policy": "vggt_independent_history",
+      "sample_count": 12000,
+      "spearman_mean": 0.7065723424199541,
+      "spearman_valid_count": 12000
+    },
+    {
+      "huber_loss": 0.007682767231017351,
+      "ndcg_at_5_mean": 0.8266185893664348,
+      "ndcg_at_5_valid_count": 12000,
+      "normalized_regret_mean": 0.19854426552256477,
+      "policy": "vggt_joint_history",
+      "sample_count": 12000,
+      "spearman_mean": 0.6612208494534404,
+      "spearman_valid_count": 12000
+    }
+  ],
+  "one_step_by_history_length": [
+    {
+      "history_length": 1,
+      "huber_loss": 0.012779865587751071,
+      "ndcg_at_5_mean": 0.9398734104404524,
+      "normalized_regret_mean": 0.07352336859675303,
+      "policy": "vggt_independent_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.8365110911964231
+    },
+    {
+      "history_length": 1,
+      "huber_loss": 0.010142240255663636,
+      "ndcg_at_5_mean": 0.9457851723602649,
+      "normalized_regret_mean": 0.06793540397123948,
+      "policy": "vggt_joint_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.8437960125655257
+    },
+    {
+      "history_length": 2,
+      "huber_loss": 0.009595456875831587,
+      "ndcg_at_5_mean": 0.929656103969888,
+      "normalized_regret_mean": 0.08045234602425441,
+      "policy": "vggt_independent_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.8186765854661322
+    },
+    {
+      "history_length": 2,
+      "huber_loss": 0.009281851539223377,
+      "ndcg_at_5_mean": 0.913126457901695,
+      "normalized_regret_mean": 0.09397289672659646,
+      "policy": "vggt_joint_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.7893276801315653
+    },
+    {
+      "history_length": 4,
+      "huber_loss": 0.007058351344797605,
+      "ndcg_at_5_mean": 0.8645734324384631,
+      "normalized_regret_mean": 0.15312494687382908,
+      "policy": "vggt_independent_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.7245305943632836
+    },
+    {
+      "history_length": 4,
+      "huber_loss": 0.007522931541025173,
+      "ndcg_at_5_mean": 0.8426676666981318,
+      "normalized_regret_mean": 0.1746094276550087,
+      "policy": "vggt_joint_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.6826900591828202
+    },
+    {
+      "history_length": 6,
+      "huber_loss": 0.005893686896257956,
+      "ndcg_at_5_mean": 0.7874191803958173,
+      "normalized_regret_mean": 0.24476499987749206,
+      "policy": "vggt_independent_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.6229876040328539
+    },
+    {
+      "history_length": 6,
+      "huber_loss": 0.0061547060628557426,
+      "ndcg_at_5_mean": 0.7505302055918478,
+      "normalized_regret_mean": 0.2853504070684871,
+      "policy": "vggt_joint_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.5476719788724504
+    },
+    {
+      "history_length": 8,
+      "huber_loss": 0.005224169184657512,
+      "ndcg_at_5_mean": 0.7228750418201028,
+      "normalized_regret_mean": 0.32696594081886277,
+      "policy": "vggt_independent_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.530155837041078
+    },
+    {
+      "history_length": 8,
+      "huber_loss": 0.00531210803053303,
+      "ndcg_at_5_mean": 0.6809834442802347,
+      "normalized_regret_mean": 0.3708531921914921,
+      "policy": "vggt_joint_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.4426185165148404
+    }
+  ],
+  "phase": "phase3",
+  "profiling": {
+    "closed_loop": {
+      "vggt_independent_history": {
+        "median_policy_ms": 1.5632559998266515,
+        "peak_cuda_allocated_bytes": 3649323520,
+        "peak_process_rss_bytes": 5334568960,
+        "peak_process_rss_delta_bytes": 1064960,
+        "profiling_modes": [
+          "cached_independent_features_plus_live_history_head"
+        ]
+      },
+      "vggt_joint_history": {
+        "median_policy_ms": 242.34572900058993,
+        "peak_cuda_allocated_bytes": 4496655872,
+        "peak_process_rss_bytes": 5334560768,
+        "peak_process_rss_delta_bytes": 76816384,
+        "profiling_modes": [
+          "live_joint_vggt_plus_history_head"
+        ]
+      }
+    },
+    "device": "cuda:0",
+    "joint_test_feature_precompute": {
+      "cached_shards_before_invocation": 47,
+      "invocation_kind": "resumed_cache_restore_or_live_completion",
+      "note": "Do not interpret a resumed cache-restore duration as live VGGT precompute time.",
+      "seconds_this_invocation": 5.595577592000154,
+      "shard_count": 47,
+      "storage_bytes": 412876800
+    },
+    "one_step": {
+      "independent_cached_seconds": 10.017997318999733,
+      "independent_peak_cuda_allocated_bytes": 3716350464,
+      "joint_cached_seconds": 5.689569207999739,
+      "joint_peak_cuda_allocated_bytes": 3716350464,
+      "sample_count": 12000
+    },
+    "parameters": {
+      "independent_frozen_backbone_reference": 909112320,
+      "independent_trainable": 272950,
+      "joint_frozen_backbone": 909112320,
+      "joint_trainable": 272950
+    },
+    "timing_protocol": "One-step cached-head evaluation is timed separately from joint feature materialization. Closed-loop policy timing synchronizes CUDA and excludes evaluator geometry and RGB loading; independent uses cached per-image features while joint recomputes the complete live history."
+  },
+  "schema_version": 1,
+  "step": 18
+}
