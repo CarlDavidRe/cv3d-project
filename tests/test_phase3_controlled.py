@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 import numpy as np
 from PIL import Image
@@ -243,7 +244,7 @@ class Phase3ControlledTests(unittest.TestCase):
                 "phase3": {"controlled": {
                     "history_manifest": str(manifest_path),
                     "coverage_target": "vis_a",
-                    "device": "cpu",
+                    "device": "auto",
                     "independent": {
                         "checkpoint": str(independent_checkpoint),
                         "checkpoint_sha256": _sha256(independent_checkpoint),
@@ -279,7 +280,11 @@ class Phase3ControlledTests(unittest.TestCase):
             }
             settings = parse_phase3_controlled_settings(config, root)
             self.assertEqual(settings.max_acquired_views, 3)
-            run = run_phase3_controlled(config, root, joint_extractor=extractor)
+            with mock.patch(
+                "nbv.experiments.phase3_controlled.torch.cuda.is_available",
+                return_value=False,
+            ):
+                run = run_phase3_controlled(config, root, joint_extractor=extractor)
             completion = json.loads((run / "metrics/phase3_completion.json").read_text())
             summary = json.loads((run / "metrics/summary.json").read_text())
             self.assertEqual(completion["status"], "complete")
@@ -296,9 +301,13 @@ class Phase3ControlledTests(unittest.TestCase):
             self.assertTrue((run / "metrics/report.md").is_file())
             self.assertEqual(len(list((run / "rollouts").glob("*/*/*.npz"))), 2)
 
-            resumed = run_phase3_controlled(
-                config, root, joint_extractor=extractor, resume=True
-            )
+            with mock.patch(
+                "nbv.experiments.phase3_controlled.torch.cuda.is_available",
+                return_value=False,
+            ):
+                resumed = run_phase3_controlled(
+                    config, root, joint_extractor=extractor, resume=True
+                )
             self.assertEqual(resumed, run)
 
 

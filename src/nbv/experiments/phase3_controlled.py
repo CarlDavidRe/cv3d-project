@@ -198,6 +198,7 @@ def run_phase3_controlled(
 
     root = Path(repository_root).resolve()
     settings = parse_phase3_controlled_settings(config, root)
+    resolved_device = _resolve_device(settings.device)
     seed = int(config["experiment"]["seed"])
     seed_everything(seed, bool(config["experiment"]["deterministic"]))
     run_dir = resolve_run_directory(config, root)
@@ -214,6 +215,9 @@ def run_phase3_controlled(
             raise ValueError("resumed Step 18 run configuration differs from config.yaml")
     context = initialize_run(config, root)
     active_logger = logger or logging.getLogger(__name__)
+    active_logger.info(
+        "Step 18: resolved device %r to %s", settings.device, resolved_device
+    )
     manifest = json.loads(settings.history_manifest.read_text(encoding="utf-8"))
     _validate_manifest(manifest, settings)
     histories_path_only = HistoryDataset(
@@ -239,7 +243,7 @@ def run_phase3_controlled(
     controls = _validate_control_pair(independent_payload, joint_payload, settings)
 
     independent_model, _ = load_independent_history_checkpoint(
-        settings.independent_checkpoint, device=settings.device
+        settings.independent_checkpoint, device=resolved_device
     )
     expected_feature_sha = independent_payload["feature"]["cache_sha256"]["test"]
     if _sha256(settings.independent_test_features) != expected_feature_sha:
@@ -267,13 +271,13 @@ def run_phase3_controlled(
             image_size=int(backbone["image_size"]),
             layer_index=int(backbone["layer_index"]),
             expected_feature_dim=int(fields["feature_dim"]),
-            device=settings.device,
+            device=resolved_device,
             model_cache_root=settings.model_cache_root,
         )
     joint_model, _ = load_joint_history_checkpoint(
         settings.joint_checkpoint,
         extractor=joint_extractor,
-        device=settings.device,
+        device=resolved_device,
     )
     histories_rgb = HistoryDataset(
         settings.history_manifest,
@@ -320,7 +324,7 @@ def run_phase3_controlled(
         "ranking_weight": controls["ranking_weight"],
         "ranking_margin": controls["ranking_margin"],
         "ndcg_k": settings.ndcg_k,
-        "device": settings.device,
+        "device": resolved_device,
     }
     active_logger.info("Step 18: evaluating independent control on held-out histories")
     independent_eval, independent_seconds, independent_peak = _profile_evaluation(
@@ -358,6 +362,7 @@ def run_phase3_controlled(
         joint_payload,
         context.run_dir,
         seed,
+        resolved_device,
         resume=resume,
         logger=active_logger,
     )
@@ -576,6 +581,7 @@ def _run_closed_loop_comparison(
     joint_payload: Mapping[str, Any],
     run_dir: Path,
     seed: int,
+    device: torch.device,
     *,
     resume: bool,
     logger: logging.Logger,
@@ -642,13 +648,13 @@ def _run_closed_loop_comparison(
                         independent_model,
                         independent_payload["feature"]["components"],
                         feature_lookup=lookup,
-                        device=settings.device,
+                        device=device,
                         provenance=checkpoint_info[policy_name],
                     )
                     if policy_name == POLICIES[0]
                     else JointHistoryPolicy(
                         joint_model,
-                        device=settings.device,
+                        device=device,
                         provenance=checkpoint_info[policy_name],
                     )
                 )
@@ -1180,6 +1186,15 @@ def _nonnegative_float(value: Any, name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
         raise ValueError(f"{name} must be a non-negative number")
     return float(value)
+
+
+def _resolve_device(device: str | torch.device) -> torch.device:
+    if str(device) == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    resolved = torch.device(device)
+    if resolved.type == "cuda" and not torch.cuda.is_available():
+        raise ValueError("CUDA was requested but is not available")
+    return resolved
 
 
 def _sha256(path: str | Path) -> str:
