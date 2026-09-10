@@ -23,18 +23,19 @@ class FarthestPolicy:
         if not acquired:
             raise ValueError("FarthestPolicy requires at least one acquired anchor")
 
-        # For unit vectors, the nearest angular distance is arccos of the
-        # largest cosine similarity to an acquired camera direction.
-        # Build the full pairwise matrix before selecting history columns.  A
-        # skinny GEMM (directions @ directions[acquired].T) can round symmetric
-        # anchor scores differently on different BLAS implementations and flip
-        # an otherwise canonical near-tie by one ULP.  This also matches
-        # AnchorSet.angular_distance_matrix, the canonical geometry reference.
-        cosine = directions @ directions.T
+        # Use the same fixed-order, extended-precision reduction as
+        # AnchorSet.angular_distance_matrix.  BLAS-backed matrix multiplication
+        # can round near-tied anchor scores differently across platforms.
+        precise = directions.astype(np.longdouble)
+        cosine = (
+            precise[:, None, 0] * precise[None, :, 0]
+            + precise[:, None, 1] * precise[None, :, 1]
+            + precise[:, None, 2] * precise[None, :, 2]
+        )
         acquired_ids = np.asarray(acquired, dtype=np.int64)
         nearest_cosine = np.max(
             np.clip(cosine[:, acquired_ids], -1.0, 1.0), axis=1
         )
-        scores = np.arccos(nearest_cosine)
+        scores = np.asarray(np.arccos(nearest_cosine), dtype=np.float64)
         scores[acquired_ids] = 0.0
         return scores

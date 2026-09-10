@@ -137,8 +137,19 @@ class AnchorSet(Sequence[Anchor]):
     def angular_distance_matrix(self) -> NDArray[np.float64]:
         """Return read-only pairwise great-circle distances in radians."""
 
-        cosine = np.clip(self.directions @ self.directions.T, -1.0, 1.0)
-        distances = np.arccos(cosine)
+        # Keep the three-term dot-product reduction independent of the active
+        # BLAS implementation.  Extended precision also preserves the tiny,
+        # intentional asymmetries in the checked-in anchor coordinates before
+        # the public matrix is converted back to float64.
+        directions = self.directions.astype(np.longdouble)
+        cosine = (
+            directions[:, None, 0] * directions[None, :, 0]
+            + directions[:, None, 1] * directions[None, :, 1]
+            + directions[:, None, 2] * directions[None, :, 2]
+        )
+        distances = np.asarray(
+            np.arccos(np.clip(cosine, -1.0, 1.0)), dtype=np.float64
+        )
         np.fill_diagonal(distances, 0.0)
         distances.setflags(write=False)
         return distances
