@@ -832,7 +832,12 @@ def _load_training_checkpoint(
 
     if not path.is_file():
         raise FileNotFoundError(f"resume checkpoint does not exist: {path}")
-    payload = torch.load(path, map_location=device, weights_only=True)
+    # Keep serialized RNG states on the CPU.  Loading the whole checkpoint
+    # directly onto CUDA also moves ``cuda_rng_state_all`` there, but
+    # ``torch.cuda.set_rng_state_all`` requires CPU ByteTensors.  Module and
+    # optimizer state loading below moves their tensors to the parameter
+    # device as needed.
+    payload = torch.load(path, map_location="cpu", weights_only=True)
     if (
         payload.get("schema_version") != 1
         or payload.get("checkpoint_type") != "phase3_history_training_state"
@@ -849,7 +854,7 @@ def _load_training_checkpoint(
     if cuda_states:
         if not torch.cuda.is_available() or len(cuda_states) != torch.cuda.device_count():
             raise ValueError("resume checkpoint CUDA RNG state is incompatible")
-        torch.cuda.set_rng_state_all(cuda_states)
+        torch.cuda.set_rng_state_all([state.cpu() for state in cuda_states])
     epoch_in_progress = payload["epoch_in_progress"]
     epoch_generator_state = payload["epoch_generator_state"]
     if epoch_in_progress is None:

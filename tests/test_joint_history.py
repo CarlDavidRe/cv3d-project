@@ -300,16 +300,22 @@ class JointHistoryTrainingTests(unittest.TestCase):
                 hidden_dim=12,
                 dropout=0.0,
             )
-            resumed_fit = fit_history_model(
-                resumed,
-                train,
-                train,
-                training_checkpoint_path=checkpoint,
-                checkpoint_every_batches=1,
-                resume=True,
-                checkpoint_identity={"fixture": "joint"},
-                **fit_kwargs,
-            )
+            with patch.object(
+                history_training.torch,
+                "load",
+                wraps=history_training.torch.load,
+            ) as load_checkpoint:
+                resumed_fit = fit_history_model(
+                    resumed,
+                    train,
+                    train,
+                    training_checkpoint_path=checkpoint,
+                    checkpoint_every_batches=1,
+                    resume=True,
+                    checkpoint_identity={"fixture": "joint"},
+                    **fit_kwargs,
+                )
+            self.assertEqual(load_checkpoint.call_args.kwargs["map_location"], "cpu")
 
         self.assertEqual(resumed_fit.history, reference_fit.history)
         for key, value in reference.state_dict().items():

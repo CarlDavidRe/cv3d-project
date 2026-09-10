@@ -588,6 +588,18 @@ rsync -av data/cache/features/ \
   /content/drive/MyDrive/cv3d-project/data/cache/features/
 ```
 
+To sync only one phase's outputs, set `PHASE` to `phase1`, `phase2`, or
+`phase3`:
+
+```bash
+cd /content/cv3d-project
+PHASE=phase1
+
+mkdir -p "/content/drive/MyDrive/cv3d-project/outputs/$PHASE"
+rsync -av "outputs/$PHASE/" \
+  "/content/drive/MyDrive/cv3d-project/outputs/$PHASE/"
+```
+
 If Phase 3 generated processed histories, persist those as well:
 
 ```bash
