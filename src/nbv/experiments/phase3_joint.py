@@ -155,7 +155,9 @@ def run_phase3_joint(
     active_logger = logger or logging.getLogger(__name__)
     seed = int(config["experiment"]["seed"])
     seed_everything(seed, bool(config["experiment"]["deterministic"]))
+    active_logger.info("Phase 3 joint: validating the matched independent control")
     match = _validate_matched_control(settings, root, config)
+    active_logger.info("Phase 3 joint: loading train/validation histories with RGB images")
     histories = {
         split: HistoryDataset(
             settings.history_manifest,
@@ -168,6 +170,9 @@ def run_phase3_joint(
     manifest = histories["train"].manifest
     _validate_manifest(manifest, settings)
     if extractor is None:
+        active_logger.info(
+            "Phase 3 joint: initializing frozen %s backbone", settings.model_id
+        )
         extractor = VGGTJointExtractor(
             feature_components=settings.feature_components,
             model_id=settings.model_id,
@@ -200,11 +205,25 @@ def run_phase3_joint(
     if joint_parameters != independent_parameters:
         raise ValueError("joint and independent trainable head capacities differ")
     context = initialize_run(config, root)
-    preflight = _memory_preflight(model, histories["train"], settings)
+    active_logger.info(
+        "Phase 3 joint memory preflight: %s",
+        (
+            "disabled"
+            if not settings.preflight_enabled
+            else "history lengths "
+            + ", ".join(str(value) for value in settings.preflight_history_lengths)
+        ),
+    )
+    preflight = _memory_preflight(
+        model, histories["train"], settings, logger=active_logger
+    )
     write_json(preflight, context.metrics_dir / "memory_preflight.json")
     active_logger.info(
-        "Training joint Phase 3 control on %d histories; %d trainable parameters",
+        "Phase 3 joint ready: %d train, %d validation histories; %d-D features; "
+        "%d trainable parameters",
         len(histories["train"]),
+        len(histories["val"]),
+        settings.expected_feature_dim,
         joint_parameters,
     )
     training = dict(settings.training)
@@ -229,6 +248,8 @@ def run_phase3_joint(
         ranking_margin=settings.training["ranking_margin"],
         ndcg_k=settings.ndcg_k,
         device=settings.device,
+        logger=active_logger,
+        progress_label="Phase 3 joint final validation",
     )
     checkpoint_path = context.checkpoint_dir / "best.pt"
     checkpoint = {
@@ -325,6 +346,13 @@ def run_phase3_joint(
         {variant: fit.history},
         context.figure_dir / "training" / "validation_loss_comparison.svg",
         best_epochs={variant: fit.best_epoch},
+    )
+    active_logger.info(
+        "Phase 3 joint validation: Huber %.6f, regret %.4f, NDCG@%d %.4f",
+        validation.summary["huber_loss"],
+        validation.summary["normalized_regret_mean"],
+        settings.ndcg_k,
+        validation.summary[f"ndcg_at_{settings.ndcg_k}_mean"],
     )
     return context.run_dir
 
@@ -465,6 +493,8 @@ def _memory_preflight(
     model: JointHistoryGainModel,
     dataset: HistoryDataset,
     settings: Phase3JointSettings,
+    *,
+    logger: logging.Logger | None = None,
 ) -> Mapping[str, Any]:
     if not settings.preflight_enabled:
         return {"enabled": False, "measurements": []}
@@ -484,6 +514,10 @@ def _memory_preflight(
     was_training = model.training
     model.eval()
     for length in settings.preflight_history_lengths:
+        if logger is not None:
+            logger.info(
+                "Phase 3 joint memory preflight running: history length %d", length
+            )
         batch = collate_history_samples([dataset[by_length[length]]]).to(device)
         if device.type == "cuda":
             torch.cuda.empty_cache()
@@ -503,14 +537,24 @@ def _memory_preflight(
         else:
             peak_allocated = None
             peak_reserved = None
-        measurements.append({
+        measurement = {
             "history_length": length,
             "batch_size": 1,
             "elapsed_seconds": time.perf_counter() - started,
             "peak_memory_allocated_bytes": peak_allocated,
             "peak_memory_reserved_bytes": peak_reserved,
             "prediction_shape": list(prediction.shape),
-        })
+        }
+        measurements.append(measurement)
+        if logger is not None:
+            logger.info(
+                "Phase 3 joint memory preflight complete: history length %d, "
+                "%.3f seconds, peak allocated %s, peak reserved %s",
+                length,
+                measurement["elapsed_seconds"],
+                _format_bytes(peak_allocated),
+                _format_bytes(peak_reserved),
+            )
     model.train(was_training)
     return {
         "enabled": True,
@@ -597,6 +641,12 @@ def _sha256(path: str | Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _format_bytes(value: int | None) -> str:
+    if value is None:
+        return "unavailable"
+    return f"{value / (1024 ** 2):.1f} MiB"
 
 
 __all__ = [

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 import json
+import logging
 import tempfile
 import unittest
 from pathlib import Path
@@ -210,6 +212,33 @@ class HistoryTrainingTests(unittest.TestCase):
         self.assertGreater(result.best_epoch, 0)
         self.assertEqual(evaluated.predictions.shape, (4, 48))
         self.assertEqual(len(evaluated.per_sample), 4)
+
+    def test_training_logger_reports_progress_for_every_pass(self) -> None:
+        train = _feature_dataset("train")
+        model = IndependentHistoryGainModel(4, hidden_dim=8, dropout=0.0)
+        output = io.StringIO()
+        logger = logging.Logger("phase3-progress-test")
+        logger.addHandler(logging.StreamHandler(output))
+
+        fit_history_model(
+            model,
+            train,
+            train,
+            epochs=1,
+            batch_size=2,
+            learning_rate=0.01,
+            ranking_weight=0.0,
+            patience=None,
+            logger=logger,
+        )
+
+        messages = output.getvalue()
+        self.assertIn("Epoch 0/1 train evaluation: batch", messages)
+        self.assertIn("Epoch 0/1 validation evaluation: batch", messages)
+        self.assertIn("Epoch 1/1 optimization: batch", messages)
+        self.assertIn("Epoch 1/1 train evaluation: batch", messages)
+        self.assertIn("Epoch 1/1 validation evaluation: batch", messages)
+        self.assertIn("Epoch 1/1 complete", messages)
 
 
 class HistoryPolicyTests(unittest.TestCase):

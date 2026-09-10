@@ -143,6 +143,7 @@ def run_phase3_independent(
     seed = int(config["experiment"]["seed"])
     seed_everything(seed, bool(config["experiment"]["deterministic"]))
 
+    active_logger.info("Phase 3 independent: loading train/validation/test histories")
     histories = {
         split: HistoryDataset(settings.history_manifest, split=split, load_images=False)
         for split in ("train", "val", "test")
@@ -155,6 +156,7 @@ def run_phase3_independent(
         "feature_components": list(settings.feature_components),
         "history_mode": "single_image",
     }
+    active_logger.info("Phase 3 independent: loading frozen feature caches")
     lookups = {
         split: FrozenFeatureLookup.load(
             settings.feature_cache_paths[split],
@@ -182,8 +184,13 @@ def run_phase3_independent(
     )
     context = initialize_run(config, root)
     active_logger.info(
-        "Training independent Phase 3 history control on %d histories (%d-D features)",
-        len(datasets["train"]), feature_dim,
+        "Phase 3 independent ready: %d train, %d validation, %d test histories; "
+        "%d-D features; %d trainable parameters",
+        len(datasets["train"]),
+        len(datasets["val"]),
+        len(datasets["test"]),
+        feature_dim,
+        count_trainable_parameters(model),
     )
     fit = fit_history_model(
         model,
@@ -203,8 +210,20 @@ def run_phase3_independent(
         "ndcg_k": settings.ndcg_k,
         "device": settings.device,
     }
-    validation = evaluate_history_model(model, datasets["val"], **evaluation_kwargs)
-    test = evaluate_history_model(model, datasets["test"], **evaluation_kwargs)
+    validation = evaluate_history_model(
+        model,
+        datasets["val"],
+        logger=active_logger,
+        progress_label="Phase 3 independent final validation",
+        **evaluation_kwargs,
+    )
+    test = evaluate_history_model(
+        model,
+        datasets["test"],
+        logger=active_logger,
+        progress_label="Phase 3 independent final test",
+        **evaluation_kwargs,
+    )
     checkpoint_path = context.checkpoint_dir / "best.pt"
     checkpoint = {
         "schema_version": 1,
@@ -291,6 +310,13 @@ def run_phase3_independent(
         variant_name=str(config["experiment"]["name"]),
         epochs_requested=int(settings.training["epochs"]),
         ndcg_k=settings.ndcg_k,
+    )
+    active_logger.info(
+        "Phase 3 independent validation: Huber %.6f, regret %.4f, NDCG@%d %.4f",
+        validation.summary["huber_loss"],
+        validation.summary["normalized_regret_mean"],
+        settings.ndcg_k,
+        validation.summary[f"ndcg_at_{settings.ndcg_k}_mean"],
     )
     active_logger.info(
         "Phase 3 independent test: Huber %.6f, regret %.4f, NDCG@%d %.4f",

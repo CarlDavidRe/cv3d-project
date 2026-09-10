@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 import logging
 import math
+import time
 from typing import Any, Mapping
 
 import numpy as np
@@ -92,8 +93,20 @@ def fit_history_model(
         ndcg_k=ndcg_k,
         device=resolved_device,
     )
-    initial_train = _mean_loss_components(model, train, **evaluation_kwargs)
-    initial_validation = evaluate_history_model(model, validation, **evaluation_kwargs)
+    initial_train = _mean_loss_components(
+        model,
+        train,
+        logger=logger,
+        progress_label=f"Epoch 0/{epochs} train evaluation",
+        **evaluation_kwargs,
+    )
+    initial_validation = evaluate_history_model(
+        model,
+        validation,
+        logger=logger,
+        progress_label=f"Epoch 0/{epochs} validation evaluation",
+        **evaluation_kwargs,
+    )
     best_validation_loss = float(initial_validation.summary["loss"])
     best_epoch = 0
     best_state = deepcopy(model.state_dict())
@@ -119,8 +132,10 @@ def fit_history_model(
         sample_count = 0
         accumulated_batches = 0
         accumulated_samples = 0
+        total_batches = len(train_loader)
+        last_progress_log = time.monotonic()
         optimizer.zero_grad(set_to_none=True)
-        for cpu_batch in train_loader:
+        for batch_index, cpu_batch in enumerate(train_loader, start=1):
             batch = cpu_batch.to(resolved_device)
             predictions = _predict(model, batch)
             total, _, _ = combined_probe_loss(
@@ -141,11 +156,39 @@ def fit_history_model(
                 accumulated_samples = 0
             weighted_loss += float(total.item()) * count
             sample_count += count
+            if logger is not None and _progress_due(
+                batch_index, total_batches, last_progress_log
+            ):
+                logger.info(
+                    "Epoch %d/%d optimization: batch %d/%d (%.1f%%), "
+                    "%d/%d samples, running loss %.6f",
+                    epoch,
+                    epochs,
+                    batch_index,
+                    total_batches,
+                    100.0 * batch_index / total_batches,
+                    sample_count,
+                    len(train),
+                    weighted_loss / sample_count,
+                )
+                last_progress_log = time.monotonic()
         if accumulated_batches:
             _optimizer_step(optimizer, model, accumulated_samples)
         optimization_loss = weighted_loss / sample_count
-        train_result = _mean_loss_components(model, train, **evaluation_kwargs)
-        validation_result = evaluate_history_model(model, validation, **evaluation_kwargs)
+        train_result = _mean_loss_components(
+            model,
+            train,
+            logger=logger,
+            progress_label=f"Epoch {epoch}/{epochs} train evaluation",
+            **evaluation_kwargs,
+        )
+        validation_result = evaluate_history_model(
+            model,
+            validation,
+            logger=logger,
+            progress_label=f"Epoch {epoch}/{epochs} validation evaluation",
+            **evaluation_kwargs,
+        )
         validation_loss = float(validation_result.summary["loss"])
         history.append(
             _history_row(
@@ -215,6 +258,8 @@ def evaluate_history_model(
     ranking_margin: float = 0.0,
     ndcg_k: int = 5,
     device: str | torch.device = "cpu",
+    logger: logging.Logger | None = None,
+    progress_label: str | None = None,
 ) -> HistoryEvaluationResult:
     """Evaluate raw higher-is-better predictions against direct gain labels."""
 
@@ -229,8 +274,11 @@ def evaluate_history_model(
     regrets: list[float] = []
     correlations: list[float] = []
     ndcgs: list[float] = []
+    loader = _loader(dataset, batch_size=batch_size, shuffle=False)
+    total_batches = len(loader)
+    last_progress_log = time.monotonic()
     with torch.inference_mode():
-        for cpu_batch in _loader(dataset, batch_size=batch_size, shuffle=False):
+        for batch_index, cpu_batch in enumerate(loader, start=1):
             batch = cpu_batch.to(resolved_device)
             predictions = _predict(model, batch)
             total, huber, ranking = combined_probe_loss(
@@ -269,6 +317,20 @@ def evaluate_history_model(
                     "spearman": _finite_or_none(correlation),
                     f"ndcg_at_{ndcg_k}": ndcg,
                 })
+            if logger is not None and progress_label is not None and _progress_due(
+                batch_index, total_batches, last_progress_log
+            ):
+                logger.info(
+                    "%s: batch %d/%d (%.1f%%), %d/%d samples, running loss %.6f",
+                    progress_label,
+                    batch_index,
+                    total_batches,
+                    100.0 * batch_index / total_batches,
+                    sample_count,
+                    len(dataset),
+                    totals[0] / sample_count,
+                )
+                last_progress_log = time.monotonic()
     predictions = torch.cat(prediction_batches)
     summary: dict[str, float | int | None] = {
         "num_samples": sample_count,
@@ -295,14 +357,19 @@ def _mean_loss_components(
     ranking_margin: float,
     ndcg_k: int,
     device: str | torch.device,
+    logger: logging.Logger | None = None,
+    progress_label: str | None = None,
 ) -> Mapping[str, float]:
     del ndcg_k
     resolved = _resolve_device(device)
     model.to(resolved).eval()
     totals = np.zeros(3, dtype=np.float64)
     count = 0
+    loader = _loader(dataset, batch_size=batch_size, shuffle=False)
+    total_batches = len(loader)
+    last_progress_log = time.monotonic()
     with torch.inference_mode():
-        for cpu_batch in _loader(dataset, batch_size=batch_size, shuffle=False):
+        for batch_index, cpu_batch in enumerate(loader, start=1):
             batch = cpu_batch.to(resolved)
             losses = combined_probe_loss(
                 _predict(model, batch),
@@ -315,6 +382,20 @@ def _mean_loss_components(
             size = len(batch.sample_ids)
             totals += np.asarray([loss.item() for loss in losses]) * size
             count += size
+            if logger is not None and progress_label is not None and _progress_due(
+                batch_index, total_batches, last_progress_log
+            ):
+                logger.info(
+                    "%s: batch %d/%d (%.1f%%), %d/%d samples, running loss %.6f",
+                    progress_label,
+                    batch_index,
+                    total_batches,
+                    100.0 * batch_index / total_batches,
+                    count,
+                    len(dataset),
+                    totals[0] / count,
+                )
+                last_progress_log = time.monotonic()
     return {
         "loss": float(totals[0] / count),
         "huber_loss": float(totals[1] / count),
@@ -462,6 +543,18 @@ def _finite_or_none(value: float) -> float | None:
 
 def _format_metric(value: float | int | None) -> str:
     return "undefined" if value is None else f"{float(value):.4f}"
+
+
+def _progress_due(batch_index: int, total_batches: int, last_log: float) -> bool:
+    """Report early, at roughly 10% increments, and at least once per minute."""
+
+    interval = max(1, math.ceil(total_batches / 10))
+    return (
+        batch_index == 1
+        or batch_index == total_batches
+        or batch_index % interval == 0
+        or time.monotonic() - last_log >= 60.0
+    )
 
 
 __all__ = [

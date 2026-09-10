@@ -499,10 +499,6 @@ rsync -av outputs/ /content/drive/MyDrive/cv3d-project/outputs/
 mkdir -p /content/drive/MyDrive/cv3d-project/data/cache/features
 rsync -av data/cache/features/ \
   /content/drive/MyDrive/cv3d-project/data/cache/features/
-
-mkdir -p /content/drive/MyDrive/cv3d-project/data/cache/visibility
-rsync -av data/cache/visibility/ \
-  /content/drive/MyDrive/cv3d-project/data/cache/visibility/
 ```
 
 If Phase 3 generated processed histories, persist those as well:
