@@ -40,6 +40,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Override an existing config field; may be repeated.",
     )
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from checkpoints/training_state.pt in this run directory.",
+    )
     return parser
 
 
@@ -59,7 +64,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         settings.device,
     )
     try:
-        completed = run_phase3_joint(config, REPOSITORY_ROOT, logger=logger)
+        completed = run_phase3_joint(
+            config, REPOSITORY_ROOT, logger=logger, resume=args.resume
+        )
     except (
         FeatureCacheError,
         FeatureExtractorError,

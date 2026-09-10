@@ -157,23 +157,53 @@ class HistoryBatch:
     sampling_metadata: tuple[Mapping[str, Any], ...]
     history_images: Tensor | None
 
-    def to(self, device: str | torch.device) -> "HistoryBatch":
+    def pin_memory(self) -> "HistoryBatch":
+        """Pin tensor storage so CUDA transfers can overlap image loading."""
+
         return HistoryBatch(
             sample_ids=self.sample_ids,
             object_ids=self.object_ids,
             history_image_paths=self.history_image_paths,
-            history_anchor_ids=self.history_anchor_ids.to(device),
-            history_lengths=self.history_lengths.to(device),
-            history_padding_mask=self.history_padding_mask.to(device),
-            target_surface_gain=self.target_surface_gain.to(device, dtype=torch.float32),
-            valid_candidate_mask=self.valid_candidate_mask.to(device),
+            history_anchor_ids=self.history_anchor_ids.pin_memory(),
+            history_lengths=self.history_lengths.pin_memory(),
+            history_padding_mask=self.history_padding_mask.pin_memory(),
+            target_surface_gain=self.target_surface_gain.pin_memory(),
+            valid_candidate_mask=self.valid_candidate_mask.pin_memory(),
             visibility_cache_ids=self.visibility_cache_ids,
             rotation_metadata=self.rotation_metadata,
             sampling_metadata=self.sampling_metadata,
             history_images=(
                 None
                 if self.history_images is None
-                else self.history_images.to(device, dtype=torch.float32)
+                else self.history_images.pin_memory()
+            ),
+        )
+
+    def to(self, device: str | torch.device) -> "HistoryBatch":
+        return HistoryBatch(
+            sample_ids=self.sample_ids,
+            object_ids=self.object_ids,
+            history_image_paths=self.history_image_paths,
+            history_anchor_ids=self.history_anchor_ids.to(device, non_blocking=True),
+            history_lengths=self.history_lengths.to(device, non_blocking=True),
+            history_padding_mask=self.history_padding_mask.to(
+                device, non_blocking=True
+            ),
+            target_surface_gain=self.target_surface_gain.to(
+                device, dtype=torch.float32, non_blocking=True
+            ),
+            valid_candidate_mask=self.valid_candidate_mask.to(
+                device, non_blocking=True
+            ),
+            visibility_cache_ids=self.visibility_cache_ids,
+            rotation_metadata=self.rotation_metadata,
+            sampling_metadata=self.sampling_metadata,
+            history_images=(
+                None
+                if self.history_images is None
+                else self.history_images.to(
+                    device, dtype=torch.float32, non_blocking=True
+                )
             ),
         )
 

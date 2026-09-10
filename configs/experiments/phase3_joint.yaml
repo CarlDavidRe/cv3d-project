@@ -20,8 +20,9 @@ phase3:
     device: auto
     matched_independent_config: configs/experiments/phase3_independent.yaml
 
-    # This is a live history-level forward. Independent feature caches are
-    # read only for provenance validation and are never used as joint inputs.
+    # Every feature starts with a complete live history-level forward.
+    # Independent feature caches are read only for provenance validation and
+    # are never used as joint inputs.
     backbone:
       model_id: facebook/VGGT-1B
       image_size: 518
@@ -37,21 +38,37 @@ phase3:
       hidden_dim: 128
       dropout: 0.1
 
+    # VGGT is frozen, so each complete joint history is encoded once and kept
+    # in system RAM. Equal-length batches avoid separate VGGT forwards for
+    # padding groups. If a batch is too large, CUDA OOM backoff halves it.
+    frozen_feature_precompute:
+      enabled: true
+      batch_size: 4
+      num_workers: 4
+      pin_memory: true
+      # Atomically persist 64 precompute batches (normally 256 histories) per
+      # shard so a new Colab runtime can continue without repeating them.
+      cache_every_batches: 64
+
     # Optimizer, loss, epochs, patience, seed, and effective batch size match
-    # phase3_independent.yaml. A one-history microbatch bounds VGGT memory.
+    # phase3_independent.yaml. Once joint features are materialized, the small
+    # trainable head can use the full matched batch directly.
     training:
       epochs: 80
-      batch_size: 1
-      gradient_accumulation_steps: 64
+      batch_size: 64
+      gradient_accumulation_steps: 1
       learning_rate: 0.001
       weight_decay: 0.0001
       huber_delta: 0.01
       ranking_weight: 0.1
       ranking_margin: 0.0
       patience: 10
+      # Save after every 64 full head batches. Every batch is now an optimizer
+      # boundary, so cached states never need to store partial gradients.
+      checkpoint_every_batches: 64
 
     evaluation:
-      batch_size: 1
+      batch_size: 256
       ndcg_k: 5
 
     # Runs before optimization and records accelerator peak memory for short

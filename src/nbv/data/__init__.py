@@ -18,6 +18,7 @@ from nbv.data.history_features import (
     HistoryFeatureDataset,
     HistoryFeatureError,
     HistoryFeatureSample,
+    MaterializedHistoryFeatureDataset,
     collate_history_features,
 )
 from nbv.data.num_dataset import (
@@ -55,6 +56,7 @@ __all__ = [
     "HistoryFeatureDataset",
     "HistoryFeatureError",
     "HistoryFeatureSample",
+    "MaterializedHistoryFeatureDataset",
     "HistoryDataset",
     "HistoryDatasetError",
     "HistorySample",

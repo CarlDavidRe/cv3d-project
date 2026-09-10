@@ -107,12 +107,20 @@ class HistoryFeatureBatch:
         return HistoryFeatureBatch(
             sample_ids=self.sample_ids,
             object_ids=self.object_ids,
-            history_features=self.history_features.to(device, dtype=torch.float32),
-            history_anchor_ids=self.history_anchor_ids.to(device),
-            history_lengths=self.history_lengths.to(device),
-            history_padding_mask=self.history_padding_mask.to(device),
-            target_surface_gain=self.target_surface_gain.to(device, dtype=torch.float32),
-            valid_candidate_mask=self.valid_candidate_mask.to(device),
+            history_features=self.history_features.to(device, non_blocking=True),
+            history_anchor_ids=self.history_anchor_ids.to(
+                device, non_blocking=True
+            ),
+            history_lengths=self.history_lengths.to(device, non_blocking=True),
+            history_padding_mask=self.history_padding_mask.to(
+                device, non_blocking=True
+            ),
+            target_surface_gain=self.target_surface_gain.to(
+                device, dtype=torch.float32, non_blocking=True
+            ),
+            valid_candidate_mask=self.valid_candidate_mask.to(
+                device, non_blocking=True
+            ),
             visibility_cache_ids=self.visibility_cache_ids,
         )
 
@@ -162,6 +170,79 @@ class HistoryFeatureDataset(Sequence[HistoryFeatureSample]):
         )
 
 
+class MaterializedHistoryFeatureDataset(HistoryFeatureDataset):
+    """In-memory features produced once from complete joint histories.
+
+    Unlike :class:`HistoryFeatureDataset`, these vectors are keyed by history
+    sample rather than by object/view. That distinction matters for a joint
+    backbone because a view's representation depends on every other view in
+    the same acquired history.
+    """
+
+    def __init__(
+        self,
+        histories: HistoryDataset,
+        samples: Sequence[HistoryFeatureSample],
+    ) -> None:
+        if not histories.load_images:
+            raise HistoryFeatureError(
+                "materialized joint features require their source RGB histories"
+            )
+        if len(samples) != len(histories):
+            raise HistoryFeatureError(
+                "materialized features must contain one sample per history"
+            )
+        materialized = tuple(samples)
+        expected_ids = tuple(str(value) for value in histories._arrays["sample_ids"])
+        actual_ids = tuple(sample.sample_id for sample in materialized)
+        if actual_ids != expected_ids:
+            raise HistoryFeatureError(
+                "materialized feature samples must retain history dataset order"
+            )
+        feature_dims = {
+            int(sample.history_features.shape[1])
+            for sample in materialized
+            if sample.history_features.ndim == 2
+        }
+        if len(feature_dims) != 1 or any(
+            sample.history_features.ndim != 2 for sample in materialized
+        ):
+            raise HistoryFeatureError(
+                "materialized history features must share one [H, D] shape contract"
+            )
+        for sample in materialized:
+            if sample.history_features.requires_grad:
+                raise HistoryFeatureError("materialized features must be detached")
+            if sample.history_features.device.type != "cpu":
+                raise HistoryFeatureError("materialized features must reside on CPU")
+            if not torch.isfinite(sample.history_features).all():
+                raise HistoryFeatureError("materialized features must be finite")
+            if sample.history_features.shape[0] != sample.history_anchor_ids.shape[0]:
+                raise HistoryFeatureError(
+                    "materialized feature and anchor history lengths differ"
+                )
+        self.histories = histories
+        self.samples = materialized
+        self.feature_dim = feature_dims.pop()
+
+    def __len__(self) -> int:
+        return len(self.samples)
+
+    @property
+    def storage_bytes(self) -> int:
+        return sum(
+            sample.history_features.numel() * sample.history_features.element_size()
+            for sample in self.samples
+        )
+
+    def __getitem__(
+        self, index: int | slice
+    ) -> HistoryFeatureSample | list[HistoryFeatureSample]:
+        if isinstance(index, slice):
+            return list(self.samples[index])
+        return self.samples[index]
+
+
 def collate_history_features(
     samples: Sequence[HistoryFeatureSample],
 ) -> HistoryFeatureBatch:
@@ -169,7 +250,14 @@ def collate_history_features(
         raise HistoryDatasetError("cannot collate an empty history-feature batch")
     feature_dim = int(samples[0].history_features.shape[1])
     max_length = max(int(sample.history_features.shape[0]) for sample in samples)
-    features = torch.zeros((len(samples), max_length, feature_dim), dtype=torch.float32)
+    feature_dtype = samples[0].history_features.dtype
+    if not feature_dtype.is_floating_point:
+        raise HistoryFeatureError("history features must be floating point")
+    if any(sample.history_features.dtype != feature_dtype for sample in samples):
+        raise HistoryFeatureError("all history features in a batch must share one dtype")
+    features = torch.zeros(
+        (len(samples), max_length, feature_dim), dtype=feature_dtype
+    )
     anchors = torch.full((len(samples), max_length), -1, dtype=torch.int64)
     padding = torch.ones((len(samples), max_length), dtype=torch.bool)
     for row, sample in enumerate(samples):
@@ -178,7 +266,7 @@ def collate_history_features(
         length = int(sample.history_features.shape[0])
         if sample.history_anchor_ids.shape != (length,):
             raise HistoryFeatureError("history anchors must match the feature sequence")
-        features[row, :length] = sample.history_features.float()
+        features[row, :length] = sample.history_features
         anchors[row, :length] = sample.history_anchor_ids
         padding[row, :length] = False
     return HistoryFeatureBatch(
@@ -200,5 +288,6 @@ __all__ = [
     "HistoryFeatureDataset",
     "HistoryFeatureError",
     "HistoryFeatureSample",
+    "MaterializedHistoryFeatureDataset",
     "collate_history_features",
 ]

@@ -12,9 +12,15 @@ import time
 from typing import Any, Mapping
 
 import torch
+from torch.utils.data import DataLoader
 
 from nbv.config import load_config, validate_artifact_path
-from nbv.data import HistoryDataset
+from nbv.data import (
+    HistoryDataset,
+    HistoryFeatureSample,
+    MaterializedHistoryFeatureDataset,
+    collate_history_samples,
+)
 from nbv.eval.result_schema import write_csv, write_json
 from nbv.experiments.phase3_independent import parse_phase3_independent_settings
 from nbv.features import VGGTJointExtractor, load_feature_cache
@@ -25,7 +31,7 @@ from nbv.models import (
     JointHistoryGainModel,
     count_trainable_parameters,
 )
-from nbv.reproducibility import initialize_run, seed_everything
+from nbv.reproducibility import initialize_run, resolve_run_directory, seed_everything
 from nbv.training import evaluate_history_model, fit_history_model
 from nbv.visualization import (
     write_validation_loss_comparison,
@@ -48,10 +54,16 @@ class Phase3JointSettings:
     dropout: float
     include_anchor_directions: bool
     training: Mapping[str, Any]
+    checkpoint_every_batches: int
     evaluation_batch_size: int
     ndcg_k: int
     preflight_enabled: bool
     preflight_history_lengths: tuple[int, ...]
+    feature_precompute_enabled: bool
+    feature_precompute_batch_size: int
+    feature_precompute_num_workers: int
+    feature_precompute_pin_memory: bool
+    feature_precompute_cache_every_batches: int
     data_root: Path
     model_cache_root: Path
 
@@ -70,6 +82,15 @@ def parse_phase3_joint_settings(
     training = _mapping(control, "training")
     evaluation = _mapping(control, "evaluation")
     preflight = _mapping(control, "memory_preflight")
+    precompute = control.get("frozen_feature_precompute", {
+        "enabled": True,
+        "batch_size": 1,
+        "num_workers": 0,
+        "pin_memory": True,
+        "cache_every_batches": 64,
+    })
+    if not isinstance(precompute, Mapping):
+        raise TypeError("frozen_feature_precompute must be a mapping")
     components = backbone.get("components")
     if not isinstance(components, list) or not components or any(
         not isinstance(value, str) for value in components
@@ -87,10 +108,17 @@ def parse_phase3_joint_settings(
     required_training = {
         "epochs", "batch_size", "gradient_accumulation_steps", "learning_rate",
         "weight_decay", "huber_delta", "ranking_weight", "ranking_margin", "patience",
+        "checkpoint_every_batches",
     }
     if set(training) != required_training:
         raise ValueError(f"training must contain exactly {sorted(required_training)}")
-    for key in ("epochs", "batch_size", "gradient_accumulation_steps", "patience"):
+    for key in (
+        "epochs",
+        "batch_size",
+        "gradient_accumulation_steps",
+        "patience",
+        "checkpoint_every_batches",
+    ):
         _positive_integer(training[key], f"training.{key}")
     _finite(training["learning_rate"], "training.learning_rate", minimum=0.0, strict=True)
     _finite(training["weight_decay"], "training.weight_decay", minimum=0.0)
@@ -110,6 +138,17 @@ def parse_phase3_joint_settings(
         _positive_integer(value, "memory_preflight.history_lengths item")
     if len(set(lengths)) != len(lengths):
         raise ValueError("memory_preflight.history_lengths must be unique")
+    if set(precompute) != {
+        "enabled", "batch_size", "num_workers", "pin_memory", "cache_every_batches"
+    }:
+        raise ValueError(
+            "frozen_feature_precompute must contain exactly enabled, batch_size, "
+            "num_workers, pin_memory, and cache_every_batches"
+        )
+    if not isinstance(precompute["enabled"], bool):
+        raise TypeError("frozen_feature_precompute.enabled must be boolean")
+    if not isinstance(precompute["pin_memory"], bool):
+        raise TypeError("frozen_feature_precompute.pin_memory must be boolean")
     return Phase3JointSettings(
         history_manifest=_rooted(root, control.get("history_manifest"), "history_manifest"),
         coverage_target=_string(control.get("coverage_target"), "coverage_target"),
@@ -128,12 +167,25 @@ def parse_phase3_joint_settings(
         dropout=dropout,
         include_anchor_directions=include_directions,
         training=dict(training),
+        checkpoint_every_batches=int(training["checkpoint_every_batches"]),
         evaluation_batch_size=_positive_integer(
             evaluation["batch_size"], "evaluation.batch_size"
         ),
         ndcg_k=_positive_integer(evaluation["ndcg_k"], "evaluation.ndcg_k"),
         preflight_enabled=bool(preflight["enabled"]),
         preflight_history_lengths=tuple(int(value) for value in lengths),
+        feature_precompute_enabled=bool(precompute["enabled"]),
+        feature_precompute_batch_size=_positive_integer(
+            precompute["batch_size"], "frozen_feature_precompute.batch_size"
+        ),
+        feature_precompute_num_workers=_nonnegative_integer(
+            precompute["num_workers"], "frozen_feature_precompute.num_workers"
+        ),
+        feature_precompute_pin_memory=bool(precompute["pin_memory"]),
+        feature_precompute_cache_every_batches=_positive_integer(
+            precompute["cache_every_batches"],
+            "frozen_feature_precompute.cache_every_batches",
+        ),
         data_root=_rooted(root, paths.get("data_root"), "paths.data_root"),
         model_cache_root=_rooted(
             root, paths.get("model_cache_root"), "paths.model_cache_root"
@@ -147,6 +199,7 @@ def run_phase3_joint(
     *,
     logger: logging.Logger | None = None,
     extractor: VGGTJointExtractor | object | None = None,
+    resume: bool = False,
 ) -> Path:
     """Train the Step 17 control; held-out comparison remains Step 18."""
 
@@ -155,6 +208,23 @@ def run_phase3_joint(
     active_logger = logger or logging.getLogger(__name__)
     seed = int(config["experiment"]["seed"])
     seed_everything(seed, bool(config["experiment"]["deterministic"]))
+    run_dir = resolve_run_directory(config, root)
+    training_checkpoint_path = run_dir / "checkpoints" / "training_state.pt"
+    joint_feature_cache_root = run_dir / "joint_feature_cache"
+    cached_feature_shards = tuple(joint_feature_cache_root.glob("*/*.pt"))
+    if (training_checkpoint_path.exists() or cached_feature_shards) and not resume:
+        raise ValueError(
+            f"resumable joint state already exists under {run_dir}; "
+            "use --resume or choose a new experiment.name"
+        )
+    if resume:
+        saved_config_path = run_dir / "config.yaml"
+        if not saved_config_path.is_file():
+            raise FileNotFoundError(
+                f"resumed joint run lacks its saved config: {saved_config_path}"
+            )
+        if load_config(saved_config_path) != dict(config):
+            raise ValueError("resumed joint run configuration differs from config.yaml")
     active_logger.info("Phase 3 joint: validating the matched independent control")
     match = _validate_matched_control(settings, root, config)
     active_logger.info("Phase 3 joint: loading train/validation histories with RGB images")
@@ -205,6 +275,12 @@ def run_phase3_joint(
     if joint_parameters != independent_parameters:
         raise ValueError("joint and independent trainable head capacities differ")
     context = initialize_run(config, root)
+    run_identity = {
+        "model_type": "phase3_joint_history_gain",
+        "experiment_config_sha256": _mapping_sha256(config),
+        "history_dataset_id": manifest["dataset_id"],
+        "history_manifest_sha256": _sha256(settings.history_manifest),
+    }
     active_logger.info(
         "Phase 3 joint memory preflight: %s",
         (
@@ -226,22 +302,98 @@ def run_phase3_joint(
         settings.expected_feature_dim,
         joint_parameters,
     )
+    if settings.feature_precompute_enabled:
+        active_logger.info(
+            "Phase 3 joint: materializing frozen joint features once "
+            "(batch size %d, workers %d)",
+            settings.feature_precompute_batch_size,
+            settings.feature_precompute_num_workers,
+        )
+        materialized_started = time.perf_counter()
+        training_data = _materialize_joint_features(
+            model,
+            histories["train"],
+            batch_size=settings.feature_precompute_batch_size,
+            num_workers=settings.feature_precompute_num_workers,
+            pin_memory=settings.feature_precompute_pin_memory,
+            logger=active_logger,
+            progress_label="Phase 3 joint train feature precompute",
+            cache_dir=joint_feature_cache_root / "train",
+            cache_every_batches=settings.feature_precompute_cache_every_batches,
+            resume=resume,
+            cache_identity={**run_identity, "split": "train"},
+        )
+        validation_data = _materialize_joint_features(
+            model,
+            histories["val"],
+            batch_size=settings.feature_precompute_batch_size,
+            num_workers=settings.feature_precompute_num_workers,
+            pin_memory=settings.feature_precompute_pin_memory,
+            logger=active_logger,
+            progress_label="Phase 3 joint validation feature precompute",
+            cache_dir=joint_feature_cache_root / "val",
+            cache_every_batches=settings.feature_precompute_cache_every_batches,
+            resume=resume,
+            cache_identity={**run_identity, "split": "val"},
+        )
+        feature_precompute = {
+            "enabled": True,
+            "storage": "system_memory_and_resumable_disk_shards",
+            "backbone_forwards_per_history": 1,
+            "configured_batch_size": settings.feature_precompute_batch_size,
+            "num_workers": settings.feature_precompute_num_workers,
+            "pin_memory": settings.feature_precompute_pin_memory,
+            "cache_every_batches": settings.feature_precompute_cache_every_batches,
+            "cache_root": str(joint_feature_cache_root.resolve()),
+            "cache_shards": len(tuple(joint_feature_cache_root.glob("*/*.pt"))),
+            "train_bytes": training_data.storage_bytes,
+            "validation_bytes": validation_data.storage_bytes,
+            "elapsed_seconds": time.perf_counter() - materialized_started,
+        }
+        active_logger.info(
+            "Phase 3 joint: feature precompute complete in %.1f seconds; "
+            "%s retained in system memory",
+            feature_precompute["elapsed_seconds"],
+            _format_bytes(
+                feature_precompute["train_bytes"]
+                + feature_precompute["validation_bytes"]
+            ),
+        )
+    else:
+        training_data = histories["train"]
+        validation_data = histories["val"]
+        feature_precompute = {
+            "enabled": False,
+            "storage": None,
+            "backbone_forwards_per_history": None,
+        }
     training = dict(settings.training)
     accumulation = int(training.pop("gradient_accumulation_steps"))
+    checkpoint_every_batches = int(training.pop("checkpoint_every_batches"))
+    resume_training = resume and training_checkpoint_path.is_file()
+    if resume and not resume_training:
+        active_logger.info(
+            "No head-training checkpoint exists yet; starting head training "
+            "after restoring the available joint-feature shards"
+        )
     fit = fit_history_model(
         model,
-        histories["train"],
-        histories["val"],
+        training_data,
+        validation_data,
         device=settings.device,
         seed=seed,
         ndcg_k=settings.ndcg_k,
         logger=active_logger,
         gradient_accumulation_steps=accumulation,
+        training_checkpoint_path=training_checkpoint_path,
+        checkpoint_every_batches=checkpoint_every_batches,
+        resume=resume_training,
+        checkpoint_identity=run_identity,
         **training,
     )
     validation = evaluate_history_model(
         model,
-        histories["val"],
+        validation_data,
         batch_size=settings.evaluation_batch_size,
         huber_delta=settings.training["huber_delta"],
         ranking_weight=settings.training["ranking_weight"],
@@ -273,6 +425,11 @@ def run_phase3_joint(
             "feature_components": list(settings.feature_components),
             "history_mode": "joint_multiview",
             "padding_strategy": "group_by_real_history_length",
+            "training_feature_strategy": (
+                "materialize_joint_features_once_in_system_memory"
+                if settings.feature_precompute_enabled
+                else "live_joint_forward_per_head_batch"
+            ),
             "frozen": True,
         },
         "state_dict": {
@@ -328,6 +485,11 @@ def run_phase3_joint(
         "best_validation_loss": fit.best_validation_loss,
         "validation": dict(validation.summary),
         "memory_preflight": preflight,
+        "frozen_feature_precompute": feature_precompute,
+        "resumed": resume,
+        "training_resumed": resume_training,
+        "training_checkpoint": str(training_checkpoint_path.resolve()),
+        "training_checkpoint_sha256": _sha256(training_checkpoint_path),
         "checkpoint": str(checkpoint_path.resolve()),
     }
     summary["checkpoint_sha256"] = _sha256(checkpoint_path)
@@ -480,9 +642,14 @@ def _validate_matched_control(
         "independent_feature_cache": str(cache_path),
         "independent_feature_cache_sha256": _sha256(cache_path),
         "independent_microbatch_size": int(independent.training["batch_size"]),
-        "joint_microbatch_size": int(settings.training["batch_size"]),
+        "joint_head_microbatch_size": int(settings.training["batch_size"]),
         "joint_gradient_accumulation_steps": int(
             settings.training["gradient_accumulation_steps"]
+        ),
+        "joint_backbone_precompute_batch_size": (
+            settings.feature_precompute_batch_size
+            if settings.feature_precompute_enabled
+            else None
         ),
         "effective_batch_size": effective_batch,
         "optimizer": "AdamW",
@@ -567,6 +734,276 @@ def _memory_preflight(
     }
 
 
+def _materialize_joint_features(
+    model: JointHistoryGainModel,
+    dataset: HistoryDataset,
+    *,
+    batch_size: int,
+    num_workers: int,
+    pin_memory: bool,
+    logger: logging.Logger | None,
+    progress_label: str,
+    cache_dir: Path,
+    cache_every_batches: int,
+    resume: bool,
+    cache_identity: Mapping[str, Any],
+) -> MaterializedHistoryFeatureDataset:
+    """Cache frozen joint vectors in atomic shards and retain them in memory."""
+
+    lengths = [int(value) for value in dataset._arrays["history_lengths"]]
+    batches: list[list[int]] = []
+    # Same-length batches avoid extra VGGT calls because the backbone has no
+    # padding-mask input. Long histories run first so an oversized batch fails
+    # (and triggers the OOM backoff) early rather than late in a long precompute.
+    for length in sorted(set(lengths), reverse=True):
+        indices = [index for index, value in enumerate(lengths) if value == length]
+        batches.extend(
+            indices[start : start + batch_size]
+            for start in range(0, len(indices), batch_size)
+        )
+    sample_indices = {
+        str(sample_id): index
+        for index, sample_id in enumerate(dataset._arrays["sample_ids"])
+    }
+    materialized: list[HistoryFeatureSample | None] = [None] * len(dataset)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    total_shards = math.ceil(len(batches) / cache_every_batches)
+    first_missing_shard = total_shards
+    completed = 0
+    for shard_index in range(total_shards):
+        shard_path = cache_dir / f"shard_{shard_index:05d}.pt"
+        if not shard_path.is_file():
+            first_missing_shard = shard_index
+            break
+        if not resume:
+            raise ValueError(
+                f"joint feature cache already exists: {shard_path}; use --resume"
+            )
+        start = shard_index * cache_every_batches
+        end = min(start + cache_every_batches, len(batches))
+        expected_ids = _batch_sample_ids(dataset, batches[start:end])
+        cached = _load_joint_feature_shard(
+            shard_path,
+            expected_sample_ids=expected_ids,
+            cache_identity=cache_identity,
+        )
+        for sample in cached:
+            materialized[sample_indices[sample.sample_id]] = sample
+        completed += len(cached)
+    if any(
+        (cache_dir / f"shard_{index:05d}.pt").exists()
+        for index in range(first_missing_shard + 1, total_shards)
+    ):
+        raise ValueError("joint feature cache has a gap between completed shards")
+    if logger is not None and completed:
+        logger.info(
+            "%s: restored %d/%d histories from %d disk shards",
+            progress_label,
+            completed,
+            len(dataset),
+            first_missing_shard,
+        )
+
+    pending_batches = batches[first_missing_shard * cache_every_batches :]
+    loader_kwargs: dict[str, Any] = {
+        "batch_sampler": pending_batches,
+        "num_workers": num_workers,
+        "collate_fn": collate_history_samples,
+        "pin_memory": pin_memory and next(model.parameters()).device.type == "cuda",
+    }
+    if num_workers:
+        loader_kwargs["prefetch_factor"] = 2
+    loader = DataLoader(dataset, **loader_kwargs)
+    safe_batch_sizes: dict[int, int] = {}
+    shard_samples: list[HistoryFeatureSample] = []
+    shard_index = first_missing_shard
+    batches_in_shard = 0
+    last_progress_log = time.monotonic()
+    for cpu_batch in loader:
+        feature_rows = _extract_with_oom_backoff(
+            model.extractor,
+            cpu_batch.history_images,
+            cpu_batch.history_padding_mask,
+            logger=logger,
+            safe_batch_sizes=safe_batch_sizes,
+        )
+        for row, sample_id in enumerate(cpu_batch.sample_ids):
+            length = int(cpu_batch.history_lengths[row])
+            index = sample_indices[sample_id]
+            sample = HistoryFeatureSample(
+                sample_id=sample_id,
+                object_id=cpu_batch.object_ids[row],
+                history_features=feature_rows[row, :length].contiguous(),
+                history_anchor_ids=cpu_batch.history_anchor_ids[row, :length].clone(),
+                target_surface_gain=cpu_batch.target_surface_gain[row].clone(),
+                valid_candidate_mask=cpu_batch.valid_candidate_mask[row].clone(),
+                visibility_cache_id=cpu_batch.visibility_cache_ids[row],
+            )
+            materialized[index] = sample
+            shard_samples.append(sample)
+        completed += len(cpu_batch.sample_ids)
+        batches_in_shard += 1
+        if batches_in_shard == cache_every_batches or completed == len(dataset):
+            shard_path = cache_dir / f"shard_{shard_index:05d}.pt"
+            _save_joint_feature_shard(
+                shard_path,
+                shard_samples,
+                cache_identity=cache_identity,
+            )
+            if logger is not None:
+                logger.info(
+                    "%s: cached shard %d/%d (%d/%d histories)",
+                    progress_label,
+                    shard_index + 1,
+                    total_shards,
+                    completed,
+                    len(dataset),
+                )
+            shard_index += 1
+            batches_in_shard = 0
+            shard_samples = []
+        now = time.monotonic()
+        if logger is not None and (
+            completed == len(dataset) or now - last_progress_log >= 30.0
+        ):
+            logger.info(
+                "%s: %d/%d histories (%.1f%%)",
+                progress_label,
+                completed,
+                len(dataset),
+                100.0 * completed / len(dataset),
+            )
+            last_progress_log = now
+    if any(sample is None for sample in materialized):
+        raise RuntimeError("joint feature precompute did not visit every history")
+    return MaterializedHistoryFeatureDataset(
+        dataset,
+        [sample for sample in materialized if sample is not None],
+    )
+
+
+def _batch_sample_ids(
+    dataset: HistoryDataset, batches: list[list[int]]
+) -> tuple[str, ...]:
+    sample_ids = dataset._arrays["sample_ids"]
+    return tuple(str(sample_ids[index]) for batch in batches for index in batch)
+
+
+def _save_joint_feature_shard(
+    path: Path,
+    samples: list[HistoryFeatureSample],
+    *,
+    cache_identity: Mapping[str, Any],
+) -> None:
+    payload = {
+        "schema_version": 1,
+        "cache_type": "phase3_joint_materialized_features",
+        "cache_identity": dict(cache_identity),
+        "sample_ids": [sample.sample_id for sample in samples],
+        "samples": [
+            {
+                "sample_id": sample.sample_id,
+                "object_id": sample.object_id,
+                "history_features": sample.history_features,
+                "history_anchor_ids": sample.history_anchor_ids,
+                "target_surface_gain": sample.target_surface_gain,
+                "valid_candidate_mask": sample.valid_candidate_mask,
+                "visibility_cache_id": sample.visibility_cache_id,
+            }
+            for sample in samples
+        ],
+    }
+    temporary = path.with_name(path.name + ".tmp")
+    torch.save(payload, temporary)
+    temporary.replace(path)
+
+
+def _load_joint_feature_shard(
+    path: Path,
+    *,
+    expected_sample_ids: tuple[str, ...],
+    cache_identity: Mapping[str, Any],
+) -> list[HistoryFeatureSample]:
+    payload = torch.load(path, map_location="cpu", weights_only=True)
+    if (
+        payload.get("schema_version") != 1
+        or payload.get("cache_type") != "phase3_joint_materialized_features"
+    ):
+        raise ValueError(f"unsupported joint feature-cache shard: {path}")
+    if payload.get("cache_identity") != dict(cache_identity):
+        raise ValueError(f"joint feature-cache identity differs: {path}")
+    if tuple(payload.get("sample_ids", ())) != expected_sample_ids:
+        raise ValueError(f"joint feature-cache sample order differs: {path}")
+    samples = [HistoryFeatureSample(**row) for row in payload["samples"]]
+    if tuple(sample.sample_id for sample in samples) != expected_sample_ids:
+        raise ValueError(f"joint feature-cache payload is inconsistent: {path}")
+    return samples
+
+
+def _extract_with_oom_backoff(
+    extractor: object,
+    history_images: torch.Tensor | None,
+    history_padding_mask: torch.Tensor,
+    *,
+    logger: logging.Logger | None,
+    safe_batch_sizes: dict[int, int] | None = None,
+) -> torch.Tensor:
+    if history_images is None:
+        raise ValueError("joint feature precompute requires loaded RGB images")
+    real_lengths = (~history_padding_mask).sum(dim=1)
+    if torch.unique(real_lengths).numel() != 1:
+        raise ValueError("joint feature precompute batches must share one history length")
+    history_length = int(real_lengths[0])
+    count = int(history_images.shape[0])
+    learned_limit = None if safe_batch_sizes is None else safe_batch_sizes.get(history_length)
+    if learned_limit is not None and count > learned_limit:
+        chunks = []
+        for start in range(0, count, learned_limit):
+            chunks.append(_extract_with_oom_backoff(
+                extractor,
+                history_images[start : start + learned_limit],
+                history_padding_mask[start : start + learned_limit],
+                logger=logger,
+                safe_batch_sizes=safe_batch_sizes,
+            ))
+        return torch.cat(chunks, dim=0)
+    try:
+        frozen = extractor.extract(history_images, history_padding_mask)
+        return frozen.view_features.detach().to("cpu", copy=True)
+    except torch.cuda.OutOfMemoryError:
+        if count == 1:
+            raise
+        torch.cuda.empty_cache()
+        midpoint = count // 2
+        if safe_batch_sizes is not None:
+            safe_batch_sizes[history_length] = min(
+                safe_batch_sizes.get(history_length, midpoint), midpoint
+            )
+        if logger is not None:
+            logger.warning(
+                "Joint feature batch of %d length-%d histories exceeded GPU memory; "
+                "using at most %d for this history length",
+                count,
+                history_length,
+                midpoint,
+            )
+        first = _extract_with_oom_backoff(
+            extractor,
+            history_images[:midpoint],
+            history_padding_mask[:midpoint],
+            logger=logger,
+            safe_batch_sizes=safe_batch_sizes,
+        )
+        second = _extract_with_oom_backoff(
+            extractor,
+            history_images[midpoint:],
+            history_padding_mask[midpoint:],
+            logger=logger,
+            safe_batch_sizes=safe_batch_sizes,
+        )
+        return torch.cat((first, second), dim=0)
+
+
 def _validate_manifest(
     manifest: Mapping[str, Any], settings: Phase3JointSettings
 ) -> None:
@@ -611,6 +1048,12 @@ def _positive_integer(value: object, name: str) -> int:
     return value
 
 
+def _nonnegative_integer(value: object, name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{name} must be a non-negative integer")
+    return value
+
+
 def _integer(value: object, name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError(f"{name} must be an integer")
@@ -641,6 +1084,11 @@ def _sha256(path: str | Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _mapping_sha256(value: Mapping[str, Any]) -> str:
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _format_bytes(value: int | None) -> str:

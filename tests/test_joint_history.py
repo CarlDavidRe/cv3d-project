@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -221,6 +222,99 @@ class JointHistoryTrainingTests(unittest.TestCase):
         self.assertGreater(fit.best_epoch, 0)
         self.assertEqual(final.predictions.shape, (4, 48))
 
+    def test_mid_epoch_checkpoint_resumes_to_identical_result(self) -> None:
+        import nbv.training.history as history_training
+
+        train = _image_histories("train")
+        torch.manual_seed(23)
+        reference = JointHistoryGainModel(
+            VGGTJointExtractor(
+                model=_JointAwareAggregator(), image_size=4, device="cpu",
+                expected_feature_dim=4,
+            ),
+            4,
+            hidden_dim=12,
+            dropout=0.0,
+        )
+        initial_state = {
+            key: value.detach().clone() for key, value in reference.state_dict().items()
+        }
+        fit_kwargs = {
+            "epochs": 2,
+            "batch_size": 1,
+            "gradient_accumulation_steps": 1,
+            "learning_rate": 0.01,
+            "weight_decay": 0.0,
+            "ranking_weight": 0.0,
+            "patience": None,
+            "device": "cpu",
+            "seed": 9,
+        }
+        reference_fit = fit_history_model(reference, train, train, **fit_kwargs)
+
+        interrupted = JointHistoryGainModel(
+            VGGTJointExtractor(
+                model=_JointAwareAggregator(), image_size=4, device="cpu",
+                expected_feature_dim=4,
+            ),
+            4,
+            hidden_dim=12,
+            dropout=0.0,
+        )
+        interrupted.load_state_dict(initial_state)
+        original_save = history_training._save_training_checkpoint
+
+        with tempfile.TemporaryDirectory() as temporary:
+            checkpoint = Path(temporary) / "training_state.pt"
+
+            def save_then_interrupt(*args: object, **kwargs: object) -> None:
+                original_save(*args, **kwargs)
+                if (
+                    kwargs["epoch_in_progress"] == 1
+                    and kwargs["batches_completed"] == 1
+                ):
+                    raise RuntimeError("simulated interruption")
+
+            with patch.object(
+                history_training,
+                "_save_training_checkpoint",
+                side_effect=save_then_interrupt,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "simulated interruption"):
+                    fit_history_model(
+                        interrupted,
+                        train,
+                        train,
+                        training_checkpoint_path=checkpoint,
+                        checkpoint_every_batches=1,
+                        checkpoint_identity={"fixture": "joint"},
+                        **fit_kwargs,
+                    )
+
+            resumed = JointHistoryGainModel(
+                VGGTJointExtractor(
+                    model=_JointAwareAggregator(), image_size=4, device="cpu",
+                    expected_feature_dim=4,
+                ),
+                4,
+                hidden_dim=12,
+                dropout=0.0,
+            )
+            resumed_fit = fit_history_model(
+                resumed,
+                train,
+                train,
+                training_checkpoint_path=checkpoint,
+                checkpoint_every_batches=1,
+                resume=True,
+                checkpoint_identity={"fixture": "joint"},
+                **fit_kwargs,
+            )
+
+        self.assertEqual(resumed_fit.history, reference_fit.history)
+        for key, value in reference.state_dict().items():
+            torch.testing.assert_close(resumed.state_dict()[key], value, rtol=0, atol=0)
+
 
 class JointConfigTests(unittest.TestCase):
     def test_checked_in_joint_config_matches_step16_control(self) -> None:
@@ -235,6 +329,13 @@ class JointConfigTests(unittest.TestCase):
             * settings.training["gradient_accumulation_steps"],
             64,
         )
+        self.assertEqual(settings.training["batch_size"], 64)
+        self.assertEqual(settings.training["gradient_accumulation_steps"], 1)
+        self.assertTrue(settings.feature_precompute_enabled)
+        self.assertEqual(settings.feature_precompute_batch_size, 4)
+        self.assertEqual(settings.feature_precompute_num_workers, 4)
+        self.assertTrue(settings.feature_precompute_pin_memory)
+        self.assertEqual(settings.evaluation_batch_size, 256)
         self.assertEqual(settings.preflight_history_lengths, (1, 2))
 
     def test_runner_saves_joint_checkpoint_match_and_memory_preflight(self) -> None:
@@ -379,6 +480,7 @@ class JointConfigTests(unittest.TestCase):
                         "epochs": 2, "batch_size": 1, "gradient_accumulation_steps": 2,
                         "learning_rate": 0.01, "weight_decay": 0.0, "huber_delta": 0.1,
                         "ranking_weight": 0.0, "ranking_margin": 0.0, "patience": 2,
+                        "checkpoint_every_batches": 2,
                     },
                     "evaluation": {"batch_size": 1, "ndcg_k": 5},
                     "memory_preflight": {"enabled": True, "history_lengths": [1, 2]},
@@ -402,6 +504,11 @@ class JointConfigTests(unittest.TestCase):
                 [row["history_length"] for row in summary["memory_preflight"]["measurements"]],
                 [1, 2],
             )
+            self.assertTrue(summary["frozen_feature_precompute"]["enabled"])
+            self.assertEqual(
+                summary["frozen_feature_precompute"]["backbone_forwards_per_history"],
+                1,
+            )
             loaded, payload = load_joint_history_checkpoint(
                 run_dir / "checkpoints/best.pt",
                 extractor=VGGTJointExtractor(
@@ -412,6 +519,48 @@ class JointConfigTests(unittest.TestCase):
             self.assertEqual(loaded.feature_dim, 4)
             self.assertEqual(payload["supervision"]["target"], "target_surface_gain")
             self.assertNotIn("test", summary)
+            self.assertTrue((run_dir / "checkpoints/training_state.pt").is_file())
+            self.assertTrue(
+                (run_dir / "joint_feature_cache/train/shard_00000.pt").is_file()
+            )
+            self.assertTrue(
+                (run_dir / "joint_feature_cache/val/shard_00000.pt").is_file()
+            )
+            with self.assertRaisesRegex(ValueError, "use --resume"):
+                run_phase3_joint(joint, root)
+
+            (run_dir / "checkpoints/training_state.pt").unlink()
+            resumed_aggregator = _JointAwareAggregator()
+            resumed_dir = run_phase3_joint(
+                joint,
+                root,
+                extractor=VGGTJointExtractor(
+                    model=resumed_aggregator, image_size=4, device="cpu",
+                    expected_feature_dim=4,
+                ),
+                resume=True,
+            )
+            resumed_summary = json.loads(
+                (resumed_dir / "metrics/summary.json").read_text()
+            )
+            self.assertTrue(resumed_summary["resumed"])
+            self.assertFalse(resumed_summary["training_resumed"])
+            self.assertEqual(resumed_summary["epochs_completed"], 2)
+            self.assertEqual(len(resumed_aggregator.input_shapes), 2)
+
+            training_resumed_dir = run_phase3_joint(
+                joint,
+                root,
+                extractor=VGGTJointExtractor(
+                    model=_JointAwareAggregator(), image_size=4, device="cpu",
+                    expected_feature_dim=4,
+                ),
+                resume=True,
+            )
+            training_resumed_summary = json.loads(
+                (training_resumed_dir / "metrics/summary.json").read_text()
+            )
+            self.assertTrue(training_resumed_summary["training_resumed"])
 
 
 if __name__ == "__main__":

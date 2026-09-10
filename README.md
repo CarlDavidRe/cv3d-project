@@ -333,13 +333,106 @@ python3 scripts/train_joint_history.py \
   --config configs/experiments/phase3_joint.yaml
 ```
 
-Variable-length batches are grouped by real history length, so padded views
-never enter VGGT. The config matches the Step 16 supervision, optimizer, loss,
-training budget, effective batch size, and 272,950-parameter head, and performs
-a length-1/2 accelerator-memory preflight before training. See
+Each complete history is sent through frozen VGGT once. Equal-length histories
+are batched together so padded views never enter the backbone, and the joint
+features are retained in system RAM while the small head trains. The config
+matches the Step 16 supervision, optimizer, loss, training budget, effective
+batch size, and 272,950-parameter head, and performs a length-1/2
+accelerator-memory preflight before precomputation. See
 [`docs/phase3_joint_control.md`](docs/phase3_joint_control.md). Held-out and
 closed-loop independent-versus-joint evaluation is intentionally deferred to
 Step 18.
+
+### Resume and sync the joint Phase 3 training run
+
+Only the joint control writes a resumable intermediate state. With the default
+configuration it atomically updates
+`outputs/phase3/joint_history_control/seed_0/checkpoints/training_state.pt`
+after every 64 full head-training batches, after the optimization part of every
+epoch, and after each completed epoch. Frozen joint features are also written
+atomically in resumable 64-precompute-batch shards under
+`joint_feature_cache/{train,val}/`. The training state contains the current
+head, optimizer, best-validation head, early-stopping counters, completed
+history, partial-epoch loss counters, deterministic shuffle state, and random
+number generator state. `best.pt` remains the final inference checkpoint and
+is not used for training resume.
+
+For a new Colab run, start a five-minute background sync to the mounted Drive
+before starting training. These commands use the default experiment name; use
+matching paths if `experiment.name` is overridden:
+
+```bash
+cd /content/cv3d-project
+JOINT_RUN=outputs/phase3/joint_history_control/seed_0
+JOINT_DRIVE=/content/drive/MyDrive/cv3d-project/outputs/phase3/joint_history_control/seed_0
+
+mkdir -p "$JOINT_RUN" "$JOINT_DRIVE"
+(
+  while true; do
+    rsync -av --exclude='*.tmp' "$JOINT_RUN/" "$JOINT_DRIVE/"
+    sleep 300
+  done
+) > /tmp/cv3d-phase3-joint-sync.log 2>&1 &
+echo $! > /tmp/cv3d-phase3-joint-sync.pid
+```
+
+Start a new training run without `--resume`:
+
+```bash
+cd /content/cv3d-project
+python3 scripts/train_joint_history.py \
+  --config configs/experiments/phase3_joint.yaml
+```
+
+Before intentionally shutting down the runtime, interrupt training with
+`Ctrl-C`, force one final sync, and stop the background sync process:
+
+```bash
+cd /content/cv3d-project
+JOINT_RUN=outputs/phase3/joint_history_control/seed_0
+JOINT_DRIVE=/content/drive/MyDrive/cv3d-project/outputs/phase3/joint_history_control/seed_0
+
+mkdir -p "$JOINT_DRIVE"
+rsync -av --exclude='*.tmp' "$JOINT_RUN/" "$JOINT_DRIVE/"
+
+if [ -f /tmp/cv3d-phase3-joint-sync.pid ]; then
+  kill "$(cat /tmp/cv3d-phase3-joint-sync.pid)" 2>/dev/null || true
+fi
+```
+
+In a fresh runtime, first mount Drive and prepare the repository as described
+below. Then restore the joint run and list its resumable training state and/or
+feature shards. A runtime interrupted during feature precompute may have shards
+before `training_state.pt` exists:
+
+```bash
+cd /content/cv3d-project
+JOINT_RUN=outputs/phase3/joint_history_control/seed_0
+JOINT_DRIVE=/content/drive/MyDrive/cv3d-project/outputs/phase3/joint_history_control/seed_0
+
+mkdir -p "$JOINT_RUN"
+rsync -av --exclude='*.tmp' "$JOINT_DRIVE/" "$JOINT_RUN/"
+find "$JOINT_RUN" -type f \
+  \( -name 'training_state.pt' -o -name 'shard_*.pt' \) \
+  -print
+```
+
+Restart the background sync using the first command block, then resume with
+the same config and the same `--set` overrides used for the original run:
+
+```bash
+cd /content/cv3d-project
+python3 scripts/train_joint_history.py \
+  --config configs/experiments/phase3_joint.yaml \
+  --resume
+```
+
+Resume validates the full experiment identity and training configuration
+before loading state. Running without `--resume` refuses to overwrite an
+existing resumable joint state; use a new `experiment.name` for a genuinely
+new run. An unexpected runtime loss can repeat only the joint-feature
+precompute or head-training batches since the most recent atomic
+shard/checkpoint.
 
 ## Configuration and reproducibility
 
@@ -466,7 +559,6 @@ Run this before resuming an experiment in a new Colab runtime:
 
 ```bash
 cd /content/cv3d-project
-mkdir -p outputs data/cache/features data/cache/visibility
 
 if [ -d /content/drive/MyDrive/cv3d-project/outputs ]; then
   rsync -av /content/drive/MyDrive/cv3d-project/outputs/ outputs/
@@ -475,11 +567,6 @@ fi
 if [ -d /content/drive/MyDrive/cv3d-project/data/cache/features ]; then
   rsync -av /content/drive/MyDrive/cv3d-project/data/cache/features/ \
     data/cache/features/
-fi
-
-if [ -d /content/drive/MyDrive/cv3d-project/data/cache/visibility ]; then
-  rsync -av /content/drive/MyDrive/cv3d-project/data/cache/visibility/ \
-    data/cache/visibility/
 fi
 ```
 

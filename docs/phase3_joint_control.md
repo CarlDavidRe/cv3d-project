@@ -7,11 +7,12 @@ shape `[B, H, 3, 518, 518]`. The selected final-layer max-pooled patch vector
 for each view is therefore conditioned on the other views before history
 pooling.
 
-VGGT has no observation-padding-mask input. A mixed-length minibatch is grouped
-by its real history length, and each group is forwarded without padded images.
-The resulting vectors are restored to the padded batch layout with exact zeros
-at padded positions. Suffix-padding validation prevents a malformed batch from
-silently dropping real views.
+VGGT has no observation-padding-mask input. Feature precomputation batches only
+histories of the same real length and forwards them without padded images. The
+resulting joint-conditioned vectors are restored to dataset order, cached in
+atomic resumable disk shards, and retained in system RAM for head training.
+Suffix-padding validation prevents a malformed batch from silently dropping
+real views.
 
 ## Matched control
 
@@ -25,8 +26,8 @@ controls use the same:
 - 2,048-value feature width and optional fixed canonical camera directions;
 - 128-unit lightweight head, dropout, AdamW settings, Huber/ranking loss,
   epoch budget, patience, and seed;
-- effective batch size of 64. The joint run uses one history per microbatch and
-  64-step gradient accumulation to bound backbone memory.
+- effective batch size of 64. After one frozen VGGT pass per complete history,
+  the joint run trains the small head directly with batches of 64.
 
 The Step 16 feature-cache metadata does not contain a VGGT weight-file digest.
 The runner therefore verifies the recorded `facebook/VGGT-1B` model ID,
@@ -54,9 +55,19 @@ python3 scripts/train_joint_history.py \
   --config configs/experiments/phase3_joint.yaml
 ```
 
-The command trains on the train histories, selects the checkpoint by validation
-loss, and saves validation diagnostics. It intentionally does not run held-out
-test comparison or closed-loop evaluation; those belong to Step 18. Joint
-features are always computed live from the complete history. The independent
-feature cache is opened only to validate backbone and control provenance and is
-never substituted for a joint forward.
+The command first computes each train and validation history's joint features
+once, trains on the in-memory vectors, selects the checkpoint by validation
+loss, and saves validation diagnostics. The checked-in A100 configuration uses
+four equal-length histories per frozen-backbone call, four image-loading
+workers, pinned transfers, and automatic CUDA OOM backoff to smaller batches.
+The retained vectors require roughly 0.6--1.2 GB for the current dataset,
+depending on autocast dtype. It intentionally does not run held-out test
+comparison or closed-loop evaluation; those belong to Step 18. Every joint
+feature is still computed from its complete history. The independent feature
+cache is opened only to validate backbone and control provenance and is never
+substituted for a joint forward.
+
+The joint runner also checkpoints the trainable head, optimizer, validation
+selection, early-stopping state, partial epoch, shuffle order, and RNG state.
+The complete Drive sync, restore, and `--resume` commands are in the Phase 3
+section of the repository README.

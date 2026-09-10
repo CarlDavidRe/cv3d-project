@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 import logging
 import math
+from pathlib import Path
 import time
 from typing import Any, Mapping
 
@@ -17,6 +18,7 @@ from torch.utils.data import DataLoader
 from nbv.data.history_features import (
     HistoryFeatureBatch,
     HistoryFeatureDataset,
+    MaterializedHistoryFeatureDataset,
     collate_history_features,
 )
 from nbv.data.history_dataset import (
@@ -61,6 +63,10 @@ def fit_history_model(
     seed: int = 0,
     logger: logging.Logger | None = None,
     gradient_accumulation_steps: int = 1,
+    training_checkpoint_path: str | Path | None = None,
+    checkpoint_every_batches: int | None = None,
+    resume: bool = False,
+    checkpoint_identity: Mapping[str, Any] | None = None,
 ) -> HistoryFitResult:
     """Train on direct surface gain and restore the best validation state."""
 
@@ -76,6 +82,14 @@ def fit_history_model(
     _finite_number(ranking_margin, "ranking_margin", minimum=0.0)
     _positive_integer(ndcg_k, "ndcg_k")
     _positive_integer(gradient_accumulation_steps, "gradient_accumulation_steps")
+    if checkpoint_every_batches is not None:
+        _positive_integer(checkpoint_every_batches, "checkpoint_every_batches")
+    if resume and training_checkpoint_path is None:
+        raise ValueError("resume requires training_checkpoint_path")
+    if checkpoint_every_batches is not None and training_checkpoint_path is None:
+        raise ValueError(
+            "checkpoint_every_batches requires training_checkpoint_path"
+        )
     resolved_device = _resolve_device(device)
     model.to(resolved_device)
     optimizer = torch.optim.AdamW(
@@ -85,6 +99,21 @@ def fit_history_model(
     train_loader = _loader(
         train, batch_size=batch_size, shuffle=True, generator=generator
     )
+    checkpoint_path = (
+        None if training_checkpoint_path is None else Path(training_checkpoint_path)
+    )
+    training_configuration = {
+        "epochs": epochs,
+        "batch_size": batch_size,
+        "learning_rate": float(learning_rate),
+        "weight_decay": float(weight_decay),
+        "huber_delta": float(huber_delta),
+        "ranking_weight": float(ranking_weight),
+        "ranking_margin": float(ranking_margin),
+        "ndcg_k": ndcg_k,
+        "patience": patience,
+        "gradient_accumulation_steps": gradient_accumulation_steps,
+    }
     evaluation_kwargs = dict(
         batch_size=batch_size,
         huber_delta=huber_delta,
@@ -93,49 +122,133 @@ def fit_history_model(
         ndcg_k=ndcg_k,
         device=resolved_device,
     )
-    initial_train = _mean_loss_components(
-        model,
-        train,
-        logger=logger,
-        progress_label=f"Epoch 0/{epochs} train evaluation",
-        **evaluation_kwargs,
-    )
-    initial_validation = evaluate_history_model(
-        model,
-        validation,
-        logger=logger,
-        progress_label=f"Epoch 0/{epochs} validation evaluation",
-        **evaluation_kwargs,
-    )
-    best_validation_loss = float(initial_validation.summary["loss"])
-    best_epoch = 0
-    best_state = deepcopy(model.state_dict())
-    history: list[Mapping[str, float | int | None]] = [
-        _history_row(0, None, float(optimizer.param_groups[0]["lr"]), initial_train, initial_validation, ndcg_k)
-    ]
-    if logger is not None:
-        logger.info(
-            "Epoch 0/%d baseline: train loss %.6f, validation loss %.6f, "
-            "regret %s, NDCG@%d %s",
-            epochs,
-            initial_train["loss"],
-            best_validation_loss,
-            _format_metric(initial_validation.summary["normalized_regret_mean"]),
-            ndcg_k,
-            _format_metric(initial_validation.summary[f"ndcg_at_{ndcg_k}_mean"]),
+    if resume:
+        assert checkpoint_path is not None
+        resumed = _load_training_checkpoint(
+            checkpoint_path,
+            model=model,
+            optimizer=optimizer,
+            generator=generator,
+            training_configuration=training_configuration,
+            checkpoint_identity=checkpoint_identity,
+            device=resolved_device,
         )
-    without_improvement = 0
+        best_validation_loss = resumed["best_validation_loss"]
+        best_epoch = resumed["best_epoch"]
+        best_state = resumed["best_state"]
+        history = resumed["history"]
+        without_improvement = resumed["without_improvement"]
+        epochs_completed = resumed["epochs_completed"]
+        resume_epoch = resumed["epoch_in_progress"]
+        resume_batches = resumed["batches_completed"]
+        resume_weighted_loss = resumed["weighted_loss"]
+        resume_sample_count = resumed["sample_count"]
+        resume_epoch_generator_state = resumed["epoch_generator_state"]
+        if logger is not None:
+            location = (
+                f"epoch {resume_epoch}, batch {resume_batches}/{len(train_loader)}"
+                if resume_epoch is not None
+                else f"after epoch {epochs_completed}"
+            )
+            logger.info("Resumed training checkpoint %s from %s", checkpoint_path, location)
+    else:
+        initial_train = _mean_loss_components(
+            model,
+            train,
+            logger=logger,
+            progress_label=f"Epoch 0/{epochs} train evaluation",
+            **evaluation_kwargs,
+        )
+        initial_validation = evaluate_history_model(
+            model,
+            validation,
+            logger=logger,
+            progress_label=f"Epoch 0/{epochs} validation evaluation",
+            **evaluation_kwargs,
+        )
+        best_validation_loss = float(initial_validation.summary["loss"])
+        best_epoch = 0
+        best_state = deepcopy(model.state_dict())
+        history = [
+            _history_row(
+                0,
+                None,
+                float(optimizer.param_groups[0]["lr"]),
+                initial_train,
+                initial_validation,
+                ndcg_k,
+            )
+        ]
+        without_improvement = 0
+        epochs_completed = 0
+        resume_epoch = None
+        resume_batches = 0
+        resume_weighted_loss = 0.0
+        resume_sample_count = 0
+        resume_epoch_generator_state = None
+        if logger is not None:
+            logger.info(
+                "Epoch 0/%d baseline: train loss %.6f, validation loss %.6f, "
+                "regret %s, NDCG@%d %s",
+                epochs,
+                initial_train["loss"],
+                best_validation_loss,
+                _format_metric(initial_validation.summary["normalized_regret_mean"]),
+                ndcg_k,
+                _format_metric(initial_validation.summary[f"ndcg_at_{ndcg_k}_mean"]),
+            )
+        if checkpoint_path is not None:
+            _save_training_checkpoint(
+                checkpoint_path,
+                model=model,
+                optimizer=optimizer,
+                generator=generator,
+                training_configuration=training_configuration,
+                checkpoint_identity=checkpoint_identity,
+                best_validation_loss=best_validation_loss,
+                best_epoch=best_epoch,
+                best_state=best_state,
+                history=history,
+                without_improvement=without_improvement,
+                epochs_completed=epochs_completed,
+                epoch_in_progress=None,
+                batches_completed=0,
+                weighted_loss=0.0,
+                sample_count=0,
+                epoch_generator_state=None,
+            )
 
-    for epoch in range(1, epochs + 1):
+    start_epoch = resume_epoch if resume_epoch is not None else epochs_completed + 1
+    if patience is not None and without_improvement >= patience:
+        start_epoch = epochs + 1
+        if logger is not None:
+            logger.info(
+                "Training checkpoint had already early-stopped after epoch %d",
+                epochs_completed,
+            )
+
+    for epoch in range(start_epoch, epochs + 1):
         model.train()
-        weighted_loss = 0.0
-        sample_count = 0
+        continuing_epoch = resume_epoch == epoch
+        weighted_loss = resume_weighted_loss if continuing_epoch else 0.0
+        sample_count = resume_sample_count if continuing_epoch else 0
+        completed_batches = resume_batches if continuing_epoch else 0
         accumulated_batches = 0
         accumulated_samples = 0
         total_batches = len(train_loader)
+        if continuing_epoch:
+            if resume_epoch_generator_state is None:
+                raise ValueError("resume checkpoint lacks the epoch shuffle state")
+            generator.set_state(resume_epoch_generator_state)
+            epoch_generator_state = resume_epoch_generator_state
+        else:
+            epoch_generator_state = generator.get_state().clone()
         last_progress_log = time.monotonic()
+        last_checkpoint_batch = completed_batches
         optimizer.zero_grad(set_to_none=True)
         for batch_index, cpu_batch in enumerate(train_loader, start=1):
+            if batch_index <= completed_batches:
+                continue
             batch = cpu_batch.to(resolved_device)
             predictions = _predict(model, batch)
             total, _, _ = combined_probe_loss(
@@ -172,8 +285,70 @@ def fit_history_model(
                     weighted_loss / sample_count,
                 )
                 last_progress_log = time.monotonic()
+            if (
+                checkpoint_path is not None
+                and checkpoint_every_batches is not None
+                and accumulated_batches == 0
+                and batch_index - last_checkpoint_batch >= checkpoint_every_batches
+            ):
+                _save_training_checkpoint(
+                    checkpoint_path,
+                    model=model,
+                    optimizer=optimizer,
+                    generator=generator,
+                    training_configuration=training_configuration,
+                    checkpoint_identity=checkpoint_identity,
+                    best_validation_loss=best_validation_loss,
+                    best_epoch=best_epoch,
+                    best_state=best_state,
+                    history=history,
+                    without_improvement=without_improvement,
+                    epochs_completed=epoch - 1,
+                    epoch_in_progress=epoch,
+                    batches_completed=batch_index,
+                    weighted_loss=weighted_loss,
+                    sample_count=sample_count,
+                    epoch_generator_state=epoch_generator_state,
+                )
+                last_checkpoint_batch = batch_index
+                if logger is not None:
+                    logger.info(
+                        "Saved resumable training checkpoint %s at epoch %d/%d, "
+                        "batch %d/%d",
+                        checkpoint_path,
+                        epoch,
+                        epochs,
+                        batch_index,
+                        total_batches,
+                    )
         if accumulated_batches:
             _optimizer_step(optimizer, model, accumulated_samples)
+        if checkpoint_path is not None and last_checkpoint_batch != total_batches:
+            _save_training_checkpoint(
+                checkpoint_path,
+                model=model,
+                optimizer=optimizer,
+                generator=generator,
+                training_configuration=training_configuration,
+                checkpoint_identity=checkpoint_identity,
+                best_validation_loss=best_validation_loss,
+                best_epoch=best_epoch,
+                best_state=best_state,
+                history=history,
+                without_improvement=without_improvement,
+                epochs_completed=epoch - 1,
+                epoch_in_progress=epoch,
+                batches_completed=total_batches,
+                weighted_loss=weighted_loss,
+                sample_count=sample_count,
+                epoch_generator_state=epoch_generator_state,
+            )
+            if logger is not None:
+                logger.info(
+                    "Saved resumable training checkpoint %s after epoch %d optimization",
+                    checkpoint_path,
+                    epoch,
+                )
         optimization_loss = weighted_loss / sample_count
         train_result = _mean_loss_components(
             model,
@@ -230,6 +405,34 @@ def fit_history_model(
                     else f", early-stop wait {without_improvement}/{patience}"
                 ),
             )
+        epochs_completed = epoch
+        if checkpoint_path is not None:
+            _save_training_checkpoint(
+                checkpoint_path,
+                model=model,
+                optimizer=optimizer,
+                generator=generator,
+                training_configuration=training_configuration,
+                checkpoint_identity=checkpoint_identity,
+                best_validation_loss=best_validation_loss,
+                best_epoch=best_epoch,
+                best_state=best_state,
+                history=history,
+                without_improvement=without_improvement,
+                epochs_completed=epochs_completed,
+                epoch_in_progress=None,
+                batches_completed=0,
+                weighted_loss=0.0,
+                sample_count=0,
+                epoch_generator_state=None,
+            )
+            if logger is not None:
+                logger.info(
+                    "Saved resumable training checkpoint %s after epoch %d/%d",
+                    checkpoint_path,
+                    epoch,
+                    epochs,
+                )
         if patience is not None and without_improvement >= patience:
             if logger is not None:
                 logger.info(
@@ -243,7 +446,7 @@ def fit_history_model(
     return HistoryFitResult(
         best_epoch=best_epoch,
         best_validation_loss=best_validation_loss,
-        epochs_completed=epoch,
+        epochs_completed=epochs_completed,
         history=tuple(history),
     )
 
@@ -405,11 +608,19 @@ def _mean_loss_components(
 
 def _predict(model: nn.Module, batch: HistoryFeatureBatch | HistoryBatch) -> Tensor:
     if isinstance(batch, HistoryFeatureBatch):
-        predictions = model(
-            batch.history_features,
-            batch.history_anchor_ids,
-            batch.history_padding_mask,
-        )
+        forward_features = getattr(model, "forward_features", None)
+        if callable(forward_features):
+            predictions = forward_features(
+                batch.history_features,
+                batch.history_anchor_ids,
+                batch.history_padding_mask,
+            )
+        else:
+            predictions = model(
+                batch.history_features,
+                batch.history_anchor_ids,
+                batch.history_padding_mask,
+            )
     else:
         if batch.history_images is None:
             raise ValueError("joint history training requires loaded RGB images")
@@ -481,7 +692,17 @@ def _validate_datasets(
     if type(train) is not type(validation):
         raise TypeError("training and validation must use the same history dataset type")
     if isinstance(train, HistoryFeatureDataset):
-        if train.lookup.feature_dim != validation.lookup.feature_dim:
+        train_dim = (
+            train.feature_dim
+            if isinstance(train, MaterializedHistoryFeatureDataset)
+            else train.lookup.feature_dim
+        )
+        validation_dim = (
+            validation.feature_dim
+            if isinstance(validation, MaterializedHistoryFeatureDataset)
+            else validation.lookup.feature_dim
+        )
+        if train_dim != validation_dim:
             raise ValueError("training and validation feature dimensions differ")
         train_histories = train.histories
         validation_histories = validation.histories
@@ -543,6 +764,115 @@ def _finite_or_none(value: float) -> float | None:
 
 def _format_metric(value: float | int | None) -> str:
     return "undefined" if value is None else f"{float(value):.4f}"
+
+
+def _save_training_checkpoint(
+    path: Path,
+    *,
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    generator: torch.Generator,
+    training_configuration: Mapping[str, Any],
+    checkpoint_identity: Mapping[str, Any] | None,
+    best_validation_loss: float,
+    best_epoch: int,
+    best_state: Mapping[str, Tensor],
+    history: list[Mapping[str, float | int | None]],
+    without_improvement: int,
+    epochs_completed: int,
+    epoch_in_progress: int | None,
+    batches_completed: int,
+    weighted_loss: float,
+    sample_count: int,
+    epoch_generator_state: Tensor | None,
+) -> None:
+    """Atomically persist everything needed to continue a training pass."""
+
+    payload = {
+        "schema_version": 1,
+        "checkpoint_type": "phase3_history_training_state",
+        "training_configuration": dict(training_configuration),
+        "checkpoint_identity": dict(checkpoint_identity or {}),
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "best_validation_loss": best_validation_loss,
+        "best_epoch": best_epoch,
+        "best_state_dict": dict(best_state),
+        "history": [dict(row) for row in history],
+        "without_improvement": without_improvement,
+        "epochs_completed": epochs_completed,
+        "epoch_in_progress": epoch_in_progress,
+        "batches_completed": batches_completed,
+        "weighted_loss": weighted_loss,
+        "sample_count": sample_count,
+        "generator_state": generator.get_state(),
+        "epoch_generator_state": epoch_generator_state,
+        "torch_rng_state": torch.get_rng_state(),
+        "cuda_rng_state_all": (
+            torch.cuda.get_rng_state_all() if torch.cuda.is_available() else []
+        ),
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    torch.save(payload, temporary)
+    temporary.replace(path)
+
+
+def _load_training_checkpoint(
+    path: Path,
+    *,
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    generator: torch.Generator,
+    training_configuration: Mapping[str, Any],
+    checkpoint_identity: Mapping[str, Any] | None,
+    device: torch.device,
+) -> dict[str, Any]:
+    """Validate and restore a resumable Phase 3 training state."""
+
+    if not path.is_file():
+        raise FileNotFoundError(f"resume checkpoint does not exist: {path}")
+    payload = torch.load(path, map_location=device, weights_only=True)
+    if (
+        payload.get("schema_version") != 1
+        or payload.get("checkpoint_type") != "phase3_history_training_state"
+    ):
+        raise ValueError("unsupported Phase 3 training checkpoint")
+    if payload.get("training_configuration") != dict(training_configuration):
+        raise ValueError("resume checkpoint training configuration differs")
+    if payload.get("checkpoint_identity") != dict(checkpoint_identity or {}):
+        raise ValueError("resume checkpoint experiment identity differs")
+    model.load_state_dict(payload["model_state_dict"], strict=True)
+    optimizer.load_state_dict(payload["optimizer_state_dict"])
+    torch.set_rng_state(payload["torch_rng_state"].cpu())
+    cuda_states = payload.get("cuda_rng_state_all", [])
+    if cuda_states:
+        if not torch.cuda.is_available() or len(cuda_states) != torch.cuda.device_count():
+            raise ValueError("resume checkpoint CUDA RNG state is incompatible")
+        torch.cuda.set_rng_state_all(cuda_states)
+    epoch_in_progress = payload["epoch_in_progress"]
+    epoch_generator_state = payload["epoch_generator_state"]
+    if epoch_in_progress is None:
+        generator.set_state(payload["generator_state"].cpu())
+    elif epoch_generator_state is None:
+        raise ValueError("resume checkpoint lacks the active epoch shuffle state")
+    return {
+        "best_validation_loss": float(payload["best_validation_loss"]),
+        "best_epoch": int(payload["best_epoch"]),
+        "best_state": payload["best_state_dict"],
+        "history": [dict(row) for row in payload["history"]],
+        "without_improvement": int(payload["without_improvement"]),
+        "epochs_completed": int(payload["epochs_completed"]),
+        "epoch_in_progress": (
+            None if epoch_in_progress is None else int(epoch_in_progress)
+        ),
+        "batches_completed": int(payload["batches_completed"]),
+        "weighted_loss": float(payload["weighted_loss"]),
+        "sample_count": int(payload["sample_count"]),
+        "epoch_generator_state": (
+            None if epoch_generator_state is None else epoch_generator_state.cpu()
+        ),
+    }
 
 
 def _progress_due(batch_index: int, total_batches: int, last_log: float) -> bool:
