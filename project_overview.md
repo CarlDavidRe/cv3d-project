@@ -358,7 +358,7 @@ Repository audit as of 2026-09-07:
 | Runtime/memory profiling | Deferred to Phase 2 | Trainable parameter counts are reported. A common inference-time and peak-memory protocol remains useful for the closed-loop system but does not block the frozen Phase 1 feature-probe result. |
 | PUN comparison | Complete | The official released PSNR UPNet checkpoint was checksum-verified, evaluated last with official timm preprocessing, and recorded with both official unmasked MSE and common masked metrics. The full row covers all 5,232 validation and 14,400 test samples. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
-| Phase 2 visibility and simulator | Steps 9–14 implemented and validated | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Farthest/official-PUN/independent-VGGT/Oracle simulator are implemented. PUN and VGGT share the reproduced map alignment/filter/product rule under the fixed 48-anchor protocol. VGGT uses the checksum-pinned validation-selected Phase 1 max-pooled-patch head and cached single-image features. The complete five-policy, 300-object result is retained under `outputs/phase2/phase2_closed_loop/seed_0`. Phase 3 Steps 15 and 16 are implemented and real-data validated; the Step 17 joint control is implemented and awaits a real-checkpoint training run. |
+| Phase 2 visibility and simulator | Steps 9–14 implemented and validated | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Farthest/official-PUN/independent-VGGT/Oracle simulator are implemented. PUN and VGGT share the reproduced map alignment/filter/product rule under the fixed 48-anchor protocol. VGGT uses the checksum-pinned validation-selected Phase 1 max-pooled-patch head and cached single-image features. The complete five-policy, 300-object result is retained under `outputs/phase2/phase2_closed_loop/seed_0`. Phase 3 Steps 15–17 are implemented and real-data validated. Step 18 has a synthetic-validated, resumable controlled-evaluation runner; its full real test artifact still requires a VGGT-capable CUDA runtime. |
 
 The Phase 1 audit recorded 104 passing tests. This historical count does not
 validate the planned Phase 2/3 changes or replace real-data, real-checkpoint,
@@ -1135,7 +1135,8 @@ Keep this strictly optional. Do not delay the main ShapeNet evaluation for it.
 
 The repository contains the completed Phase 1 and Phase 2 implementations,
 the Step 15 Phase 3 history dataset infrastructure, the Step 16 independent
-history control, and the Step 17 joint frozen-VGGT control shown below.
+history control, the completed Step 17 joint frozen-VGGT control, and the
+Step 18 controlled-evaluation runner shown below.
 Generated directories such as `.venv/`, `build/`, `*.egg-info/`, `__pycache__/`,
 downloaded model weights, and feature-cache payloads are intentionally omitted.
 
@@ -1158,7 +1159,8 @@ project_root/
 │       ├── phase2_closed_loop.yaml
 │       ├── phase3_histories.yaml
 │       ├── phase3_independent.yaml
-│       └── phase3_joint.yaml
+│       ├── phase3_joint.yaml
+│       └── phase3_controlled.yaml
 │
 ├── data/
 │   ├── NUM/                         # local dataset; not tracked
@@ -1192,7 +1194,8 @@ project_root/
 │   │   ├── closed_loop.py
 │   │   ├── phase1.py
 │   │   ├── phase3_independent.py
-│   │   └── phase3_joint.py
+│   │   ├── phase3_joint.py
+│   │   └── phase3_controlled.py
 │   │
 │   ├── features/
 │   │   ├── __init__.py
@@ -1258,6 +1261,7 @@ project_root/
 │   ├── build_history_dataset.py
 │   ├── train_history.py
 │   ├── train_joint_history.py
+│   ├── evaluate_phase3.py
 │   ├── run_phase1.py
 │   ├── train_probe.py
 │   └── visualize_phase1.py
@@ -1270,6 +1274,7 @@ project_root/
 │   ├── test_history_dataset.py
 │   ├── test_history_models.py
 │   ├── test_joint_history.py
+│   ├── test_phase3_controlled.py
 │   ├── test_metrics.py
 │   ├── test_num_dataset.py
 │   ├── test_num_splits.py
@@ -1299,8 +1304,11 @@ VGGT policy, and the deterministic Phase 3 direct-gain history dataset
 builder/loader. The independent Phase 3 model, cache-backed training and
 one-step evaluation, direct-gain policy adapter, and closed-loop smoke path are
 implemented. The Step 17 joint frozen-VGGT extractor, capacity-matched direct-
-gain model, training runner, and short-history memory preflight are implemented;
-the Step 18 controlled evaluation is not implemented.
+gain model, training runner, and short-history memory preflight are implemented
+and validated by a retained real checkpoint. The Step 18 paired test-history
+and unchanged-evaluator runner, reporting outputs, resumption, and completion
+gate are implemented and synthetic-tested; only its full GPU result artifact
+remains.
 Extend the existing `src/nbv` package without reorganizing completed Phase 1
 modules.
 
@@ -2143,7 +2151,7 @@ one-step regression/ranking metrics, and a closed-loop smoke result.
 
 ### Step 17 — joint frozen VGGT control
 
-**Implementation status:** implemented and synthetic-tested. The separate
+**Implementation status:** complete and real-data validated. The separate
 joint extractor sends every complete real history through VGGT together,
 groups mixed-length minibatches so padding never enters the backbone, and
 feeds history-conditioned final-layer max-pooled patch features to the same
@@ -2151,8 +2159,13 @@ masked-mean 128-unit direct-gain head shape as the independent control. The
 checked-in config validates identical histories, labels, masks, VGGT settings,
 optimizer/loss/budget, and an effective batch size of 64 before training. It
 also records length-1/2 peak accelerator memory before optimization. The two
-heads each contain 272,950 trainable parameters. A real VGGT training artifact
-is not retained yet, and held-out/closed-loop comparison remains Step 18.
+heads each contain 272,950 trainable parameters. The validation-selected real
+A100 artifact is retained under
+`outputs/phase3/joint_history_control/seed_0`: it selected epoch 40, stopped
+after epoch 50, and reports validation Huber 0.008017, regret 0.162318,
+Spearman 0.727445, and NDCG@5 0.856920. Its short-history preflight measured
+3,743,779,840 allocated bytes at length 1 and 3,839,689,216 at length 2.
+Held-out test and full closed-loop comparison remain Step 18.
 
 Add a joint-history extractor separately from the existing single-image path.
 Feed complete histories through one frozen VGGT forward and train history-aware
@@ -2166,6 +2179,19 @@ matched head capacity. Document parameter counts and memory at short histories
 before longer runs; do not substitute independent caches for joint features.
 
 ### Step 18 — controlled Phase 3 experiment and reporting
+
+**Implementation status:** the reproducible evaluation/reporting path is
+implemented and synthetic-tested. `scripts/evaluate_phase3.py` checksum-pins
+both validation-selected checkpoints and the independent test feature cache,
+accepts only the fixed object-disjoint test split, verifies repository-relocated
+history identity and empirical length-1 backbone equivalence, materializes
+joint test histories without padding, and runs both learned policies through
+`nbv.eval.closed_loop.run_rollout`. It writes paired sample/aggregate/history-
+length tables, replayable rollouts, coverage figures, profiling, external
+Phase 2 references, a Markdown report, and a machine-readable completion gate.
+The checked-in environment has neither CUDA nor the `vggt` package, so no full
+real Step 18 result is claimed here; run the resumable command on the same
+VGGT-capable GPU environment used for Step 17.
 
 Run both models on identical held-out histories for Huber/regression error,
 geometric regret, Spearman, and NDCG@5. Run their own closed-loop trajectories
@@ -2716,7 +2742,7 @@ after Phase 2 is frozen.
 ### Milestone 8 — controlled direct-gain experiment (Steps 16–18)
 
 - [x] Train a new independent VGGT feature-aggregation control on history surface gains.
-- [ ] Train joint frozen VGGT on the identical histories, targets, and masks.
+- [x] Train joint frozen VGGT on the identical histories, targets, and masks.
 - [x] Verify absent/present cross-view backbone interaction in independent/joint paths.
 - [x] Approximately match head capacity and use the same optimizer, loss, and training budget.
 - [ ] Compare held-out surface-gain regression, regret, Spearman, and NDCG@5.

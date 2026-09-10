@@ -38,7 +38,9 @@ class IndependentHistoryPolicy:
         device: str | torch.device = "cpu",
         provenance: Mapping[str, Any] | None = None,
     ) -> None:
-        if not feature_components or any(not isinstance(value, str) for value in feature_components):
+        if not feature_components or any(
+            not isinstance(value, str) for value in feature_components
+        ):
             raise ValueError("feature_components must contain feature names")
         if extractor is not None and extractor_factory is not None:
             raise ValueError("Supply extractor or extractor_factory, not both")
@@ -161,6 +163,62 @@ class IndependentHistoryPolicy:
         return self._extractor
 
 
+class JointHistoryPolicy:
+    """Predict direct gain from one live joint VGGT forward per history state."""
+
+    name = "vggt_joint_history"
+    is_oracle = False
+    score_semantics = "predicted_direct_surface_gain_higher_is_better"
+    training_target_semantics = "phase3_history_dependent_surface_gain"
+    profiling_mode = "live_joint_vggt_plus_history_head"
+
+    def __init__(
+        self,
+        model: nn.Module,
+        *,
+        device: str | torch.device = "cpu",
+        provenance: Mapping[str, Any] | None = None,
+    ) -> None:
+        self.device = _resolve_device(device)
+        self.model = model.to(self.device).eval().requires_grad_(False)
+        self._base_provenance = dict(provenance or {})
+
+    @property
+    def provenance(self) -> dict[str, Any]:
+        return {
+            **self._base_provenance,
+            "history_mode": "joint_multiview_then_masked_mean",
+            "backbone_cross_view_interaction": True,
+            "target_direction": "higher_is_more_surface_gain",
+        }
+
+    def score(self, observation_state: ObservationState) -> np.ndarray:
+        observations = observation_state.acquired_observations
+        if not observations:
+            raise ValueError("JointHistoryPolicy requires an acquired history")
+        if observation_state.anchor_ordering != CANONICAL_ORDERING:
+            raise ValueError("JointHistoryPolicy requires canonical anchor ordering")
+        images = torch.from_numpy(
+            np.stack(
+                [np.transpose(observation.rgb, (2, 0, 1)) for observation in observations]
+            ).copy()
+        ).float().div_(255.0).unsqueeze(0).to(self.device)
+        anchor_ids = torch.as_tensor(
+            [observation_state.acquired_anchor_ids],
+            dtype=torch.int64,
+            device=self.device,
+        )
+        padding = torch.zeros(anchor_ids.shape, dtype=torch.bool, device=self.device)
+        with torch.inference_mode():
+            predictions = self.model(images, anchor_ids, padding)
+        if predictions.shape != (1, 48):
+            raise ValueError("Phase 3 joint history model must return [1, 48]")
+        result = predictions[0].detach().cpu().double().numpy()
+        if not np.isfinite(result).all():
+            raise ValueError("Phase 3 joint history model returned non-finite scores")
+        return result
+
+
 def _resolve_device(device: str | torch.device) -> torch.device:
     if str(device) == "auto":
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -170,4 +228,4 @@ def _resolve_device(device: str | torch.device) -> torch.device:
     return resolved
 
 
-__all__ = ["IndependentHistoryPolicy"]
+__all__ = ["IndependentHistoryPolicy", "JointHistoryPolicy"]

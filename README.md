@@ -13,12 +13,12 @@ The implementation follows the research plan in
 - **Phase 2 — complete:** Random, Farthest, PUN, VGGT, and Oracle were evaluated
   on the complete 300-object test split in a deterministic closed loop using
   mesh-face coverage.
-- **Phase 3 — Step 17 implemented:** the complete 1,279-object,
+- **Phase 3 — Step 18 runner implemented:** the complete 1,279-object,
   51,160-history direct-gain dataset is generated, and the cache-backed
-  independent VGGT history workflow has passed a full-data training/evaluation
-  smoke run. A capacity-matched joint frozen-VGGT training path now processes
-  complete histories; the controlled held-out and closed-loop comparison
-  remains Step 18.
+  independent and capacity-matched joint frozen-VGGT controls have retained
+  validation-selected checkpoints. The controlled held-out and unchanged-
+  evaluator comparison is reproducible and resumable; its full real test run
+  requires a VGGT-capable CUDA environment.
 
 ## Quick start
 
@@ -339,9 +339,23 @@ features are retained in system RAM while the small head trains. The config
 matches the Step 16 supervision, optimizer, loss, training budget, effective
 batch size, and 272,950-parameter head, and performs a length-1/2
 accelerator-memory preflight before precomputation. See
-[`docs/phase3_joint_control.md`](docs/phase3_joint_control.md). Held-out and
-closed-loop independent-versus-joint evaluation is intentionally deferred to
-Step 18.
+[`docs/phase3_joint_control.md`](docs/phase3_joint_control.md). The retained
+real A100 run selected epoch 40 and stopped at epoch 50; its validation Huber,
+regret, Spearman, and NDCG@5 are 0.008017, 0.162318, 0.727445, and 0.856920.
+
+Run the Step 18 paired test-history and closed-loop comparison on the same
+VGGT-capable environment:
+
+```bash
+python3 scripts/evaluate_phase3.py \
+  --config configs/experiments/phase3_controlled.yaml
+```
+
+If the runtime disconnects, restore the partial run and pass `--resume`. The
+runner checksum-verifies both validation-selected checkpoints and the
+independent test cache, restores verified joint-test shards, replays saved
+rollouts, and writes `metrics/phase3_completion.json` only after reporting.
+See [`docs/phase3_controlled_experiment.md`](docs/phase3_controlled_experiment.md).
 
 ### Resume and sync the joint Phase 3 training run
 
@@ -449,6 +463,7 @@ Primary experiment configurations live in
 | `phase3_histories.yaml` | surface-gain history dataset |
 | `phase3_independent.yaml` | independent history direct-gain control |
 | `phase3_joint.yaml` | joint frozen-VGGT history direct-gain control |
+| `phase3_controlled.yaml` | paired Step 18 test and closed-loop comparison |
 
 CLI settings can be overridden repeatably with `--set KEY=VALUE`. Use a new
 `experiment.name` for a distinct run; completed output directories are not

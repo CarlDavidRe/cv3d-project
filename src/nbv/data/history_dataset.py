@@ -790,6 +790,48 @@ def sha256_file(path: str | Path) -> str:
     return digest.hexdigest()
 
 
+def relocated_history_manifest_identity(
+    manifest: Mapping[str, Any],
+    *,
+    current_repository_root: str | Path,
+    artifact_repository_root: str | Path,
+) -> tuple[str, str]:
+    """Return the dataset ID and file digest after a repository-root relocation.
+
+    Early Phase 3 manifests retained absolute paths inside diagnostic provenance.
+    Those paths do not affect samples, labels, masks, or visibility fingerprints,
+    but they do affect the manifest's content-derived identifiers.  This helper
+    recreates the exact identity an otherwise identical manifest has at another
+    repository root.  Callers must still compare both returned digests with the
+    checkpoint; this is not a permissive or field-dropping compatibility check.
+    """
+
+    current = str(Path(current_repository_root).resolve())
+    artifact = str(Path(artifact_repository_root))
+    if not current or not artifact:
+        raise ValueError("repository roots must be non-empty")
+
+    def relocate(value: Any) -> Any:
+        if isinstance(value, str):
+            return value.replace(current, artifact)
+        if isinstance(value, list):
+            return [relocate(item) for item in value]
+        if isinstance(value, dict):
+            return {key: relocate(item) for key, item in value.items()}
+        return value
+
+    relocated = relocate(dict(manifest))
+    core = dict(relocated)
+    core.pop("dataset_id", None)
+    dataset_id = _json_sha256(core)
+    relocated["dataset_id"] = dataset_id
+    serialized = (
+        json.dumps(relocated, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    )
+    manifest_sha256 = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    return dataset_id, manifest_sha256
+
+
 def _generate_object_records(
     *,
     object_id: str,
@@ -1313,6 +1355,7 @@ __all__ = [
     "HistorySample",
     "SurfaceGainHistoryDataset",
     "assert_surface_gain_matches_coverage",
+    "relocated_history_manifest_identity",
     "build_history_dataset",
     "collate_history_samples",
 ]

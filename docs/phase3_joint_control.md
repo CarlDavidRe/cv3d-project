@@ -57,11 +57,15 @@ python3 scripts/train_joint_history.py \
 
 The command first computes each train and validation history's joint features
 once, trains on the in-memory vectors, selects the checkpoint by validation
-loss, and saves validation diagnostics. The checked-in A100 configuration uses
+loss, and saves validation diagnostics. The retained A100 run uses
 four equal-length histories per frozen-backbone call, four image-loading
 workers, pinned transfers, and automatic CUDA OOM backoff to smaller batches.
 The retained vectors require roughly 0.6--1.2 GB for the current dataset,
-depending on autocast dtype. It intentionally does not run held-out test
+depending on autocast dtype. Its validation-selected checkpoint is
+`outputs/phase3/joint_history_control/seed_0/checkpoints/best.pt` (SHA-256
+`50b1028db13aeace33f88eb84fa30a6ce8aaff69cddc77904914a71c160348a8`).
+The run selected epoch 40, stopped after epoch 50, and retained all train and
+validation joint-feature shards. It intentionally does not run held-out test
 comparison or closed-loop evaluation; those belong to Step 18. Every joint
 feature is still computed from its complete history. The independent feature
 cache is opened only to validate backbone and control provenance and is never

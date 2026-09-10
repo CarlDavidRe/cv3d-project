@@ -1,0 +1,53 @@
+schema_version: 1
+
+experiment:
+  phase: phase3
+  name: controlled_history_comparison
+  seed: 0
+  deterministic: true
+
+paths:
+  data_root: data/NUM
+  visibility_cache_root: data/cache/visibility
+  output_root: outputs
+  model_cache_root: data/cache/models
+
+phase3:
+  controlled:
+    history_manifest: data/processed/histories/random_unique_v1/manifest.json
+    coverage_target: vis_a
+    device: auto
+
+    independent:
+      checkpoint: outputs/phase3/independent_history_control/seed_0/checkpoints/best.pt
+      checkpoint_sha256: fc6246064c9d76562af9b59ccecdcc1fe1751c9bb067b1e8ff67f5d0a335be96
+      test_feature_cache: data/cache/features/vggt/vggt_max_pooled_patch/test_3334dd9c7e19faf6.pt
+
+    joint:
+      checkpoint: outputs/phase3/joint_history_control/seed_0/checkpoints/best.pt
+      checkpoint_sha256: 50b1028db13aeace33f88eb84fa30a6ce8aaff69cddc77904914a71c160348a8
+      # Test histories are encoded once for paired fixed-history metrics.
+      # Complete live histories are still recomputed during closed-loop use.
+      test_feature_cache:
+        batch_size: 4
+        num_workers: 4
+        pin_memory: true
+        cache_every_batches: 64
+
+    one_step:
+      batch_size: 256
+      huber_delta: 0.01
+      ranking_weight: 0.1
+      ranking_margin: 0.0
+      ndcg_k: 5
+
+    closed_loop:
+      split: test
+      object_ids: []
+      limit: null
+      skip_missing_caches: false
+      initial_anchor_ids: [0]
+      max_acquired_views: 10
+
+    external_references:
+      phase2_summary: outputs/phase2/phase2_closed_loop/seed_0/metrics/summary.json

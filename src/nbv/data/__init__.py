@@ -11,6 +11,7 @@ from nbv.data.history_dataset import (
     assert_surface_gain_matches_coverage,
     build_history_dataset,
     collate_history_samples,
+    relocated_history_manifest_identity,
 )
 from nbv.data.history_features import (
     FrozenFeatureLookup,
@@ -69,6 +70,7 @@ __all__ = [
     "build_num_v1_manifest",
     "build_history_dataset",
     "collate_history_samples",
+    "relocated_history_manifest_identity",
     "collate_history_features",
     "complete_objects_by_category",
     "load_object_split",
