@@ -314,9 +314,16 @@ def evaluate_rollout_reconstruction(
                 prediction_hits += 1
                 prediction_hit = True
             known_cameras = _known_cameras(result, history)
-            transform, alignment = align_vggt_to_num(
-                points, predicted_cameras, known_cameras, target_points
-            )
+            try:
+                transform, alignment = align_vggt_to_num(
+                    points, predicted_cameras, known_cameras, target_points
+                )
+            except (np.linalg.LinAlgError, ValueError) as exc:
+                raise ValueError(
+                    "reconstruction alignment failed for "
+                    f"object={object_id!r}, policy={result.metadata['policy']!r}, "
+                    f"acquired_view_count={count}, history_anchor_ids={history}: {exc}"
+                ) from exc
             aligned = _apply_similarity(points, transform)
             metric_path, metric_identity = _metric_cache_location(
                 settings, prediction_identity, target_meta, alignment
@@ -483,6 +490,8 @@ def align_vggt_to_num(
     known = np.asarray(known_camera_to_world, dtype=np.float64)
     if predicted.shape != known.shape or predicted.ndim != 3 or predicted.shape[1:] != (4, 4):
         raise ValueError("camera arrays must have matching shape [S,4,4]")
+    if not np.isfinite(predicted).all() or not np.isfinite(known).all():
+        raise ValueError("camera arrays must contain only finite values")
     # VGGT uses OpenCV camera axes. NUM poses use Blender/OpenGL axes.
     flip = np.diag([1.0, -1.0, -1.0, 1.0])
     predicted_gl = predicted @ flip
@@ -501,6 +510,29 @@ def align_vggt_to_num(
         rotated = pred_centered @ rotation.T
         scale = float(np.sum(rotated * known_centered) / denominator)
         mode = "camera_pose_sim3"
+        if not math.isfinite(scale) or scale <= 0:
+            # A locally inconsistent VGGT pose can make the orientation-derived
+            # rotation reverse the predicted camera trajectory. Preserve that
+            # rotation as much as possible while aligning the widest
+            # corresponding baseline, then recover metric scale from the RMS
+            # spread of all camera centres. This is a proper-rotation,
+            # strictly-positive Sim(3), not a reflection or negative scaling.
+            pairwise = predicted_centers[:, None, :] - predicted_centers[None, :, :]
+            first, second = np.unravel_index(
+                int(np.argmax(np.sum(pairwise * pairwise, axis=-1))),
+                pairwise.shape[:2],
+            )
+            predicted_baseline = rotation @ (
+                predicted_centers[second] - predicted_centers[first]
+            )
+            known_baseline = known_centers[second] - known_centers[first]
+            correction = _minimal_vector_rotation(predicted_baseline, known_baseline)
+            rotation = correction @ rotation
+            known_spread = float(np.sum(known_centered * known_centered))
+            if known_spread <= 1e-12:
+                raise ValueError("known camera centres have zero spread")
+            scale = math.sqrt(known_spread / denominator)
+            mode = "camera_pose_sim3_positive_scale_fallback"
     else:
         predicted_diameter = float(np.linalg.norm(points.max(axis=0) - points.min(axis=0)))
         target_diameter = float(np.linalg.norm(target.max(axis=0) - target.min(axis=0)))
@@ -524,6 +556,39 @@ def align_vggt_to_num(
         "scale": scale,
         "camera_center_rmse_normalized": rmse / target_diameter,
     }
+
+
+def _minimal_vector_rotation(source: np.ndarray, target: np.ndarray) -> np.ndarray:
+    """Return the proper rotation that minimally maps one nonzero vector to another."""
+
+    source = np.asarray(source, dtype=np.float64)
+    target = np.asarray(target, dtype=np.float64)
+    source_norm = float(np.linalg.norm(source))
+    target_norm = float(np.linalg.norm(target))
+    if source_norm <= 1e-12 or target_norm <= 1e-12:
+        raise ValueError("camera baseline has zero length")
+    left = source / source_norm
+    right = target / target_norm
+    cross = np.cross(left, right)
+    sine = float(np.linalg.norm(cross))
+    cosine = float(np.clip(np.dot(left, right), -1.0, 1.0))
+    if sine > 1e-12:
+        skew = np.asarray([
+            [0.0, -cross[2], cross[1]],
+            [cross[2], 0.0, -cross[0]],
+            [-cross[1], cross[0], 0.0],
+        ])
+        return np.eye(3) + skew + skew @ skew * ((1.0 - cosine) / (sine * sine))
+    if cosine > 0:
+        return np.eye(3)
+    # Antiparallel vectors admit infinitely many minimal pi rotations. Pick a
+    # stable axis perpendicular to the source by starting from its least-aligned
+    # coordinate axis.
+    basis = np.zeros(3, dtype=np.float64)
+    basis[int(np.argmin(np.abs(left)))] = 1.0
+    axis = np.cross(left, basis)
+    axis /= np.linalg.norm(axis)
+    return 2.0 * np.outer(axis, axis) - np.eye(3)
 
 
 def _load_or_create_ground_truth(
@@ -611,7 +676,7 @@ def _metric_cache_location(
         "prediction_id": _mapping_sha256(prediction_identity),
         "target_id": _mapping_sha256(target_identity),
         "alignment": dict(alignment),
-        "alignment_definition": "vggt_opencv_to_num_opengl_camera_orientation_sim3_v1",
+        "alignment_definition": "vggt_opencv_to_num_opengl_camera_orientation_sim3_v2",
         "chamfer_definition": "half_mean_bidirectional_euclidean_distance_divided_by_gt_bbox_diameter",
         "chamfer_chunk_size": settings.chamfer_chunk_size,
         "fscore_thresholds_gt_bbox_diameter": list(settings.fscore_thresholds),

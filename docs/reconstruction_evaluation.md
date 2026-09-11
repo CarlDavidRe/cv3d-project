@@ -16,9 +16,12 @@ and is sampled uniformly by triangle area at 10,000 points.
 VGGT's OpenCV camera poses are converted to the NUM OpenGL/Blender axes. With
 at least two views, a similarity transform is estimated from predicted camera
 centres and orientations to the known NUM cameras and applied to the point
-cloud. The one-view diagnostic uses camera orientation/centre plus the
-ground-truth bounding-box diameter for scale; it must be reported as a
-scale-normalized diagnostic, not metric-scale reconstruction.
+cloud. If an inconsistent predicted pose would make the orientation-derived
+scale non-positive, a recorded fallback minimally corrects the rotation from
+the widest corresponding camera baseline and obtains a positive scale from the
+camera-centre spread. The one-view diagnostic uses camera orientation/centre
+plus the ground-truth bounding-box diameter for scale; it must be reported as
+a scale-normalized diagnostic, not metric-scale reconstruction.
 
 Reported distances are divided by the ground-truth point cloud's bounding-box
 diameter:

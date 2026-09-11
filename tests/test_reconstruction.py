@@ -63,6 +63,34 @@ class ReconstructionTests(unittest.TestCase):
         np.testing.assert_allclose(transform, np.eye(4), atol=1e-8)
         self.assertEqual(metadata["mode"], "camera_pose_sim3")
 
+    def test_camera_sim3_uses_positive_scale_for_reversed_predicted_baseline(self) -> None:
+        anchors = canonical_anchors()
+        known = np.stack([
+            anchor_camera_to_world(anchors.by_id(index), 2.73)
+            for index in (0, 7)
+        ])
+        flip = np.diag([1.0, -1.0, -1.0, 1.0])
+        predicted = known @ flip
+        predicted[:, :3, 3] = predicted[::-1, :3, 3].copy()
+        predicted[1, :3, 3] += np.asarray([0.1, -0.2, 0.15])
+        points = np.asarray([
+            [-0.5, -0.5, 0.0], [0.5, -0.5, 0.0],
+            [0.5, 0.5, 0.0], [-0.5, 0.5, 0.0],
+        ])
+
+        transform, metadata = align_vggt_to_num(points, predicted, known, points)
+
+        predicted_centers = predicted[:, :3, 3]
+        aligned_centers = (
+            predicted_centers @ transform[:3, :3].T + transform[:3, 3]
+        )
+        np.testing.assert_allclose(aligned_centers, known[:, :3, 3], atol=1e-8)
+        self.assertEqual(metadata["mode"], "camera_pose_sim3_positive_scale_fallback")
+        self.assertGreater(metadata["scale"], 0.0)
+        self.assertAlmostEqual(
+            np.linalg.det(transform[:3, :3]), metadata["scale"] ** 3
+        )
+
     def test_surface_sampling_and_rollout_cache_reuse(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
