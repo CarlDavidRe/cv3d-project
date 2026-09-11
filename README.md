@@ -369,12 +369,21 @@ To resume any interrupted Phase 3 evaluation, append `--resume` to its command.
 For expressive variants, retain the same `--joint-checkpoint` and
 `--experiment-name` arguments when resuming.
 
-Generate the combined Phase 2/3 coverage plot:
+Generate the combined Phase 2/3 coverage and reconstruction plots:
 
 ```bash
 cd /content/cv3d-project
 python3 scripts/plot_all_policy_coverage.py
+python3 scripts/plot_all_policy_reconstruction.py
 ```
+
+The plotters recursively discover Phase 3 evaluation runs below
+`outputs/phase3` and include every policy from runs whose
+`metrics/phase3_completion.json` status is `complete`. Incomplete evaluations
+are excluded; the reconstruction plot additionally requires that run's
+`metrics/reconstruction_curves.csv`. To select runs explicitly instead, repeat
+`--phase3-run`, for example
+`--phase3-run outputs/phase3/controlled_pose_deepsets/seed_0`.
 
 ### Quick smoke test
 

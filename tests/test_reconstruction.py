@@ -12,12 +12,14 @@ from nbv.eval.reconstruction import (
     ReconstructionSettings,
     align_vggt_to_num,
     evaluate_rollout_reconstruction,
+    parse_reconstruction_settings,
     point_cloud_metrics,
     sample_mesh_surface,
 )
 from nbv.geometry.anchors import canonical_anchors
 from nbv.geometry.mesh import TriangleMesh
 from nbv.geometry.num_camera import CAMERA_CONVENTION, anchor_camera_to_world
+from nbv.visualization import write_reconstruction_visualization
 
 
 class _FakeReconstructor:
@@ -40,11 +42,49 @@ class ReconstructionTests(unittest.TestCase):
             [0.0, 1.0, 0.0], [0.0, 0.0, 1.0],
         ])
         metrics = point_cloud_metrics(
-            points, points, chunk_size=2, fscore_thresholds=(0.01, 0.02)
+            points, points, chunk_size=2, fscore_thresholds=(0.01, 0.02, 0.10)
         )
         self.assertEqual(metrics["chamfer_l1_normalized"], 0.0)
         self.assertEqual(metrics["fscore_1pct"], 1.0)
         self.assertEqual(metrics["fscore_2pct"], 1.0)
+        self.assertEqual(metrics["fscore_10pct"], 1.0)
+
+    def test_default_fscore_thresholds_include_ten_percent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            settings = parse_reconstruction_settings(
+                {"enabled": True, "view_counts": [1]},
+                {
+                    "mesh_root": "meshes",
+                    "reconstruction_cache_root": "cache",
+                    "model_cache_root": "models",
+                },
+                root,
+                default_policies=("random",),
+            )
+            self.assertIsNotNone(settings)
+            self.assertEqual(settings.fscore_thresholds, (0.01, 0.02, 0.10))
+
+    def test_reconstruction_figure_includes_every_fscore_threshold(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "reconstruction.svg"
+            write_reconstruction_visualization(
+                [{
+                    "object_id": "cat/object",
+                    "policy": "random",
+                    "acquired_view_count": 1,
+                    "chamfer_l1_normalized": 0.2,
+                    "completeness_normalized": 0.3,
+                    "fscore_1pct": 0.1,
+                    "fscore_2pct": 0.2,
+                    "fscore_10pct": 0.8,
+                }],
+                output,
+            )
+            svg = output.read_text(encoding="utf-8")
+            self.assertIn("Fscore 1Pct", svg)
+            self.assertIn("Fscore 2Pct", svg)
+            self.assertIn("Fscore 10Pct", svg)
 
     def test_camera_sim3_recovers_known_transform(self) -> None:
         anchors = canonical_anchors()

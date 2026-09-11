@@ -52,7 +52,7 @@ phase2:
       predicted_point_count: 10000
       ground_truth_point_count: 10000
       chamfer_chunk_size: 1024
-      fscore_thresholds: [0.01, 0.02]  # Fractions of GT bounding-box diameter.
+      fscore_thresholds: [0.01, 0.02, 0.10]  # Fractions of GT bounding-box diameter.
       mesh_relative_path: models/model_normalized.ply
       mesh_scale: 2.0
       mesh_centering: bounding_box

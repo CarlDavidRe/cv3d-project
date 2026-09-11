@@ -127,7 +127,7 @@ def parse_reconstruction_settings(
 
     policies = values.get("policies", list(default_policies))
     view_counts = values.get("view_counts")
-    thresholds = values.get("fscore_thresholds", [0.01, 0.02])
+    thresholds = values.get("fscore_thresholds", [0.01, 0.02, 0.10])
     if not isinstance(policies, list) or any(not isinstance(v, str) for v in policies):
         raise TypeError("reconstruction.policies must be a string list")
     if not isinstance(view_counts, list):

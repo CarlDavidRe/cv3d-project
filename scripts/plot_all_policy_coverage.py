@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Combine Phase 2 and Phase 3 mean-coverage curves in one SVG."""
+"""Combine Phase 2 and all completed Phase 3 mean-coverage curves in one SVG."""
 
 from __future__ import annotations
 
@@ -7,21 +7,24 @@ import argparse
 import csv
 from html import escape
 import json
+import math
 from pathlib import Path
 import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PHASE2 = ROOT / "outputs/phase2/phase2_closed_loop_reconstruction/seed_0"
-DEFAULT_PHASE3 = ROOT / "outputs/phase3/controlled_history_comparison_reconstruction/seed_0"
+DEFAULT_PHASE3_ROOT = ROOT / "outputs/phase3"
 DEFAULT_OUTPUT = ROOT / "outputs/all_policy_comparison/coverage_curves.svg"
 
-POLICIES = (
+PHASE2_POLICIES = (
     ("random", "Random", "#64748b", "phase2"),
     ("farthest", "Farthest", "#2563eb", "phase2"),
     ("pun", "PUN", "#dc2626", "phase2"),
     ("vggt", "Phase 2 VGGT", "#7c3aed", "phase2"),
     ("oracle", "Oracle", "#059669", "phase2"),
+)
+KNOWN_PHASE3_POLICIES = (
     (
         "vggt_independent_history",
         "Phase 3 independent",
@@ -29,13 +32,27 @@ POLICIES = (
         "phase3",
     ),
     ("vggt_joint_history", "Phase 3 joint", "#0891b2", "phase3"),
+    ("vggt_joint_pose_deepsets", "Phase 3 pose DeepSets", "#ca8a04", "phase3"),
+    ("vggt_joint_token_attention", "Phase 3 token attention", "#db2777", "phase3"),
 )
+EXTRA_PHASE3_COLORS = ("#4f46e5", "#0d9488", "#9333ea", "#65a30d", "#be123c")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--phase2-run", type=Path, default=DEFAULT_PHASE2)
-    parser.add_argument("--phase3-run", type=Path, default=DEFAULT_PHASE3)
+    parser.add_argument(
+        "--phase3-root",
+        type=Path,
+        default=DEFAULT_PHASE3_ROOT,
+        help="root searched recursively for completed Phase 3 evaluation runs",
+    )
+    parser.add_argument(
+        "--phase3-run",
+        type=Path,
+        action="append",
+        help="use only this Phase 3 run (repeat to combine multiple explicit runs)",
+    )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     return parser.parse_args()
 
@@ -83,6 +100,57 @@ def _phase3_is_complete(run: Path) -> bool:
     return payload.get("status") == "complete"
 
 
+def _completed_phase3_runs(root: Path) -> list[Path]:
+    if not root.is_dir():
+        return []
+    runs = {
+        completion.parent.parent
+        for completion in root.rglob("phase3_completion.json")
+        if _phase3_is_complete(completion.parent.parent)
+        and _coverage_path(completion.parent.parent).is_file()
+    }
+    return sorted(runs)
+
+
+def _phase3_policy_specs(policy_names: set[str]) -> tuple[tuple[str, str, str, str], ...]:
+    known_names = {policy for policy, _, _, _ in KNOWN_PHASE3_POLICIES}
+    extras = sorted(policy_names - known_names)
+    extra_specs = tuple(
+        (
+            policy,
+            "Phase 3 " + policy.removeprefix("vggt_").replace("_", " "),
+            EXTRA_PHASE3_COLORS[index % len(EXTRA_PHASE3_COLORS)],
+            "phase3",
+        )
+        for index, policy in enumerate(extras)
+    )
+    return KNOWN_PHASE3_POLICIES + extra_specs
+
+
+def _merge_curves(
+    destination: dict[str, list[tuple[int, float]]],
+    destination_sizes: dict[str, int],
+    incoming: dict[str, list[tuple[int, float]]],
+    incoming_sizes: dict[str, int],
+    source: Path,
+) -> None:
+    for policy, points in incoming.items():
+        if policy in destination and destination[policy] != points:
+            raise ValueError(
+                f"Conflicting coverage curves for {policy}; completed run {source} "
+                "does not match another selected run"
+            )
+        if (
+            policy in destination_sizes
+            and destination_sizes[policy] != incoming_sizes[policy]
+        ):
+            raise ValueError(
+                f"Conflicting object counts for {policy} in completed run {source}"
+            )
+        destination[policy] = points
+        destination_sizes[policy] = incoming_sizes[policy]
+
+
 def _scale(value: float, low: float, high: float, start: float, end: float) -> float:
     if high == low:
         return (start + end) / 2
@@ -95,9 +163,12 @@ def write_plot(
     cohort_sizes: dict[str, int],
     missing: list[str],
     coverage_target: str,
+    policies: tuple[tuple[str, str, str, str], ...],
 ) -> None:
     width, height = 1280, 720
-    left, right, top, bottom = 105.0, 55.0, 185.0, 95.0
+    legend_rows = math.ceil(len(policies) / 4)
+    left, right, bottom = 105.0, 55.0, 95.0
+    top = 100.0 + legend_rows * 30 + (25.0 if missing else 0.0)
     plot_width = width - left - right
     plot_height = height - top - bottom
     all_points = [point for points in curves.values() for point in points]
@@ -118,7 +189,7 @@ def write_plot(
         f'<text x="55" y="68" class="subtitle">Common evaluator target: {escape(coverage_target)}. Phase 2 proxy-trained and Phase 3 direct-gain policies are distinct experiment groups.</text>',
     ]
 
-    for index, (policy, label, color, group) in enumerate(POLICIES):
+    for index, (policy, label, color, group) in enumerate(policies):
         row, column = divmod(index, 4)
         x = 60 + column * 295
         y = 103 + row * 30
@@ -132,9 +203,9 @@ def write_plot(
         ])
 
     if missing:
-        labels = [label for policy, label, _, _ in POLICIES if policy in missing]
+        labels = [label for policy, label, _, _ in policies if policy in missing]
         lines.append(
-            f'<text x="55" y="169" class="note">Pending: {escape(", ".join(labels))}; no controlled Phase 3 coverage data is present yet.</text>'
+            f'<text x="55" y="{100 + legend_rows * 30}" class="note">Pending (no completed coverage data): {escape(", ".join(labels))}.</text>'
         )
 
     for tick in range(0, 11, 2):
@@ -155,7 +226,7 @@ def write_plot(
         f'<text x="27" y="{top + plot_height / 2}" class="axis" text-anchor="middle" transform="rotate(-90 27 {top + plot_height / 2})">Mean absolute surface coverage</text>',
     ])
 
-    for policy, _label, color, group in POLICIES:
+    for policy, _label, color, group in policies:
         points = curves.get(policy)
         if not points:
             continue
@@ -186,16 +257,22 @@ def main() -> int:
 
     curves, cohort_sizes = _read_coverage(phase2_csv)
     phase2_target = _coverage_target(args.phase2_run)
-    phase3_csv = _coverage_path(args.phase3_run)
-    if phase3_csv.is_file() and _phase3_is_complete(args.phase3_run):
+    phase3_runs = args.phase3_run or _completed_phase3_runs(args.phase3_root)
+    phase3_policy_names: set[str] = set()
+    for phase3_run in phase3_runs:
+        phase3_csv = _coverage_path(phase3_run)
+        if not phase3_csv.is_file() or not _phase3_is_complete(phase3_run):
+            print(f"skipping incomplete Phase 3 run: {phase3_run}", file=sys.stderr)
+            continue
         phase3_curves, phase3_sizes = _read_coverage(phase3_csv)
-        phase3_target = _coverage_target(args.phase3_run)
+        phase3_target = _coverage_target(phase3_run)
         if phase2_target and phase3_target and phase2_target != phase3_target:
             raise ValueError(
-                f"Coverage targets differ: Phase 2={phase2_target}, Phase 3={phase3_target}"
+                f"Coverage targets differ: Phase 2={phase2_target}, "
+                f"Phase 3={phase3_target} in {phase3_run}"
             )
-        curves.update(phase3_curves)
-        cohort_sizes.update(phase3_sizes)
+        _merge_curves(curves, cohort_sizes, phase3_curves, phase3_sizes, phase3_run)
+        phase3_policy_names.update(phase3_curves)
 
     available_sizes = {cohort_sizes[policy] for policy in curves if policy in cohort_sizes}
     if len(available_sizes) != 1:
@@ -204,7 +281,8 @@ def main() -> int:
             + ", ".join(str(value) for value in sorted(available_sizes))
         )
 
-    expected = [policy for policy, _, _, _ in POLICIES]
+    policies = PHASE2_POLICIES + _phase3_policy_specs(phase3_policy_names)
+    expected = [policy for policy, _, _, _ in policies]
     missing = [policy for policy in expected if policy not in curves]
     write_plot(
         args.output,
@@ -212,6 +290,7 @@ def main() -> int:
         cohort_sizes,
         missing,
         phase2_target or "vis_a",
+        policies,
     )
     print(args.output)
     if missing:

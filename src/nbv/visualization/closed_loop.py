@@ -49,15 +49,18 @@ def write_reconstruction_visualization(
     if not rows:
         raise ValueError("At least one reconstruction row is required")
     policies = tuple(dict.fromkeys(str(row["policy"]) for row in rows))
-    fscore_key = next(
-        (key for key in rows[0] if key.startswith("fscore_")), None
+    fscore_keys = sorted(
+        (key for key in rows[0] if key.startswith("fscore_")),
+        key=lambda key: float(key.removeprefix("fscore_").removesuffix("pct")),
     )
     definitions = [
         ("Normalized Chamfer-L1 ↓", "chamfer_l1_normalized", None),
         ("Normalized completeness ↓", "completeness_normalized", None),
     ]
-    if fscore_key is not None:
-        definitions.append((f"{fscore_key.replace('_', ' ').title()} ↑", fscore_key, (0.0, 1.0)))
+    definitions.extend(
+        (f"{key.replace('_', ' ').title()} ↑", key, (0.0, 1.0))
+        for key in fscore_keys
+    )
     panels = []
     for title, key, bounds in definitions:
         series = {}
@@ -88,7 +91,7 @@ def write_reconstruction_visualization(
         policies=policies,
         panels=tuple(panels),
         x_label="total acquired views (initial views included)",
-        width=1460,
+        width=max(1460, 460 * len(definitions)),
         height=590,
     )
     return destination

@@ -31,6 +31,60 @@ diameter:
 - Chamfer-L1: the mean of normalized accuracy and completeness;
 - precision, recall, and F-score at 1% and 2% of ground-truth diameter.
 
+## Observed farthest-policy two-view outliers
+
+The 300-object Phase 2 reconstruction run in
+`outputs/phase2/phase2_closed_loop_reconstruction/seed_0` has a misleading
+spike in the farthest-policy mean Chamfer-L1 at two views. The mean rises from
+2.811 at one view to 30.608 at two views, although the two-view median is only
+0.163. Three two-view objects have Chamfer-L1 values of approximately 1,515,
+1,610, and 5,899; excluding those three reduces the two-view mean to 0.536.
+The three-view mean is 0.599.
+
+This is an alignment failure rather than broad reconstruction degradation.
+With initial anchor 0, the farthest policy selects anchor 46 next, so every
+two-view history is `[0, 46]`. These are the north and south poles and are
+exactly 180 degrees apart. Their limited visual overlap can make VGGT estimate
+a nearly collapsed camera baseline. Here, "collapsed baseline" means that
+VGGT places its two predicted camera centres almost at the same 3D position,
+even though the known NUM cameras are on opposite sides of the object. It does
+not mean that the actual input cameras or canonical anchors are colocated.
+
+The alignment estimates a similarity transform consisting of rotation,
+translation, and one global scale. Informally, the scale must satisfy
+
+```text
+alignment scale ~= known camera separation / predicted camera separation
+```
+
+Therefore, when the predicted separation approaches zero, the estimated scale
+becomes extremely large. The implementation detects only an exactly or nearly
+zero squared camera spread below `1e-12`; a small but nonzero spread can still
+pass that check and yield a finite but implausible scale. The positive-scale
+fallback also divides the known camera spread by the predicted spread, so it
+cannot repair a collapsed prediction by itself. Applying the resulting Sim(3)
+transform enlarges VGGT's entire predicted point cloud, not just its camera
+centres. Most reconstructed points then lie thousands of object diameters from
+the ground-truth surface, inflating both the predicted-to-ground-truth accuracy
+distance and the ground-truth-to-predicted completeness distance in Chamfer-L1.
+
+The per-object table makes this failure visible in `alignment_scale` and
+`camera_center_rmse_normalized`. The three dominant two-view outliers have
+alignment scales of approximately 3,053, 3,263, and 11,841, compared with a
+median two-view scale of 2.77. Two use the positive-scale fallback. A small
+camera-centre RMSE does not necessarily validate the reconstruction: with only
+two camera correspondences, a huge scale can force a tiny predicted baseline
+to match the known endpoints while scaling the point cloud incorrectly. Adding
+a non-antipodal third view supplies a better-constrained camera configuration
+and stabilizes the result in this run.
+
+Consequently, the farthest-policy two-view arithmetic mean and its aggregate
+Chamfer AUC must not be interpreted as typical reconstruction quality. Report
+the median and alignment-failure rate alongside the mean, and treat collapsed
+predicted baselines or implausible alignment scales as failed alignments before
+using the AUC for policy comparison. Chamfer is also not expected to be
+monotonic because VGGT reconstructs each complete view prefix independently.
+
 ## Cache contract
 
 `data/cache/reconstruction` contains three independently invalidated layers:
@@ -55,3 +109,8 @@ uses the same evaluator and exports the same reconstruction tables and fields
 for its independent and joint policies. This supports the scoped claim that
 one policy selects better views under a common frozen VGGT reconstruction
 backend; visibility remains the complementary backend-independent check.
+
+The common evaluation reports F-scores at 1%, 2%, and 10% of the ground-truth
+bounding-box diameter. The 10% threshold is the less strict diagnostic for
+coarse reconstruction overlap; it complements rather than replaces the stricter
+geometric-fidelity thresholds.
