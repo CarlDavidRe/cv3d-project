@@ -162,7 +162,6 @@ fi
 
 for PATH_TO_RESTORE in \
   data/cache/features \
-  data/cache/visibility \
   data/cache/reconstruction
 do
   if [ -d "$DRIVE/cv3d-project/$PATH_TO_RESTORE" ]; then
@@ -185,10 +184,20 @@ DRIVE=/content/drive/MyDrive
 
 if [ -d "$DRIVE/cv3d-project/outputs/phase3" ]; then
   mkdir -p "$REPO/outputs/phase3"
-  rsync -av --exclude='rollouts/' "$DRIVE/cv3d-project/outputs/phase3/" \
+
+  RSYNC_ARGS=(-av --exclude='rollouts/')
+  while IFS= read -r -d '' CACHE_DIR; do
+    CACHE_PATH=${CACHE_DIR#"$REPO/outputs/phase3/"}
+    RSYNC_ARGS+=(--exclude="/$CACHE_PATH/")
+  done < <(find "$REPO/outputs/phase3" -type d -name joint_feature_cache -print0)
+
+  rsync "${RSYNC_ARGS[@]}" "$DRIVE/cv3d-project/outputs/phase3/" \
     "$REPO/outputs/phase3/"
 fi
 ```
+
+Existing joint feature-cache directories are left untouched. If a run does not
+have a local `joint_feature_cache`, its cache is restored from Drive normally.
 
 ## 4. Install the project and VGGT
 
@@ -246,19 +255,9 @@ python3 scripts/evaluate_closed_loop.py \
 
 ### Phase 3
 
-The checked-in history dataset is ready for the configured Phase 3 runs. To
-intentionally generate a new history dataset for a new run, create visibility
-caches for every split and then build it. Skip this block when resuming:
-
-```bash
-cd /content/cv3d-project
-
-for SPLIT in train val test; do
-  python3 scripts/precompute_visibility.py --split "$SPLIT"
-done
-
-python3 scripts/build_history_dataset.py
-```
+The checked-in history dataset is ready for the configured Phase 3 runs. Do
+not regenerate it when resuming, because doing so can change its identity and
+invalidate the matching feature cache and training checkpoint.
 
 Train and compare the independent and joint controls:
 
