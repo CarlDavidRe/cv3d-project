@@ -161,11 +161,9 @@ if [ -f "$DRIVE/cv3d-datasets/reconstruction-cache.tar.gz" ]; then
 fi
 
 for PATH_TO_RESTORE in \
-  outputs \
   data/cache/features \
   data/cache/visibility \
-  data/cache/reconstruction \
-  data/processed/histories
+  data/cache/reconstruction
 do
   if [ -d "$DRIVE/cv3d-project/$PATH_TO_RESTORE" ]; then
     mkdir -p "$REPO/$PATH_TO_RESTORE"
@@ -173,6 +171,22 @@ do
       "$REPO/$PATH_TO_RESTORE/"
   fi
 done
+```
+
+Do not restore `data/processed/histories` from Drive; rebuild the history
+dataset when needed in the training section below.
+
+Restore Phase 3 outputs from Drive, excluding rollouts:
+
+```bash
+REPO=/content/cv3d-project
+DRIVE=/content/drive/MyDrive
+
+if [ -d "$DRIVE/cv3d-project/outputs/phase3" ]; then
+  mkdir -p "$REPO/outputs/phase3"
+  rsync -av --exclude='rollouts/' "$DRIVE/cv3d-project/outputs/phase3/" \
+    "$REPO/outputs/phase3/"
+fi
 ```
 
 ## 4. Install the project and VGGT

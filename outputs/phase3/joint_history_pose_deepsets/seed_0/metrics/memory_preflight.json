@@ -1,0 +1,30 @@
+{
+  "cpu_memory_note": null,
+  "device": "cuda:0",
+  "enabled": true,
+  "measurement_scope": "frozen_joint_vggt_plus_trainable_head_forward",
+  "measurements": [
+    {
+      "batch_size": 1,
+      "elapsed_seconds": 1.4658408179993785,
+      "history_length": 1,
+      "peak_memory_allocated_bytes": 3743846912,
+      "peak_memory_reserved_bytes": 3802136576,
+      "prediction_shape": [
+        1,
+        48
+      ]
+    },
+    {
+      "batch_size": 1,
+      "elapsed_seconds": 0.1952511429999504,
+      "history_length": 2,
+      "peak_memory_allocated_bytes": 3839756288,
+      "peak_memory_reserved_bytes": 3957325824,
+      "prediction_shape": [
+        1,
+        48
+      ]
+    }
+  ]
+}

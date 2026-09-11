@@ -16,6 +16,7 @@ from nbv.data import (
     HistorySample,
     MaterializedHistoryFeatureDataset,
     collate_history_features,
+    relocated_history_manifest_identity,
 )
 from nbv.data import (
     VisibilityCache,
@@ -24,6 +25,7 @@ from nbv.data import (
     visibility_cache_path,
 )
 from nbv.experiments.phase3_joint import (
+    _resolve_resumed_run_identity,
     load_joint_history_checkpoint,
     parse_phase3_joint_settings,
     run_phase3_joint,
@@ -465,6 +467,61 @@ class JointHistoryTrainingTests(unittest.TestCase):
 
 
 class JointConfigTests(unittest.TestCase):
+    def test_resume_accepts_history_identity_changed_only_by_repository_root(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            old_root = Path("/previous/worktree/cv3d-project")
+            manifest = {
+                "dataset_id": "local-id",
+                "provenance": {
+                    "history_config": str(
+                        old_root / "configs/experiments/histories.yaml"
+                    ),
+                    "visibility_config": str(old_root / "configs/visibility.yaml"),
+                    "evaluation_config": str(old_root / "configs/evaluation.yaml"),
+                    "split_manifest": str(old_root / "data/splits/num.json"),
+                },
+            }
+            dataset_id, manifest_sha256 = relocated_history_manifest_identity(
+                manifest,
+                current_repository_root=old_root,
+                artifact_repository_root=root,
+            )
+            current_identity = {
+                "model_type": "phase3_joint_history_gain",
+                "architecture": "pose_deepsets",
+                "experiment_config_sha256": "config-id",
+                "history_dataset_id": "local-id",
+                "history_manifest_sha256": "local-manifest-id",
+            }
+            artifact_identity = {
+                **current_identity,
+                "history_dataset_id": dataset_id,
+                "history_manifest_sha256": manifest_sha256,
+            }
+            shard = root / "shard_00000.pt"
+            torch.save(
+                {
+                    "schema_version": 1,
+                    "cache_type": "phase3_joint_materialized_features",
+                    "cache_identity": {**artifact_identity, "split": "train"},
+                },
+                shard,
+            )
+
+            resolved = _resolve_resumed_run_identity(
+                current_identity,
+                manifest,
+                repository_root=root,
+                cached_feature_shards=(shard,),
+                training_checkpoint_path=root / "missing.pt",
+                logger=None,
+            )
+
+            self.assertEqual(resolved, artifact_identity)
+
     def test_checked_in_joint_config_matches_step16_control(self) -> None:
         root = Path(__file__).resolve().parents[1]
         config = load_config(root / "configs/experiments/phase3_joint.yaml")

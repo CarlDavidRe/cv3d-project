@@ -20,6 +20,7 @@ from nbv.data import (
     HistoryFeatureSample,
     MaterializedHistoryFeatureDataset,
     collate_history_samples,
+    relocated_history_manifest_identity,
 )
 from nbv.eval.result_schema import write_csv, write_json
 from nbv.experiments.phase3_independent import parse_phase3_independent_settings
@@ -342,6 +343,15 @@ def run_phase3_joint(
         "history_dataset_id": manifest["dataset_id"],
         "history_manifest_sha256": _sha256(settings.history_manifest),
     }
+    if resume:
+        run_identity = _resolve_resumed_run_identity(
+            run_identity,
+            manifest,
+            repository_root=root,
+            cached_feature_shards=cached_feature_shards,
+            training_checkpoint_path=training_checkpoint_path,
+            logger=active_logger,
+        )
     active_logger.info(
         "Phase 3 joint memory preflight: %s",
         (
@@ -1104,6 +1114,101 @@ def _load_joint_feature_shard(
     if tuple(sample.sample_id for sample in samples) != expected_sample_ids:
         raise ValueError(f"joint feature-cache payload is inconsistent: {path}")
     return samples
+
+
+def _resolve_resumed_run_identity(
+    current_identity: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    *,
+    repository_root: Path,
+    cached_feature_shards: tuple[Path, ...],
+    training_checkpoint_path: Path,
+    logger: logging.Logger | None,
+) -> dict[str, Any]:
+    """Accept an otherwise exact resume identity after repository relocation."""
+
+    artifact_identities: list[Mapping[str, Any]] = []
+    if cached_feature_shards:
+        payload = torch.load(
+            sorted(cached_feature_shards)[0], map_location="cpu", weights_only=True
+        )
+        if (
+            payload.get("schema_version") == 1
+            and payload.get("cache_type") == "phase3_joint_materialized_features"
+            and isinstance(payload.get("cache_identity"), Mapping)
+        ):
+            cache_identity = dict(payload["cache_identity"])
+            cache_identity.pop("split", None)
+            artifact_identities.append(cache_identity)
+    if training_checkpoint_path.is_file():
+        payload = torch.load(
+            training_checkpoint_path, map_location="cpu", weights_only=True
+        )
+        if (
+            payload.get("schema_version") == 1
+            and payload.get("checkpoint_type") == "phase3_history_training_state"
+            and isinstance(payload.get("checkpoint_identity"), Mapping)
+        ):
+            artifact_identities.append(payload["checkpoint_identity"])
+    if not artifact_identities:
+        return dict(current_identity)
+    artifact_identity = dict(artifact_identities[0])
+    if any(
+        dict(identity) != artifact_identity for identity in artifact_identities[1:]
+    ):
+        raise ValueError("resumable joint artifacts use different experiment identities")
+    if artifact_identity == dict(current_identity):
+        return artifact_identity
+
+    embedded_root = _history_manifest_repository_root(manifest)
+    if embedded_root is not None and embedded_root != repository_root:
+        dataset_id, manifest_sha256 = relocated_history_manifest_identity(
+            manifest,
+            current_repository_root=embedded_root,
+            artifact_repository_root=repository_root,
+        )
+        relocated_identity = {
+            **current_identity,
+            "history_dataset_id": dataset_id,
+            "history_manifest_sha256": manifest_sha256,
+        }
+        if artifact_identity == relocated_identity:
+            if logger is not None:
+                logger.info(
+                    "Phase 3 joint: accepting resumable artifacts whose history "
+                    "identity differs only by repository-root relocation (%s -> %s)",
+                    embedded_root,
+                    repository_root,
+                )
+            return artifact_identity
+    return dict(current_identity)
+
+
+def _history_manifest_repository_root(manifest: Mapping[str, Any]) -> Path | None:
+    """Recover the repository root embedded by early Phase 3 provenance."""
+
+    provenance = manifest.get("provenance")
+    if not isinstance(provenance, Mapping):
+        return None
+    roots: set[Path] = set()
+    for key in (
+        "history_config",
+        "visibility_config",
+        "evaluation_config",
+        "split_manifest",
+    ):
+        value = provenance.get(key)
+        if not isinstance(value, str) or not Path(value).is_absolute():
+            continue
+        parts = Path(value).parts
+        markers = [
+            index
+            for index, part in enumerate(parts)
+            if part in {"configs", "data"}
+        ]
+        if markers:
+            roots.add(Path(*parts[: markers[-1]]))
+    return roots.pop() if len(roots) == 1 else None
 
 
 def _extract_with_oom_backoff(
