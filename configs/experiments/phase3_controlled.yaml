@@ -2,13 +2,15 @@ schema_version: 1
 
 experiment:
   phase: phase3
-  name: controlled_history_comparison
+  name: controlled_history_comparison_reconstruction
   seed: 0
   deterministic: true
 
 paths:
   data_root: data/NUM
+  mesh_root: data/ShapeNetCore.v2
   visibility_cache_root: data/cache/visibility
+  reconstruction_cache_root: data/cache/reconstruction
   output_root: outputs
   model_cache_root: data/cache/models
 
@@ -48,6 +50,26 @@ phase3:
       skip_missing_caches: false
       initial_anchor_ids: [0]
       max_acquired_views: 10
+      # Apply the same post-rollout reconstruction evaluator used in Phase 2.
+      # Exact matching history prefixes reuse the shared point-cloud cache.
+      reconstruction:
+        enabled: true
+        policies: [vggt_independent_history, vggt_joint_history]
+        view_counts: [1, 2, 3, 5, 10]
+        backend: vggt
+        model_id: facebook/VGGT-1B
+        image_size: 518
+        point_source: point_map
+        device: auto
+        confidence_percentile: 50.0
+        foreground_threshold: 0.9607843137254902
+        predicted_point_count: 10000
+        ground_truth_point_count: 10000
+        chamfer_chunk_size: 1024
+        fscore_thresholds: [0.01, 0.02]
+        mesh_relative_path: models/model_normalized.ply
+        mesh_scale: 2.0
+        mesh_centering: bounding_box
 
     external_references:
-      phase2_summary: outputs/phase2/phase2_closed_loop/seed_0/metrics/summary.json
+      phase2_summary: outputs/phase2/phase2_closed_loop_reconstruction/seed_0/metrics/summary.json

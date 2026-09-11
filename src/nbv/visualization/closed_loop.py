@@ -41,6 +41,59 @@ def write_closed_loop_visualizations(
     return paths
 
 
+def write_reconstruction_visualization(
+    rows: Sequence[dict[str, Any]], path: str | Path
+) -> Path:
+    """Plot common-backend reconstruction quality over acquired-view count."""
+
+    if not rows:
+        raise ValueError("At least one reconstruction row is required")
+    policies = tuple(dict.fromkeys(str(row["policy"]) for row in rows))
+    fscore_key = next(
+        (key for key in rows[0] if key.startswith("fscore_")), None
+    )
+    definitions = [
+        ("Normalized Chamfer-L1 ↓", "chamfer_l1_normalized", None),
+        ("Normalized completeness ↓", "completeness_normalized", None),
+    ]
+    if fscore_key is not None:
+        definitions.append((f"{fscore_key.replace('_', ' ').title()} ↑", fscore_key, (0.0, 1.0)))
+    panels = []
+    for title, key, bounds in definitions:
+        series = {}
+        for policy in policies:
+            selected = [row for row in rows if row["policy"] == policy]
+            counts = sorted({int(row["acquired_view_count"]) for row in selected})
+            series[policy] = [
+                (
+                    float(count),
+                    float(np.mean([
+                        float(row[key]) for row in selected
+                        if int(row["acquired_view_count"]) == count
+                    ])),
+                )
+                for count in counts
+            ]
+        panels.append((title, series, bounds))
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    object_count = len({str(row["object_id"]) for row in rows})
+    _write_line_figure(
+        destination,
+        title="Reconstruction quality under the shared frozen VGGT backend",
+        subtitle=(
+            f"Mean over {object_count} object{'s' if object_count != 1 else ''}; "
+            "distances are normalized by ground-truth bounding-box diameter."
+        ),
+        policies=policies,
+        panels=tuple(panels),
+        x_label="total acquired views (initial views included)",
+        width=1460,
+        height=590,
+    )
+    return destination
+
+
 def _write_coverage(results: Sequence[Any], policies: tuple[str, ...], path: Path) -> None:
     absolute_series = {}
     reachable_series = {}

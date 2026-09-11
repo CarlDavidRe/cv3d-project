@@ -1,6 +1,9 @@
 """Dependency-free visualizations for experiment artifacts."""
 
-from nbv.visualization.closed_loop import write_closed_loop_visualizations
+from nbv.visualization.closed_loop import (
+    write_closed_loop_visualizations,
+    write_reconstruction_visualization,
+)
 from nbv.visualization.phase2_rollout import write_phase2_rollout_demo
 from nbv.visualization.phase1_prediction import (
     Phase1PredictionDiagnostics,
@@ -21,5 +24,6 @@ __all__ = [
     "write_variant_training_curves",
     "write_visibility_debug_svg",
     "write_closed_loop_visualizations",
+    "write_reconstruction_visualization",
     "write_phase2_rollout_demo",
 ]

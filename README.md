@@ -73,7 +73,10 @@ done
 The default geometry configuration expects `model_normalized.ply`. If the
 download contains OBJ meshes, set
 `phase2.visibility.mesh_relative_path=models/model_normalized.obj` in
-`configs/experiments/phase2_visibility.yaml` before precomputing visibility.
+`configs/experiments/phase2_visibility.yaml` before precomputing visibility,
+and set the matching
+`phase2.evaluation.reconstruction.mesh_relative_path` value in
+`configs/experiments/phase2_closed_loop.yaml`.
 
 ### Create the dataset archives
 
@@ -103,7 +106,7 @@ rsync -av /content/NUM.tar.gz "$DATASET_DRIVE/"
 rsync -av /content/ShapeNetCore.v2-num-subset.tar.gz "$DATASET_DRIVE/"
 ```
 
-If visibility caches already exist, archive and save them too:
+If visibility or reconstruction caches already exist, archive and save them too:
 
 ```bash
 cd /content/cv3d-project
@@ -112,6 +115,12 @@ DATASET_DRIVE=/content/drive/MyDrive/cv3d-datasets
 tar -czf /content/visibility-cache.tar.gz -C data/cache visibility
 tar -tzf /content/visibility-cache.tar.gz | head
 rsync -av /content/visibility-cache.tar.gz "$DATASET_DRIVE/"
+
+if [ -d data/cache/reconstruction ]; then
+  tar -czf /content/reconstruction-cache.tar.gz -C data/cache reconstruction
+  tar -tzf /content/reconstruction-cache.tar.gz | head
+  rsync -av /content/reconstruction-cache.tar.gz "$DATASET_DRIVE/"
+fi
 ```
 
 The archives must contain these top-level directories:
@@ -120,6 +129,7 @@ The archives must contain these top-level directories:
 NUM/<category_id>/<object_id>/...
 ShapeNetCore.v2/<category_id>/<object_id>/models/model_normalized.ply
 visibility/...  # optional
+reconstruction/...  # optional cached VGGT point clouds, GT samples, and metrics
 ```
 
 ## 3. Restore data and previous work
@@ -144,10 +154,17 @@ if [ -f "$DRIVE/cv3d-datasets/visibility-cache.tar.gz" ]; then
     -C "$REPO/data/cache"
 fi
 
+if [ -f "$DRIVE/cv3d-datasets/reconstruction-cache.tar.gz" ]; then
+  mkdir -p "$REPO/data/cache"
+  tar -xzf "$DRIVE/cv3d-datasets/reconstruction-cache.tar.gz" \
+    -C "$REPO/data/cache"
+fi
+
 for PATH_TO_RESTORE in \
   outputs \
   data/cache/features \
   data/cache/visibility \
+  data/cache/reconstruction \
   data/processed/histories
 do
   if [ -d "$DRIVE/cv3d-project/$PATH_TO_RESTORE" ]; then
@@ -191,6 +208,19 @@ python3 scripts/run_phase1.py \
 
 ### Phase 2
 
+Phase 2 evaluates every rollout with rasterized `VisA`. It additionally compares
+the PUN and validation-selected VGGT-head policies using one shared frozen VGGT
+point-map reconstructor at 1, 2, 3, 5, and 10 acquired views. Predicted clouds
+are aligned through the predicted and known NUM cameras, then scored against
+area-sampled points from the paired ShapeNet mesh with normalized Chamfer-L1,
+accuracy, completeness, and F-score. No NeRF training is required.
+
+The first run downloads/loads the full VGGT model and creates reusable caches
+under `data/cache/reconstruction`. A cached ordered history is reused across
+policies, reruns, and downstream Phase 3 evaluation. Changing only Chamfer or
+F-score settings reuses the expensive point-cloud cache. Exact definitions and
+alignment limitations are in `docs/reconstruction_evaluation.md`.
+
 ```bash
 cd /content/cv3d-project
 
@@ -228,6 +258,11 @@ python3 scripts/train_joint_history.py \
 python3 scripts/evaluate_phase3.py \
   --config configs/experiments/phase3_controlled.yaml
 ```
+
+This downstream comparison reports the same visibility curves and applies the
+same cached VGGT reconstruction evaluator to both history policies. Run the
+configured Phase 2 evaluation first so its summary is available as the
+external baseline reference.
 
 Train the pose-conditioned DeepSets and spatial-token attention follow-ups:
 
@@ -276,6 +311,7 @@ python3 scripts/train_probe.py \
 python3 scripts/evaluate_closed_loop.py \
   --limit 10 \
   --skip-missing-caches \
+  --set phase2.evaluation.reconstruction.enabled=false \
   --set experiment.name=phase2_subset
 ```
 
@@ -307,6 +343,7 @@ BACKUP=/content/drive/MyDrive/cv3d-project
 for PATH_TO_SYNC in \
   data/cache/features \
   data/cache/visibility \
+  data/cache/reconstruction \
   data/processed/histories
 do
   if [ -d "$PATH_TO_SYNC" ]; then
@@ -337,6 +374,7 @@ else
         outputs \
         data/cache/features \
         data/cache/visibility \
+        data/cache/reconstruction \
         data/processed/histories
       do
         if [ -d "$REPO/$PATH_TO_SYNC" ]; then
@@ -364,6 +402,7 @@ for PATH_TO_SYNC in \
   outputs \
   data/cache/features \
   data/cache/visibility \
+  data/cache/reconstruction \
   data/processed/histories
 do
   if [ -d "$REPO/$PATH_TO_SYNC" ]; then

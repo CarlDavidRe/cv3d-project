@@ -35,6 +35,8 @@ Before evaluation, the runner verifies:
   split;
 - exact visibility-cache fingerprints shared by history labels and rollout
   evaluation;
+- the same post-rollout VGGT point-cloud evaluator, ShapeNet surface target,
+  alignment, filtering, and Chamfer/F-score settings used in Phase 2;
 - cosine similarity of at least 0.999 between independent and joint features
   for length-1 histories. This empirical check covers effective frozen weights
   and preprocessing because the older independent cache has no weight digest;
@@ -48,13 +50,16 @@ history state.
 
 ## Outputs and completion gate
 
-The run directory is
-`outputs/phase3/controlled_history_comparison/seed_0`. Its `metrics/` directory
+New reconstruction-enabled runs use
+`outputs/phase3/controlled_history_comparison_reconstruction/seed_0`. Its
+`metrics/` directory
 contains paired per-sample, aggregate, and history-length one-step tables;
 closed-loop per-step, per-object, coverage, and policy-comparison tables;
-runtime/memory/capacity profiling; external Phase 2 references; `summary.json`;
-and `report.md`. Replayable rollouts and SVG coverage/quality figures are saved
-beside them.
+shared-backend reconstruction per-object and curve tables; runtime/memory/
+capacity profiling; external Phase 2 references; `summary.json`; and
+`report.md`. Replayable rollouts and SVG coverage/reconstruction figures are
+saved beside them. Exact ordered histories reuse `data/cache/reconstruction`
+entries produced by Phase 2.
 
 `metrics/phase3_completion.json` is the authoritative exit gate. It is
 `complete` only for two policies on all 12,000 test histories and the complete
@@ -70,8 +75,8 @@ synchronized and excludes geometry evaluation and RGB acquisition.
 ## Current execution status
 
 The implementation and its full synthetic run/resume/replay path are tested in
-`tests/test_phase3_controlled.py`. This checkout does not contain a real Step 18
-result because its current runtime has no CUDA device and no installed `vggt`
-package. No result should be inferred from the Step 17 validation metrics or
-from cached independent features; the GPU command above is required to produce
-the final controlled result.
+`tests/test_phase3_controlled.py`. The retained real Step 18 artifact predates
+the reconstruction gate; this runtime has no CUDA device and no installed
+`vggt` package with which to replace it. No reconstruction result should be
+inferred from the old visibility metrics or cached independent features; the
+GPU command above is required to produce the current-schema controlled result.

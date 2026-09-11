@@ -12,8 +12,8 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_PHASE2 = ROOT / "outputs/phase2/phase2_closed_loop/seed_0"
-DEFAULT_PHASE3 = ROOT / "outputs/phase3/controlled_history_comparison/seed_0"
+DEFAULT_PHASE2 = ROOT / "outputs/phase2/phase2_closed_loop_reconstruction/seed_0"
+DEFAULT_PHASE3 = ROOT / "outputs/phase3/controlled_history_comparison_reconstruction/seed_0"
 DEFAULT_OUTPUT = ROOT / "outputs/all_policy_comparison/coverage_curves.svg"
 
 POLICIES = (

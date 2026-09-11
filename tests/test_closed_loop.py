@@ -261,6 +261,9 @@ class ClosedLoopTests(unittest.TestCase):
 
     def experiment_config(self):
         config = load_config(ROOT / "configs/experiments/phase2_closed_loop.yaml")
+        # Reconstruction has its own focused tests with an injected backend;
+        # this fixture exercises visibility-only experiment orchestration.
+        config["phase2"]["evaluation"]["reconstruction"]["enabled"] = False
         config["experiment"]["name"] = "geometric_baselines"
         config["phase2"]["evaluation"]["policies"] = [
             "random", "farthest", "oracle"

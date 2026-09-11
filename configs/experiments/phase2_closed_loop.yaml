@@ -2,13 +2,15 @@ schema_version: 1
 
 experiment:
   phase: phase2
-  name: phase2_closed_loop
+  name: phase2_closed_loop_reconstruction
   seed: 0
   deterministic: true
 
 paths:
   data_root: data/NUM
+  mesh_root: data/ShapeNetCore.v2
   visibility_cache_root: data/cache/visibility
+  reconstruction_cache_root: data/cache/reconstruction
   output_root: outputs
   model_cache_root: data/cache/models
 
@@ -29,6 +31,31 @@ phase2:
     # Report both absolute VisA and coverage normalized by the union reachable
     # from every available, non-invalid anchor.
     coverage_target: vis_a      # Explicit override of a cache's default target.
+
+    # Secondary reconstruction-quality evaluation. Policies still receive no
+    # geometry: their selected RGB prefixes are reconstructed afterward by the
+    # same frozen VGGT point-map backend and compared with the ShapeNet mesh.
+    reconstruction:
+      enabled: true
+      policies: [pun, vggt]
+      # Joint VGGT inference is required separately for each prefix. These
+      # fixed checkpoints balance curve resolution and runtime; caches are
+      # shared across runs and with Phase 3 by exact ordered-history identity.
+      view_counts: [1, 2, 3, 5, 10]
+      backend: vggt
+      model_id: facebook/VGGT-1B
+      image_size: 518
+      point_source: point_map
+      device: auto
+      confidence_percentile: 50.0
+      foreground_threshold: 0.9607843137254902  # 245 / 255 NUM white-background mask.
+      predicted_point_count: 10000
+      ground_truth_point_count: 10000
+      chamfer_chunk_size: 1024
+      fscore_thresholds: [0.01, 0.02]  # Fractions of GT bounding-box diameter.
+      mesh_relative_path: models/model_normalized.ply
+      mesh_scale: 2.0
+      mesh_centering: bounding_box
 
   # Released PUN/UPNet inference only; no optimizer or local training.
   pun:

@@ -15,6 +15,11 @@ from nbv.data.observation_store import ObservationStore
 from nbv.data.visibility_cache import load_visibility_cache, visibility_cache_path
 from nbv.features import create_feature_extractor, load_feature_cache
 from nbv.eval.closed_loop import RolloutConfig, replay_rollout, run_rollout
+from nbv.eval.reconstruction import (
+    evaluate_rollout_reconstruction,
+    parse_reconstruction_settings,
+    reconstruction_policy_summary,
+)
 from nbv.eval.result_schema import save_rollout, write_csv, write_json
 from nbv.geometry import CAMERA_CONVENTION, CANONICAL_ORDERING, FACE_VISIBILITY_RENDERER
 from nbv.geometry.mesh import MESH_CENTERING, sha256_file
@@ -40,7 +45,11 @@ from nbv.policies import (
     VGGTPolicy,
 )
 from nbv.reproducibility import initialize_run, resolve_run_directory, seed_everything
-from nbv.visualization import write_closed_loop_visualizations, write_phase2_rollout_demo
+from nbv.visualization import (
+    write_closed_loop_visualizations,
+    write_phase2_rollout_demo,
+    write_reconstruction_visualization,
+)
 
 
 def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str | Path) -> Path:
@@ -94,6 +103,19 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
         requested = requested[:limit]
     if not requested:
         raise ValueError("No evaluation objects selected")
+    reconstruction_settings = parse_reconstruction_settings(
+        settings.get("reconstruction"),
+        config["paths"],
+        root,
+        default_policies=policies,
+    )
+    if reconstruction_settings is not None and any(
+        count > rollout_config.max_acquired_views
+        for count in reconstruction_settings.view_counts
+    ):
+        raise ValueError(
+            "reconstruction.view_counts cannot exceed max_acquired_views"
+        )
 
     geometry = config["phase2"].get("resolved_visibility")
     if geometry is None:
@@ -105,6 +127,16 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
     )}
     if expected_geometry["mesh_centering"] != MESH_CENTERING:
         raise ValueError(f"mesh_centering must be {MESH_CENTERING!r}")
+    if reconstruction_settings is not None and (
+        reconstruction_settings.mesh_relative_path
+        != expected_geometry["mesh_relative_path"]
+        or reconstruction_settings.mesh_scale != expected_geometry["mesh_scale"]
+        or reconstruction_settings.mesh_centering
+        != expected_geometry["mesh_centering"]
+    ):
+        raise ValueError(
+            "reconstruction mesh path/scale/centering must match visibility geometry"
+        )
     expected_geometry.update({
         "schema_version": 2, "anchor_count": 48, "anchor_ordering": CANONICAL_ORDERING,
         "renderer": FACE_VISIBILITY_RENDERER, "camera_convention": CAMERA_CONVENTION,
@@ -203,6 +235,32 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
     per_object = [result.summary() for result in all_results]
     write_csv(per_object, run.metrics_dir / "per_object.csv")
     write_csv([step for result in all_results for step in result.steps], run.metrics_dir / "per_step.csv")
+    reconstruction_rows: list[dict[str, Any]] = []
+    reconstruction_curves: list[dict[str, Any]] = []
+    reconstruction_summary: dict[str, Any] = {"enabled": False}
+    if reconstruction_settings is not None:
+        # Policy inference is complete. Release the PUN/head references before
+        # loading the much larger full VGGT geometry model.
+        pun_components = None
+        vggt_components = None
+        policy = None
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        logger.info(
+            "Evaluating cached shared-VGGT reconstruction for policies=%s, view_counts=%s",
+            reconstruction_settings.policies,
+            reconstruction_settings.view_counts,
+        )
+        reconstruction_rows, reconstruction_curves, reconstruction_summary = (
+            evaluate_rollout_reconstruction(all_results, reconstruction_settings)
+        )
+        reconstruction_summary["enabled"] = True
+        write_csv(
+            reconstruction_rows, run.metrics_dir / "reconstruction_per_object.csv"
+        )
+        write_csv(
+            reconstruction_curves, run.metrics_dir / "reconstruction_curves.csv"
+        )
     comparisons = []
     curves = []
     for policy in policies:
@@ -249,6 +307,7 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
         comparison["frozen_parameter_count"] = provenance.get(
             "frozen_parameter_count", provenance.get("frozen_parameter_count_unavailable")
         )
+        comparison.update(reconstruction_policy_summary(reconstruction_rows, policy))
         comparisons.append(comparison)
         for count in sorted({int(c) for result in results for c in result.acquired_view_counts}):
             values = [float(result.coverage[np.flatnonzero(result.acquired_view_counts == count)[0]]) for result in results if count in result.acquired_view_counts]
@@ -312,6 +371,7 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
             "vggt_summary_path": config.get("phase2", {}).get("vggt", {}).get("summary", {}).get("path"),
             "note": "Original NUM-target metrics remain in the pinned Phase 1 summary and are not geometric gain metrics.",
         },
+        "reconstruction": reconstruction_summary,
     }
     if all_results:
         figure_paths = write_closed_loop_visualizations(
@@ -321,6 +381,14 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
             name: str(path.relative_to(run.run_dir))
             for name, path in figure_paths.items()
         }
+        if reconstruction_rows:
+            reconstruction_figure = write_reconstruction_visualization(
+                reconstruction_rows,
+                run.figure_dir / "closed_loop" / "reconstruction_curves.svg",
+            )
+            summary["figures"]["reconstruction"] = str(
+                reconstruction_figure.relative_to(run.run_dir)
+            )
         demo_result = next(
             (result for result in all_results if result.metadata["policy"] == "vggt"),
             all_results[0],
@@ -376,6 +444,16 @@ def run_closed_loop_experiment(config: Mapping[str, Any], repository_root: str |
             and pun_provenance.get("source_commit")
             and vggt_provenance.get("checkpoint_sha256")
             and vggt_provenance.get("feature_cache_sha256")
+        ),
+        "shared_vggt_reconstruction_reported": bool(
+            reconstruction_settings is None
+            or (
+                reconstruction_rows
+                and reconstruction_summary.get("backend")
+                == "vggt_shared_across_policies"
+                and set(reconstruction_settings.policies)
+                <= {row["policy"] for row in reconstruction_rows}
+            )
         ),
     }
     completion = {

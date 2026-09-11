@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import json
 import logging
@@ -28,6 +28,12 @@ from nbv.data.visibility_cache import (
     visibility_cache_path,
 )
 from nbv.eval.closed_loop import RolloutConfig, replay_rollout, run_rollout
+from nbv.eval.reconstruction import (
+    ReconstructionSettings,
+    evaluate_rollout_reconstruction,
+    parse_reconstruction_settings,
+    reconstruction_policy_summary,
+)
 from nbv.eval.result_schema import load_rollout, save_rollout, write_csv, write_json
 from nbv.experiments.phase3_independent import load_independent_history_checkpoint
 from nbv.experiments.phase3_joint import (
@@ -40,7 +46,10 @@ from nbv.models import count_trainable_parameters
 from nbv.policies import IndependentHistoryPolicy, JointHistoryPolicy
 from nbv.reproducibility import initialize_run, resolve_run_directory, seed_everything
 from nbv.training import HistoryEvaluationResult, evaluate_history_model
-from nbv.visualization import write_closed_loop_visualizations
+from nbv.visualization import (
+    write_closed_loop_visualizations,
+    write_reconstruction_visualization,
+)
 
 
 POLICIES = ("vggt_independent_history", "vggt_joint_history")
@@ -75,6 +84,7 @@ class Phase3ControlledSettings:
     data_root: Path
     visibility_cache_root: Path
     model_cache_root: Path
+    reconstruction: ReconstructionSettings | None
 
 
 def parse_phase3_controlled_settings(
@@ -134,6 +144,18 @@ def parse_phase3_controlled_settings(
             "controlled.comparison_mode must be capacity_matched or "
             "expressive_joint_variant"
         )
+    reconstruction = parse_reconstruction_settings(
+        closed_loop.get("reconstruction"),
+        paths,
+        root,
+        default_policies=POLICIES,
+    )
+    if reconstruction is not None and any(
+        count > max_acquired_views for count in reconstruction.view_counts
+    ):
+        raise ValueError(
+            "closed_loop.reconstruction.view_counts cannot exceed max_acquired_views"
+        )
     return Phase3ControlledSettings(
         history_manifest=_rooted(root, controlled.get("history_manifest"), "history_manifest"),
         coverage_target=_string(controlled.get("coverage_target"), "coverage_target"),
@@ -191,6 +213,7 @@ def parse_phase3_controlled_settings(
         model_cache_root=_rooted(
             root, paths.get("model_cache_root"), "paths.model_cache_root"
         ),
+        reconstruction=reconstruction,
     )
 
 
@@ -251,6 +274,16 @@ def run_phase3_controlled(
             "token_candidate_attention": "vggt_joint_token_attention",
         }.get(joint_architecture, f"vggt_joint_{joint_architecture}"),
     )
+    if settings.reconstruction is not None:
+        reconstruction = settings.reconstruction
+        if reconstruction.policies == POLICIES:
+            reconstruction = replace(reconstruction, policies=policies)
+        if set(reconstruction.policies) - set(policies):
+            raise ValueError(
+                "closed_loop.reconstruction.policies do not match the resolved "
+                f"controlled policies {policies}"
+            )
+        settings = replace(settings, reconstruction=reconstruction)
     identity = _validate_checkpoint_history_identity(
         manifest,
         settings.history_manifest,
@@ -403,19 +436,59 @@ def run_phase3_controlled(
     per_object = [result.summary() for result in rollouts]
     per_step = [step for result in rollouts for step in result.steps]
     closed_loop_rows, coverage_rows = _closed_loop_rows(rollouts, policies=policies)
+    reconstruction_rows: list[dict[str, Any]] = []
+    reconstruction_curves: list[dict[str, Any]] = []
+    reconstruction_summary: dict[str, Any] = {"enabled": False}
+    joint_backbone_parameter_count = (
+        sum(parameter.numel() for parameter in joint_extractor.model.parameters())
+        if hasattr(joint_extractor, "model") else None
+    )
+    if settings.reconstruction is not None:
+        # The joint feature extractor retains the large VGGT aggregator. It is
+        # no longer needed after policy rollouts; release it before loading the
+        # full point-head model used by the common reconstruction evaluator.
+        del joint_extractor, independent_model, joint_model
+        if resolved_device.type == "cuda":
+            torch.cuda.empty_cache()
+        active_logger.info(
+            "Step 18: evaluating cached shared-VGGT reconstruction at %s",
+            settings.reconstruction.view_counts,
+        )
+        reconstruction_rows, reconstruction_curves, reconstruction_summary = (
+            evaluate_rollout_reconstruction(rollouts, settings.reconstruction)
+        )
+        reconstruction_summary["enabled"] = True
+        for row in closed_loop_rows:
+            row.update(reconstruction_policy_summary(
+                reconstruction_rows, str(row["policy"])
+            ))
     write_csv(per_object, context.metrics_dir / "per_object.csv")
     write_csv(per_step, context.metrics_dir / "per_step.csv")
     write_csv(closed_loop_rows, context.metrics_dir / "closed_loop_comparison.csv")
     write_csv(coverage_rows, context.metrics_dir / "coverage.csv")
+    if reconstruction_rows:
+        write_csv(
+            reconstruction_rows,
+            context.metrics_dir / "reconstruction_per_object.csv",
+        )
+        write_csv(
+            reconstruction_curves,
+            context.metrics_dir / "reconstruction_curves.csv",
+        )
     figure_paths = (
         write_closed_loop_visualizations(rollouts, context.figure_dir / "closed_loop")
         if rollouts
         else {}
     )
+    if reconstruction_rows:
+        figure_paths["reconstruction"] = write_reconstruction_visualization(
+            reconstruction_rows,
+            context.figure_dir / "closed_loop" / "reconstruction_curves.svg",
+        )
 
     external_references = _load_external_references(settings.external_phase2_summary)
     profiling = {
-        "device": str(next(joint_model.parameters()).device),
+        "device": str(resolved_device),
         "one_step": {
             "independent_cached_seconds": independent_seconds,
             "joint_cached_seconds": joint_seconds,
@@ -453,12 +526,8 @@ def run_phase3_controlled(
             # the validated checkpoint states for architectural capacity.
             "independent_trainable": controls["independent_trainable_parameters"],
             "joint_trainable": controls["joint_trainable_parameters"],
-            "joint_frozen_backbone": sum(
-                parameter.numel() for parameter in joint_extractor.model.parameters()
-            ) if hasattr(joint_extractor, "model") else None,
-            "independent_frozen_backbone_reference": sum(
-                parameter.numel() for parameter in joint_extractor.model.parameters()
-            ) if hasattr(joint_extractor, "model") else None,
+            "joint_frozen_backbone": joint_backbone_parameter_count,
+            "independent_frozen_backbone_reference": joint_backbone_parameter_count,
         },
         "timing_protocol": (
             "One-step cached-head evaluation is timed separately from joint feature "
@@ -493,6 +562,7 @@ def run_phase3_controlled(
         "cohort": cohort,
         "profiling": profiling,
         "external_references": external_references,
+        "reconstruction": reconstruction_summary,
         "figures": {
             key: str(path.relative_to(context.run_dir)) for key, path in figure_paths.items()
         },
@@ -974,6 +1044,17 @@ def _completion(
             and row.get("normalized_regret_mean") is not None
             for row in closed_loop
         ),
+        "reconstruction_reported": bool(
+            not summary.get("reconstruction", {}).get("enabled", False)
+            or (
+                summary["reconstruction"].get("backend")
+                == "vggt_shared_across_policies"
+                and all(
+                    row.get("final_chamfer_l1_normalized_mean") is not None
+                    for row in closed_loop
+                )
+            )
+        ),
         "runtime_memory_capacity_reported": (
             (run_dir / "metrics/profiling.json").is_file()
             and summary["profiling"]["parameters"]["independent_trainable"] is not None
@@ -1050,25 +1131,56 @@ def _conclusion(
             > loop[independent]["final_coverage_mean"]
         ),
     }
+    reconstruction_indicators = {}
+    if all(
+        loop[name].get("final_chamfer_l1_normalized_mean") is not None
+        for name in (joint, independent)
+    ):
+        reconstruction_indicators.update({
+            "reconstruction_final_chamfer_improved": (
+                loop[joint]["final_chamfer_l1_normalized_mean"]
+                < loop[independent]["final_chamfer_l1_normalized_mean"]
+            ),
+            "reconstruction_chamfer_auc_improved": (
+                loop[joint]["chamfer_l1_normalized_auc"]
+                < loop[independent]["chamfer_l1_normalized_auc"]
+            ),
+        })
+        fscore_fields = sorted(
+            key for key in set(loop[joint]) & set(loop[independent])
+            if key.startswith("final_fscore_") and key.endswith("_mean")
+        )
+        if fscore_fields:
+            field = fscore_fields[0]
+            threshold_name = field.removeprefix("final_").removesuffix("_mean")
+            reconstruction_indicators[
+                f"reconstruction_final_{threshold_name}_improved"
+            ] = loop[joint][field] > loop[independent][field]
     wins = sum(indicators.values())
+    # Preserve the prespecified visibility-era H4 decision rule. The new
+    # reconstruction indicators are reported as a separate corroborating
+    # outcome rather than changing the historical hypothesis threshold.
+    strong_win_threshold = 5
+    strong_loss_threshold = 1
     if comparison_mode == "expressive_joint_variant":
         status = (
             "expressive_variant_outperforms"
-            if wins >= 5
+            if wins >= strong_win_threshold
             else "expressive_variant_underperforms"
-            if wins <= 1
+            if wins <= strong_loss_threshold
             else "expressive_variant_mixed"
         )
         return {
             "status": status,
             "indicators": indicators,
+            "reconstruction_indicators": reconstruction_indicators,
             "statement": (
                 "The expressive joint variant improves a clear majority of the "
                 "reported outcomes."
-                if wins >= 5
+                if wins >= strong_win_threshold
                 else "The expressive joint variant does not improve a clear majority "
                 "of the reported outcomes."
-                if wins <= 1
+                if wins <= strong_loss_threshold
                 else "The expressive joint variant produces mixed one-step and "
                 "closed-loop outcomes."
             ),
@@ -1077,10 +1189,15 @@ def _conclusion(
                 "the comparison is not trainable-capacity matched."
             ),
         }
-    status = "supports_h4" if wins >= 5 else "does_not_support_h4" if wins <= 1 else "mixed"
+    status = (
+        "supports_h4" if wins >= strong_win_threshold
+        else "does_not_support_h4" if wins <= strong_loss_threshold
+        else "mixed"
+    )
     return {
         "status": status,
         "indicators": indicators,
+        "reconstruction_indicators": reconstruction_indicators,
         "statement": (
             "Joint processing improves a clear majority of the prespecified outcomes."
             if status == "supports_h4"
@@ -1093,6 +1210,16 @@ def _conclusion(
 
 
 def _write_markdown_report(summary: Mapping[str, Any], path: Path, ndcg_k: int) -> None:
+    closed_loop_rows = summary["closed_loop"]
+    fscore_fields = sorted(
+        key for row in closed_loop_rows for key in row
+        if key.startswith("final_fscore_") and key.endswith("_mean")
+    )
+    fscore_field = fscore_fields[0] if fscore_fields else None
+    fscore_label = (
+        fscore_field.removeprefix("final_fscore_").removesuffix("_mean")
+        if fscore_field is not None else "configured"
+    )
     lines = [
         "# Phase 3 controlled comparison",
         "",
@@ -1115,8 +1242,8 @@ def _write_markdown_report(summary: Mapping[str, Any], path: Path, ndcg_k: int) 
         "## Closed-loop results",
         "",
         "| Policy | Objects | Coverage AUC | Final coverage | Regret | Spearman | "
-        "NDCG@5 | Median policy ms |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        f"NDCG@5 | Final Chamfer ↓ | Chamfer AUC ↓ | Final F@{fscore_label} ↑ | Median policy ms |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ])
     for row in summary["closed_loop"]:
         lines.append(
@@ -1126,6 +1253,9 @@ def _write_markdown_report(summary: Mapping[str, Any], path: Path, ndcg_k: int) 
             f"{_format_metric(row['normalized_regret_mean'])} | "
             f"{_format_metric(row['spearman_mean'])} | "
             f"{_format_metric(row['ndcg_at_5_mean'])} | "
+            f"{_format_metric(row.get('final_chamfer_l1_normalized_mean'))} | "
+            f"{_format_metric(row.get('chamfer_l1_normalized_auc'))} | "
+            f"{_format_metric(row.get(fscore_field) if fscore_field else None)} | "
             f"{_format_metric(row['median_policy_ms'], digits=3)} |"
         )
     lines.extend([
