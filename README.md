@@ -80,46 +80,49 @@ and set the matching
 
 ### Create the dataset archives
 
-Run this one-time step when the extracted datasets are available at
-`/content/cv3d-project/data/NUM` and
-`/content/cv3d-project/data/ShapeNetCore.v2`. It creates the archives locally,
-verifies them, and copies them to `MyDrive/cv3d-datasets`.
-Skip this step when those archives are already in Drive.
+Run this one-time step in a terminal on your local computer after placing the
+extracted datasets in `data/NUM` and `data/ShapeNetCore.v2` in your local
+repository checkout. The archives are written to the repository's existing
+`data` directory and are ignored by Git. These commands create `.tar.gz`
+archives; they do not extract or unzip the datasets.
 
 ```bash
-cd /content/cv3d-project
+cd /home/reese/computer_vision/cv3d-project
 
-DATASET_DRIVE=/content/drive/MyDrive/cv3d-datasets
-mkdir -p "$DATASET_DRIVE"
+ARCHIVE_DIR=data
 
-tar -czf /content/NUM.tar.gz -C data NUM
+tar -czf "$ARCHIVE_DIR/NUM.tar.gz" -C data NUM
 
 tar --exclude='ShapeNetCore.v2/archive.zip' \
-  -czf /content/ShapeNetCore.v2-num-subset.tar.gz \
+  -czf "$ARCHIVE_DIR/ShapeNetCore.v2-num-subset.tar.gz" \
   -C data ShapeNetCore.v2
 
-ls -lh /content/NUM.tar.gz /content/ShapeNetCore.v2-num-subset.tar.gz
-tar -tzf /content/NUM.tar.gz | head
-tar -tzf /content/ShapeNetCore.v2-num-subset.tar.gz | head
-
-rsync -av /content/NUM.tar.gz "$DATASET_DRIVE/"
-rsync -av /content/ShapeNetCore.v2-num-subset.tar.gz "$DATASET_DRIVE/"
+ls -lh "$ARCHIVE_DIR/NUM.tar.gz" \
+  "$ARCHIVE_DIR/ShapeNetCore.v2-num-subset.tar.gz"
+# List archive contents for verification without extracting them.
+tar -tzf "$ARCHIVE_DIR/NUM.tar.gz" | head
+tar -tzf "$ARCHIVE_DIR/ShapeNetCore.v2-num-subset.tar.gz" | head
 ```
 
-If visibility or reconstruction caches already exist, archive and save them too:
+Open Google Drive in your browser and manually upload `NUM.tar.gz` and
+`ShapeNetCore.v2-num-subset.tar.gz` from the local
+`/home/reese/computer_vision/cv3d-project/data` directory to the Drive folder
+`/cv3d-datasets`. Skip this step if the archives are already there.
+
+If visibility or reconstruction caches already exist locally, archive them in
+the same directory and upload the resulting files too:
 
 ```bash
-cd /content/cv3d-project
+ARCHIVE_DIR=data
 
-DATASET_DRIVE=/content/drive/MyDrive/cv3d-datasets
-tar -czf /content/visibility-cache.tar.gz -C data/cache visibility
-tar -tzf /content/visibility-cache.tar.gz | head
-rsync -av /content/visibility-cache.tar.gz "$DATASET_DRIVE/"
+tar -czf "$ARCHIVE_DIR/visibility-cache.tar.gz" \
+  -C data/cache visibility
+tar -tzf "$ARCHIVE_DIR/visibility-cache.tar.gz" | head
 
 if [ -d data/cache/reconstruction ]; then
-  tar -czf /content/reconstruction-cache.tar.gz -C data/cache reconstruction
-  tar -tzf /content/reconstruction-cache.tar.gz | head
-  rsync -av /content/reconstruction-cache.tar.gz "$DATASET_DRIVE/"
+  tar -czf "$ARCHIVE_DIR/reconstruction-cache.tar.gz" \
+    -C data/cache reconstruction
+  tar -tzf "$ARCHIVE_DIR/reconstruction-cache.tar.gz" | head
 fi
 ```
 
@@ -161,8 +164,7 @@ if [ -f "$DRIVE/cv3d-datasets/reconstruction-cache.tar.gz" ]; then
 fi
 
 for PATH_TO_RESTORE in \
-  data/cache/features \
-  data/cache/reconstruction
+  data/cache/features
 do
   if [ -d "$DRIVE/cv3d-project/$PATH_TO_RESTORE" ]; then
     mkdir -p "$REPO/$PATH_TO_RESTORE"
@@ -171,6 +173,10 @@ do
   fi
 done
 ```
+
+The reconstruction cache is restored only from
+`reconstruction-cache.tar.gz`; it is not synchronized separately from the
+project backup directory.
 
 The versioned history dataset is included in the repository. Do not rebuild it
 when resuming Phase 3: rebuilding can change its identity and cause the matching
@@ -427,8 +433,7 @@ BACKUP=/content/drive/MyDrive/cv3d-project
 
 for PATH_TO_SYNC in \
   data/cache/features \
-  data/cache/visibility \
-  data/cache/reconstruction
+  data/cache/visibility
 do
   if [ -d "$PATH_TO_SYNC" ]; then
     mkdir -p "$BACKUP/$PATH_TO_SYNC"
@@ -457,8 +462,7 @@ else
       for PATH_TO_SYNC in \
         outputs \
         data/cache/features \
-        data/cache/visibility \
-        data/cache/reconstruction
+        data/cache/visibility
       do
         if [ -d "$REPO/$PATH_TO_SYNC" ]; then
           mkdir -p "$BACKUP/$PATH_TO_SYNC"
@@ -484,8 +488,7 @@ BACKUP=/content/drive/MyDrive/cv3d-project
 for PATH_TO_SYNC in \
   outputs \
   data/cache/features \
-  data/cache/visibility \
-  data/cache/reconstruction
+  data/cache/visibility
 do
   if [ -d "$REPO/$PATH_TO_SYNC" ]; then
     mkdir -p "$BACKUP/$PATH_TO_SYNC"
