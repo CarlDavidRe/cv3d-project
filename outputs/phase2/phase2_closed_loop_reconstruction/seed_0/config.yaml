@@ -1,0 +1,128 @@
+experiment:
+  deterministic: true
+  name: phase2_closed_loop_reconstruction
+  phase: phase2
+  seed: 0
+paths:
+  data_root: data/NUM
+  mesh_root: data/ShapeNetCore.v2
+  model_cache_root: data/cache/models
+  output_root: outputs
+  reconstruction_cache_root: data/cache/reconstruction
+  visibility_cache_root: data/cache/visibility
+phase2:
+  evaluation:
+    coverage_target: vis_a
+    geometry_validation_status: num_camera_bbox_centered
+    initial_anchor_ids:
+    - 0
+    invalid_anchor_ids: []
+    limit: null
+    max_acquired_views: 10
+    object_ids: []
+    policies:
+    - random
+    - farthest
+    - pun
+    - vggt
+    - oracle
+    reconstruction:
+      backend: vggt
+      chamfer_chunk_size: 1024
+      confidence_percentile: 50.0
+      device: auto
+      enabled: true
+      foreground_threshold: 0.9607843137254902
+      fscore_thresholds:
+      - 0.01
+      - 0.02
+      ground_truth_point_count: 10000
+      image_size: 518
+      mesh_centering: bounding_box
+      mesh_relative_path: models/model_normalized.ply
+      mesh_scale: 2.0
+      model_id: facebook/VGGT-1B
+      point_source: point_map
+      policies:
+      - random
+      - farthest
+      - pun
+      - vggt
+      - oracle
+      predicted_point_count: 10000
+      view_counts:
+      - 1
+      - 2
+      - 3
+      - 5
+      - 10
+    skip_missing_caches: false
+    split: test
+    split_manifest: data/splits/num_v1.json
+  pun:
+    checkpoint:
+      download_if_missing: true
+      download_url: https://drive.usercontent.google.com/download?id=1vpVFy2LQMjN0jTJ_o1chZ6B4nJNfNVKP&export=download&confirm=t
+      path: data/cache/models/pun/vit_small_patch16_224_PSNR_250425172703/best_vit_regressor.pth
+      sha256: 91b2065f7652aac0c84386d4af10cd0c1ae723c049c91e45ccc78722f70907ae
+    delete_method: small
+    device: auto
+    inference_batch_size: 16
+    interpolation_degrees: 30.0
+    model_name: vit_small_patch16_224
+    release_name: vit_small_patch16_224_PSNR_250425172703
+    selection_method: all
+    source_commit: aa6f8f4f12154854a4c1867209725c80475af102
+    source_policy_file_sha256: 09a7ad1f0cc2e54c8032dc38169995c75707601c68cace6a013c2e9bb085445c
+    source_repository: https://github.com/ZhangLab-DeepNeuroCogLab/PUN
+    source_viewpoint_file_sha256: 2f0abec6c5405f3d21cd70f0fa0b628f5560200341bff338573a65b2c9c696f7
+    suppression_threshold: 0.1
+    target_name: PSNR
+  resolved_visibility:
+    camera_radius: 2.73
+    cull_backfaces: false
+    far: 4.0
+    horizontal_fov_degrees: 51.98948897809546
+    limit: null
+    mesh_centering: bounding_box
+    mesh_relative_path: models/model_normalized.ply
+    mesh_scale: 2.0
+    near: 1.2
+    render_resolution:
+    - 256
+    - 256
+    split: test
+    split_manifest: data/splits/num_v1.json
+    target: vis_a
+  vggt:
+    allow_live_extraction: false
+    checkpoint:
+      path: outputs/phase1/backbone_sweep/seed_1/variants/vggt_max_pooled_patch/best.pt
+      sha256: 6256e28c056615f699c6c5364a9aeaf141f730f4561a5af7f4c96ce7ab2d4938
+    device: auto
+    feature_cache:
+      path: data/cache/features/vggt/vggt_max_pooled_patch/test_3334dd9c7e19faf6.pt
+      sha256: 5fd6c6f2e264fad7aa0e36a4351c4a0ac9222f0567195da700580b414ef19308
+    feature_components:
+    - max_pooled_patch
+    inference_batch_size: 32
+    interpolation_degrees: 30.0
+    map_frame: source_relative_canonical_anchor_zero
+    model:
+      image_size: 518
+      layer_index: -1
+      model_id: facebook/VGGT-1B
+    phase1_config:
+      path: outputs/phase1/backbone_sweep/seed_1/config.yaml
+      sha256: 5a742cb7e58a894a9329263a3f8440931a0294fc7e5785ebb778adc1e2a94b85
+    selection_metric: best_vggt_validation_ranking_across_regret_spearman_ndcg_at_5
+    selection_split: val
+    summary:
+      path: outputs/phase1/backbone_sweep/seed_1/variants/vggt_max_pooled_patch/summary.json
+      sha256: 65b7b4548292dfdf2e36161c2b4de0d1e40487ea454d7acec8e8ef500911e96f
+    suppression_threshold: 0.1
+    target_direction: lower
+    target_name: PSNR
+    variant: vggt_max_pooled_patch
+  visibility_config: configs/experiments/phase2_visibility.yaml
+schema_version: 1

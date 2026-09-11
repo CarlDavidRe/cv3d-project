@@ -249,8 +249,58 @@ alignment limitations are in `docs/reconstruction_evaluation.md`.
 cd /content/cv3d-project
 
 python3 scripts/precompute_visibility.py --split test
+
+# Evaluate all five Phase 2 variants together (recommended).
 python3 scripts/evaluate_closed_loop.py \
-  --config configs/experiments/phase2_closed_loop.yaml
+  --config configs/experiments/phase2_closed_loop.yaml \
+  --set 'phase2.evaluation.reconstruction.policies=[random,farthest,pun,vggt,oracle]'
+```
+
+The combined command evaluates `random`, `farthest`, `pun`, `vggt`, and
+`oracle` on exactly the same cohort. To evaluate only one variant, use the
+corresponding command below. Each command has a unique experiment name
+so it cannot overwrite the combined comparison. The combined run applies the
+same frozen VGGT reconstruction evaluator to every policy. Interpret `oracle`
+as a privileged upper bound because its view selection uses ground-truth
+visibility.
+
+```bash
+cd /content/cv3d-project
+
+# Random
+python3 scripts/evaluate_closed_loop.py \
+  --config configs/experiments/phase2_closed_loop.yaml \
+  --set experiment.name=phase2_random \
+  --set 'phase2.evaluation.policies=[random]' \
+  --set 'phase2.evaluation.reconstruction.policies=[random]'
+
+# Farthest-view baseline
+python3 scripts/evaluate_closed_loop.py \
+  --config configs/experiments/phase2_closed_loop.yaml \
+  --set experiment.name=phase2_farthest \
+  --set 'phase2.evaluation.policies=[farthest]' \
+  --set 'phase2.evaluation.reconstruction.policies=[farthest]'
+
+# PUN
+python3 scripts/evaluate_closed_loop.py \
+  --config configs/experiments/phase2_closed_loop.yaml \
+  --set experiment.name=phase2_pun \
+  --set 'phase2.evaluation.policies=[pun]' \
+  --set 'phase2.evaluation.reconstruction.policies=[pun]'
+
+# Validation-selected VGGT head
+python3 scripts/evaluate_closed_loop.py \
+  --config configs/experiments/phase2_closed_loop.yaml \
+  --set experiment.name=phase2_vggt \
+  --set 'phase2.evaluation.policies=[vggt]' \
+  --set 'phase2.evaluation.reconstruction.policies=[vggt]'
+
+# Oracle upper bound
+python3 scripts/evaluate_closed_loop.py \
+  --config configs/experiments/phase2_closed_loop.yaml \
+  --set experiment.name=phase2_oracle \
+  --set 'phase2.evaluation.policies=[oracle]' \
+  --set 'phase2.evaluation.reconstruction.policies=[oracle]'
 ```
 
 ### Phase 3
@@ -259,7 +309,8 @@ The checked-in history dataset is ready for the configured Phase 3 runs. Do
 not regenerate it when resuming, because doing so can change its identity and
 invalidate the matching feature cache and training checkpoint.
 
-Train and compare the independent and joint controls:
+Train the independent and capacity-matched joint controls, then evaluate both
+together on the shared fixed-history and closed-loop protocols:
 
 ```bash
 cd /content/cv3d-project
@@ -274,10 +325,16 @@ python3 scripts/evaluate_phase3.py \
   --config configs/experiments/phase3_controlled.yaml
 ```
 
+That controlled evaluation covers both `vggt_independent_history` and
+`vggt_joint_history`; they are intentionally evaluated together because the
+reported one-step metrics are paired by history.
+
 This downstream comparison reports the same visibility curves and applies the
 same cached VGGT reconstruction evaluator to both history policies. Run the
 configured Phase 2 evaluation first so its summary is available as the
-external baseline reference.
+external baseline reference. That reference includes all five Phase 2 policies;
+the geometric policies and privileged oracle are reported alongside the learned
+PUN and VGGT baselines.
 
 Train the pose-conditioned DeepSets and spatial-token attention follow-ups:
 
@@ -307,6 +364,10 @@ python3 scripts/evaluate_phase3.py \
   --joint-checkpoint outputs/phase3/joint_history_token_attention/seed_0/checkpoints/best.pt \
   --experiment-name controlled_token_attention
 ```
+
+To resume any interrupted Phase 3 evaluation, append `--resume` to its command.
+For expressive variants, retain the same `--joint-checkpoint` and
+`--experiment-name` arguments when resuming.
 
 Generate the combined Phase 2/3 coverage plot:
 

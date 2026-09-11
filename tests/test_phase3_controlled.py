@@ -305,7 +305,13 @@ class Phase3ControlledTests(unittest.TestCase):
             }, joint_checkpoint)
             phase2_summary = root / "phase2.json"
             phase2_summary.write_text(json.dumps({
-                "policies": [{"policy": "pun"}, {"policy": "vggt"}, {"policy": "oracle"}]
+                "policies": [
+                    {"policy": "pun"},
+                    {"policy": "oracle"},
+                    {"policy": "random"},
+                    {"policy": "vggt"},
+                    {"policy": "farthest"},
+                ]
             }))
             config = {
                 "schema_version": 1,
@@ -376,6 +382,10 @@ class Phase3ControlledTests(unittest.TestCase):
             )
             self.assertEqual(summary["profiling"]["parameters"]["joint_trainable"], 510)
             self.assertEqual(summary["cohort"]["evaluated_object_count"], 1)
+            self.assertEqual(
+                [row["policy"] for row in summary["external_references"]["policies"]],
+                ["random", "farthest", "pun", "vggt", "oracle"],
+            )
             self.assertTrue((run / "metrics/report.md").is_file())
             self.assertEqual(len(list((run / "rollouts").glob("*/*/*.npz"))), 2)
 

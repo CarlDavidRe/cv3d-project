@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1780" height="560" viewBox="0 0 1780 560">
+<style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;fill:#475569}.panel{font-size:14px;font-weight:650}.tick{font-size:10px;fill:#475569}.axis{stroke:#64748b;stroke-width:1}.grid{stroke:#e2e8f0;stroke-width:1}.legend{font-size:12px}.value{font-size:10px;font-weight:600}</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="890.00" y="32" class="title" text-anchor="middle">Closed-loop policy summary</text>
+<text x="890.00" y="54" class="subtitle" text-anchor="middle">Mean over 300 objects; absolute target: vis_a; reachable normalization uses each object&#x27;s eligible-view union.</text>
+<text x="218.00" y="108" class="panel" text-anchor="middle">Final coverage ↑</text>
+<line x1="70.00" y1="455.00" x2="366.00" y2="455.00" class="grid"/>
+<text x="62.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="70.00" y1="389.00" x2="366.00" y2="389.00" class="grid"/>
+<text x="62.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="70.00" y1="323.00" x2="366.00" y2="323.00" class="grid"/>
+<text x="62.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="70.00" y1="257.00" x2="366.00" y2="257.00" class="grid"/>
+<text x="62.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="70.00" y1="191.00" x2="366.00" y2="191.00" class="grid"/>
+<text x="62.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="70.00" y1="125.00" x2="366.00" y2="125.00" class="grid"/>
+<text x="62.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="70.00" y1="125.00" x2="70.00" y2="455.00" class="axis"/>
+<line x1="70.00" y1="455.00" x2="366.00" y2="455.00" class="axis"/>
+<rect x="80.66" y="174.14" width="37.89" height="280.86" fill="#64748b" data-policy="random" data-value="0.85108702"/>
+<text x="99.60" y="167.14" class="value" text-anchor="middle">0.851</text>
+<text x="99.60" y="479.00" class="tick" text-anchor="middle">random</text>
+<rect x="139.86" y="170.43" width="37.89" height="284.57" fill="#2563eb" data-policy="farthest" data-value="0.86232887"/>
+<text x="158.80" y="163.43" class="value" text-anchor="middle">0.862</text>
+<text x="158.80" y="479.00" class="tick" text-anchor="middle">farthest</text>
+<rect x="199.06" y="174.61" width="37.89" height="280.39" fill="#dc2626" data-policy="pun" data-value="0.84968074"/>
+<text x="218.00" y="167.61" class="value" text-anchor="middle">0.850</text>
+<text x="218.00" y="479.00" class="tick" text-anchor="middle">pun</text>
+<rect x="258.26" y="185.67" width="37.89" height="269.33" fill="#7c3aed" data-policy="vggt" data-value="0.81614745"/>
+<text x="277.20" y="178.67" class="value" text-anchor="middle">0.816</text>
+<text x="277.20" y="479.00" class="tick" text-anchor="middle">vggt</text>
+<rect x="317.46" y="162.97" width="37.89" height="292.03" fill="#059669" data-policy="oracle" data-value="0.88494706"/>
+<text x="336.40" y="155.97" class="value" text-anchor="middle">0.885</text>
+<text x="336.40" y="479.00" class="tick" text-anchor="middle">oracle</text>
+<text x="554.00" y="108" class="panel" text-anchor="middle">Final reachable-normalized ↑</text>
+<line x1="406.00" y1="455.00" x2="702.00" y2="455.00" class="grid"/>
+<text x="398.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="406.00" y1="389.00" x2="702.00" y2="389.00" class="grid"/>
+<text x="398.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="406.00" y1="323.00" x2="702.00" y2="323.00" class="grid"/>
+<text x="398.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="406.00" y1="257.00" x2="702.00" y2="257.00" class="grid"/>
+<text x="398.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="406.00" y1="191.00" x2="702.00" y2="191.00" class="grid"/>
+<text x="398.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="406.00" y1="125.00" x2="702.00" y2="125.00" class="grid"/>
+<text x="398.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="406.00" y1="125.00" x2="406.00" y2="455.00" class="axis"/>
+<line x1="406.00" y1="455.00" x2="702.00" y2="455.00" class="axis"/>
+<rect x="416.66" y="155.06" width="37.89" height="299.94" fill="#64748b" data-policy="random" data-value="0.90890884"/>
+<text x="435.60" y="148.06" class="value" text-anchor="middle">0.909</text>
+<text x="435.60" y="479.00" class="tick" text-anchor="middle">random</text>
+<rect x="475.86" y="151.11" width="37.89" height="303.89" fill="#2563eb" data-policy="farthest" data-value="0.92089092"/>
+<text x="494.80" y="144.11" class="value" text-anchor="middle">0.921</text>
+<text x="494.80" y="479.00" class="tick" text-anchor="middle">farthest</text>
+<rect x="535.06" y="155.52" width="37.89" height="299.48" fill="#dc2626" data-policy="pun" data-value="0.90752052"/>
+<text x="554.00" y="148.52" class="value" text-anchor="middle">0.908</text>
+<text x="554.00" y="479.00" class="tick" text-anchor="middle">pun</text>
+<rect x="594.26" y="167.37" width="37.89" height="287.63" fill="#7c3aed" data-policy="vggt" data-value="0.87161756"/>
+<text x="613.20" y="160.37" class="value" text-anchor="middle">0.872</text>
+<text x="613.20" y="479.00" class="tick" text-anchor="middle">vggt</text>
+<rect x="653.46" y="142.87" width="37.89" height="312.13" fill="#059669" data-policy="oracle" data-value="0.94585763"/>
+<text x="672.40" y="135.87" class="value" text-anchor="middle">0.946</text>
+<text x="672.40" y="479.00" class="tick" text-anchor="middle">oracle</text>
+<text x="890.00" y="108" class="panel" text-anchor="middle">Coverage AUC ↑</text>
+<line x1="742.00" y1="455.00" x2="1038.00" y2="455.00" class="grid"/>
+<text x="734.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="742.00" y1="389.00" x2="1038.00" y2="389.00" class="grid"/>
+<text x="734.00" y="393.00" class="tick" text-anchor="end">1.48</text>
+<line x1="742.00" y1="323.00" x2="1038.00" y2="323.00" class="grid"/>
+<text x="734.00" y="327.00" class="tick" text-anchor="end">2.96</text>
+<line x1="742.00" y1="257.00" x2="1038.00" y2="257.00" class="grid"/>
+<text x="734.00" y="261.00" class="tick" text-anchor="end">4.45</text>
+<line x1="742.00" y1="191.00" x2="1038.00" y2="191.00" class="grid"/>
+<text x="734.00" y="195.00" class="tick" text-anchor="end">5.93</text>
+<line x1="742.00" y1="125.00" x2="1038.00" y2="125.00" class="grid"/>
+<text x="734.00" y="129.00" class="tick" text-anchor="end">7.41</text>
+<line x1="742.00" y1="125.00" x2="742.00" y2="455.00" class="axis"/>
+<line x1="742.00" y1="455.00" x2="1038.00" y2="455.00" class="axis"/>
+<rect x="752.66" y="179.67" width="37.89" height="275.33" fill="#64748b" data-policy="random" data-value="6.1844279"/>
+<text x="771.60" y="172.67" class="value" text-anchor="middle">6.184</text>
+<text x="771.60" y="479.00" class="tick" text-anchor="middle">random</text>
+<rect x="811.86" y="177.52" width="37.89" height="277.48" fill="#2563eb" data-policy="farthest" data-value="6.2325808"/>
+<text x="830.80" y="170.52" class="value" text-anchor="middle">6.233</text>
+<text x="830.80" y="479.00" class="tick" text-anchor="middle">farthest</text>
+<rect x="871.06" y="170.96" width="37.89" height="284.04" fill="#dc2626" data-policy="pun" data-value="6.3800819"/>
+<text x="890.00" y="163.96" class="value" text-anchor="middle">6.380</text>
+<text x="890.00" y="479.00" class="tick" text-anchor="middle">pun</text>
+<rect x="930.26" y="195.86" width="37.89" height="259.14" fill="#7c3aed" data-policy="vggt" data-value="5.8206436"/>
+<text x="949.20" y="188.86" class="value" text-anchor="middle">5.821</text>
+<text x="949.20" y="479.00" class="tick" text-anchor="middle">vggt</text>
+<rect x="989.46" y="143.68" width="37.89" height="311.32" fill="#059669" data-policy="oracle" data-value="6.9927865"/>
+<text x="1008.40" y="136.68" class="value" text-anchor="middle">6.993</text>
+<text x="1008.40" y="479.00" class="tick" text-anchor="middle">oracle</text>
+<text x="1226.00" y="108" class="panel" text-anchor="middle">Mean regret ↓</text>
+<line x1="1078.00" y1="455.00" x2="1374.00" y2="455.00" class="grid"/>
+<text x="1070.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="1078.00" y1="389.00" x2="1374.00" y2="389.00" class="grid"/>
+<text x="1070.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="1078.00" y1="323.00" x2="1374.00" y2="323.00" class="grid"/>
+<text x="1070.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="1078.00" y1="257.00" x2="1374.00" y2="257.00" class="grid"/>
+<text x="1070.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="1078.00" y1="191.00" x2="1374.00" y2="191.00" class="grid"/>
+<text x="1070.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="1078.00" y1="125.00" x2="1374.00" y2="125.00" class="grid"/>
+<text x="1070.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="1078.00" y1="125.00" x2="1078.00" y2="455.00" class="axis"/>
+<line x1="1078.00" y1="455.00" x2="1374.00" y2="455.00" class="axis"/>
+<rect x="1088.66" y="268.06" width="37.89" height="186.94" fill="#64748b" data-policy="random" data-value="0.56649034"/>
+<text x="1107.60" y="261.06" class="value" text-anchor="middle">0.566</text>
+<text x="1107.60" y="479.00" class="tick" text-anchor="middle">random</text>
+<rect x="1147.86" y="300.91" width="37.89" height="154.09" fill="#2563eb" data-policy="farthest" data-value="0.46692863"/>
+<text x="1166.80" y="293.91" class="value" text-anchor="middle">0.467</text>
+<text x="1166.80" y="479.00" class="tick" text-anchor="middle">farthest</text>
+<rect x="1207.06" y="273.50" width="37.89" height="181.50" fill="#dc2626" data-policy="pun" data-value="0.54999059"/>
+<text x="1226.00" y="266.50" class="value" text-anchor="middle">0.550</text>
+<text x="1226.00" y="479.00" class="tick" text-anchor="middle">pun</text>
+<rect x="1266.26" y="227.98" width="37.89" height="227.02" fill="#7c3aed" data-policy="vggt" data-value="0.68794877"/>
+<text x="1285.20" y="220.98" class="value" text-anchor="middle">0.688</text>
+<text x="1285.20" y="479.00" class="tick" text-anchor="middle">vggt</text>
+<rect x="1325.46" y="455.00" width="37.89" height="1.00" fill="#059669" data-policy="oracle" data-value="0"/>
+<text x="1344.40" y="448.00" class="value" text-anchor="middle">0.000</text>
+<text x="1344.40" y="479.00" class="tick" text-anchor="middle">oracle</text>
+<text x="1562.00" y="108" class="panel" text-anchor="middle">Mean NDCG@5 ↑</text>
+<line x1="1414.00" y1="455.00" x2="1710.00" y2="455.00" class="grid"/>
+<text x="1406.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="1414.00" y1="389.00" x2="1710.00" y2="389.00" class="grid"/>
+<text x="1406.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="1414.00" y1="323.00" x2="1710.00" y2="323.00" class="grid"/>
+<text x="1406.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="1414.00" y1="257.00" x2="1710.00" y2="257.00" class="grid"/>
+<text x="1406.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="1414.00" y1="191.00" x2="1710.00" y2="191.00" class="grid"/>
+<text x="1406.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="1414.00" y1="125.00" x2="1710.00" y2="125.00" class="grid"/>
+<text x="1406.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="1414.00" y1="125.00" x2="1414.00" y2="455.00" class="axis"/>
+<line x1="1414.00" y1="455.00" x2="1710.00" y2="455.00" class="axis"/>
+<rect x="1424.66" y="288.00" width="37.89" height="167.00" fill="#64748b" data-policy="random" data-value="0.50605444"/>
+<text x="1443.60" y="281.00" class="value" text-anchor="middle">0.506</text>
+<text x="1443.60" y="479.00" class="tick" text-anchor="middle">random</text>
+<rect x="1483.86" y="234.27" width="37.89" height="220.73" fill="#2563eb" data-policy="farthest" data-value="0.66887176"/>
+<text x="1502.80" y="227.27" class="value" text-anchor="middle">0.669</text>
+<text x="1502.80" y="479.00" class="tick" text-anchor="middle">farthest</text>
+<rect x="1543.06" y="280.68" width="37.89" height="174.32" fill="#dc2626" data-policy="pun" data-value="0.52823086"/>
+<text x="1562.00" y="273.68" class="value" text-anchor="middle">0.528</text>
+<text x="1562.00" y="479.00" class="tick" text-anchor="middle">pun</text>
+<rect x="1602.26" y="309.95" width="37.89" height="145.05" fill="#7c3aed" data-policy="vggt" data-value="0.43954347"/>
+<text x="1621.20" y="302.95" class="value" text-anchor="middle">0.440</text>
+<text x="1621.20" y="479.00" class="tick" text-anchor="middle">vggt</text>
+<rect x="1661.46" y="126.22" width="37.89" height="328.78" fill="#059669" data-policy="oracle" data-value="0.9962963"/>
+<text x="1680.40" y="119.22" class="value" text-anchor="middle">0.996</text>
+<text x="1680.40" y="479.00" class="tick" text-anchor="middle">oracle</text>
+</svg>

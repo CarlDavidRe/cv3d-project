@@ -37,7 +37,7 @@ phase2:
     # same frozen VGGT point-map backend and compared with the ShapeNet mesh.
     reconstruction:
       enabled: true
-      policies: [pun, vggt]
+      policies: [random, farthest, pun, vggt, oracle]
       # Joint VGGT inference is required separately for each prefix. These
       # fixed checkpoints balance curve resolution and runtime; caches are
       # shared across runs and with Phase 3 by exact ordered-history identity.

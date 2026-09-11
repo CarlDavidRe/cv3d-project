@@ -1109,7 +1109,7 @@ def _completion(
             and {
                 row.get("policy")
                 for row in summary["external_references"].get("policies", [])
-            } == {"pun", "vggt"}
+            } == {"random", "farthest", "pun", "vggt", "oracle"}
         ),
     }
     return {
@@ -1296,8 +1296,9 @@ def _write_markdown_report(summary: Mapping[str, Any], path: Path, ndcg_k: int) 
         "",
         summary["conclusion"]["statement"],
         "",
-        "Official PUN and Phase 2 VGGT remain external references; they retain "
-        "original NUM supervision.",
+        "Phase 2 random, farthest, PUN, VGGT, and oracle results remain external "
+        "references. Oracle is a privileged upper bound; learned references retain "
+        "their original NUM supervision.",
     ])
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -1306,16 +1307,25 @@ def _load_external_references(path: Path | None) -> dict[str, Any]:
     if path is None:
         return {"status": "not_configured"}
     payload = json.loads(path.read_text(encoding="utf-8"))
+    reference_policies = ("random", "farthest", "pun", "vggt", "oracle")
+    rows_by_policy = {
+        row.get("policy"): row
+        for row in payload.get("policies", [])
+        if row.get("policy") in reference_policies
+    }
     selected = [
-        row for row in payload.get("policies", []) if row.get("policy") in {"pun", "vggt"}
+        rows_by_policy[policy]
+        for policy in reference_policies
+        if policy in rows_by_policy
     ]
     return {
         "status": "loaded",
         "source": str(path),
         "source_sha256": _sha256(path),
         "note": (
-            "External Phase 2 references retain original NUM supervision and "
-            "are not matched Phase 3 controls."
+            "External Phase 2 references are not matched Phase 3 controls. "
+            "Oracle is privileged, while learned references retain original NUM "
+            "supervision."
         ),
         "policies": selected,
     }

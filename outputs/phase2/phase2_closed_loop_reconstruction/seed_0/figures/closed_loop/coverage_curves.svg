@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1460" height="590" viewBox="0 0 1460 590">
+<style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;fill:#475569}.panel{font-size:14px;font-weight:650}.tick{font-size:10px;fill:#475569}.axis{stroke:#64748b;stroke-width:1}.grid{stroke:#e2e8f0;stroke-width:1}.legend{font-size:12px}.value{font-size:10px;font-weight:600}</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="730.00" y="32" class="title" text-anchor="middle">Mean surface coverage by acquired-view count</text>
+<text x="730.00" y="54" class="subtitle" text-anchor="middle">Mean over 300 objects; absolute target: vis_a; reachable normalization uses each object&#x27;s eligible-view union.</text>
+<line x1="486.00" y1="92" x2="506.00" y2="92" stroke="#64748b" stroke-width="3"/>
+<text x="513.00" y="96.00" class="legend">random</text>
+<line x1="598.00" y1="92" x2="618.00" y2="92" stroke="#2563eb" stroke-width="3"/>
+<text x="625.00" y="96.00" class="legend">farthest</text>
+<line x1="710.00" y1="92" x2="730.00" y2="92" stroke="#dc2626" stroke-width="3"/>
+<text x="737.00" y="96.00" class="legend">pun</text>
+<line x1="822.00" y1="92" x2="842.00" y2="92" stroke="#7c3aed" stroke-width="3"/>
+<text x="849.00" y="96.00" class="legend">vggt</text>
+<line x1="934.00" y1="92" x2="954.00" y2="92" stroke="#059669" stroke-width="3"/>
+<text x="961.00" y="96.00" class="legend">oracle</text>
+<text x="392.00" y="116" class="panel" text-anchor="middle">Absolute coverage</text>
+<line x1="75.00" y1="510.00" x2="709.00" y2="510.00" class="grid"/>
+<text x="67.00" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="75.00" y1="433.00" x2="709.00" y2="433.00" class="grid"/>
+<text x="67.00" y="437.00" class="tick" text-anchor="end">0.20</text>
+<line x1="75.00" y1="356.00" x2="709.00" y2="356.00" class="grid"/>
+<text x="67.00" y="360.00" class="tick" text-anchor="end">0.40</text>
+<line x1="75.00" y1="279.00" x2="709.00" y2="279.00" class="grid"/>
+<text x="67.00" y="283.00" class="tick" text-anchor="end">0.60</text>
+<line x1="75.00" y1="202.00" x2="709.00" y2="202.00" class="grid"/>
+<text x="67.00" y="206.00" class="tick" text-anchor="end">0.80</text>
+<line x1="75.00" y1="125.00" x2="709.00" y2="125.00" class="grid"/>
+<text x="67.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="75.00" y1="125.00" x2="75.00" y2="510.00" class="axis"/>
+<line x1="75.00" y1="510.00" x2="709.00" y2="510.00" class="axis"/>
+<text x="75.00" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="201.80" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="328.60" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="455.40" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="582.20" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="709.00" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="392.00" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="108.96,434.82 171.86,344.10 234.76,289.18 297.65,251.32 360.55,227.28 423.45,209.91 486.35,200.00 549.24,191.89 612.14,186.75 675.04,182.33" fill="none" stroke="#64748b" stroke-width="3" stroke-linejoin="round" data-policy="random"/>
+<circle cx="108.96" cy="434.82" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="171.86" cy="344.10" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="234.76" cy="289.18" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="297.65" cy="251.32" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="360.55" cy="227.28" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="423.45" cy="209.91" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="486.35" cy="200.00" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="549.24" cy="191.89" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="612.14" cy="186.75" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="675.04" cy="182.33" r="3" fill="#64748b" data-policy="random"/>
+<polyline points="108.96,434.82 171.86,364.94 234.76,292.50 297.65,256.30 360.55,226.05 423.45,191.83 486.35,187.28 549.24,183.94 612.14,181.20 675.04,178.00" fill="none" stroke="#2563eb" stroke-width="3" stroke-linejoin="round" data-policy="farthest"/>
+<circle cx="108.96" cy="434.82" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="171.86" cy="364.94" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="234.76" cy="292.50" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="297.65" cy="256.30" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="360.55" cy="226.05" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="423.45" cy="191.83" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="486.35" cy="187.28" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="549.24" cy="183.94" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="612.14" cy="181.20" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="675.04" cy="178.00" r="3" fill="#2563eb" data-policy="farthest"/>
+<polyline points="108.96,434.82 171.86,326.85 234.76,265.12 297.65,235.07 360.55,217.97 423.45,205.11 486.35,197.54 549.24,190.86 612.14,186.30 675.04,182.87" fill="none" stroke="#dc2626" stroke-width="3" stroke-linejoin="round" data-policy="pun"/>
+<circle cx="108.96" cy="434.82" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="171.86" cy="326.85" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="234.76" cy="265.12" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="297.65" cy="235.07" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="360.55" cy="217.97" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="423.45" cy="205.11" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="486.35" cy="197.54" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="549.24" cy="190.86" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="612.14" cy="186.30" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="675.04" cy="182.87" r="3" fill="#dc2626" data-policy="pun"/>
+<polyline points="108.96,434.82 171.86,352.96 234.76,296.82 297.65,273.49 360.55,248.38 423.45,231.17 486.35,220.00 549.24,208.94 612.14,201.98 675.04,195.78" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linejoin="round" data-policy="vggt"/>
+<circle cx="108.96" cy="434.82" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="171.86" cy="352.96" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="234.76" cy="296.82" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="297.65" cy="273.49" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="360.55" cy="248.38" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="423.45" cy="231.17" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="486.35" cy="220.00" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="549.24" cy="208.94" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="612.14" cy="201.98" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="675.04" cy="195.78" r="3" fill="#7c3aed" data-policy="vggt"/>
+<polyline points="108.96,434.82 171.86,297.79 234.76,214.77 297.65,195.74 360.55,185.72 423.45,180.31 486.35,176.52 549.24,173.62 612.14,171.26 675.04,169.30" fill="none" stroke="#059669" stroke-width="3" stroke-linejoin="round" data-policy="oracle"/>
+<circle cx="108.96" cy="434.82" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="171.86" cy="297.79" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="234.76" cy="214.77" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="297.65" cy="195.74" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="360.55" cy="185.72" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="423.45" cy="180.31" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="486.35" cy="176.52" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="549.24" cy="173.62" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="612.14" cy="171.26" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="675.04" cy="169.30" r="3" fill="#059669" data-policy="oracle"/>
+<text x="1068.00" y="116" class="panel" text-anchor="middle">Reachable-normalized coverage</text>
+<line x1="751.00" y1="510.00" x2="1385.00" y2="510.00" class="grid"/>
+<text x="743.00" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="751.00" y1="433.00" x2="1385.00" y2="433.00" class="grid"/>
+<text x="743.00" y="437.00" class="tick" text-anchor="end">0.20</text>
+<line x1="751.00" y1="356.00" x2="1385.00" y2="356.00" class="grid"/>
+<text x="743.00" y="360.00" class="tick" text-anchor="end">0.40</text>
+<line x1="751.00" y1="279.00" x2="1385.00" y2="279.00" class="grid"/>
+<text x="743.00" y="283.00" class="tick" text-anchor="end">0.60</text>
+<line x1="751.00" y1="202.00" x2="1385.00" y2="202.00" class="grid"/>
+<text x="743.00" y="206.00" class="tick" text-anchor="end">0.80</text>
+<line x1="751.00" y1="125.00" x2="1385.00" y2="125.00" class="grid"/>
+<text x="743.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="751.00" y1="125.00" x2="751.00" y2="510.00" class="axis"/>
+<line x1="751.00" y1="510.00" x2="1385.00" y2="510.00" class="axis"/>
+<text x="751.00" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="877.80" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="1004.60" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="1131.40" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="1258.20" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="1385.00" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="1068.00" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="784.96,431.36 847.86,334.13 910.76,274.88 973.65,234.57 1036.55,208.71 1099.45,190.00 1162.35,179.21 1225.24,170.45 1288.14,164.89 1351.04,160.07" fill="none" stroke="#64748b" stroke-width="3" stroke-linejoin="round" data-policy="random"/>
+<circle cx="784.96" cy="431.36" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="847.86" cy="334.13" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="910.76" cy="274.88" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="973.65" cy="234.57" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="1036.55" cy="208.71" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="1099.45" cy="190.00" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="1162.35" cy="179.21" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="1225.24" cy="170.45" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="1288.14" cy="164.89" r="3" fill="#64748b" data-policy="random"/>
+<circle cx="1351.04" cy="160.07" r="3" fill="#64748b" data-policy="random"/>
+<polyline points="784.96,431.36 847.86,357.69 910.76,279.38 973.65,240.07 1036.55,207.12 1099.45,170.55 1162.35,165.60 1225.24,161.98 1288.14,158.97 1351.04,155.46" fill="none" stroke="#2563eb" stroke-width="3" stroke-linejoin="round" data-policy="farthest"/>
+<circle cx="784.96" cy="431.36" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="847.86" cy="357.69" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="910.76" cy="279.38" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="973.65" cy="240.07" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="1036.55" cy="207.12" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="1099.45" cy="170.55" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="1162.35" cy="165.60" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="1225.24" cy="161.98" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="1288.14" cy="158.97" r="3" fill="#2563eb" data-policy="farthest"/>
+<circle cx="1351.04" cy="155.46" r="3" fill="#2563eb" data-policy="farthest"/>
+<polyline points="784.96,431.36 847.86,315.89 910.76,249.89 973.65,217.46 1036.55,198.73 1099.45,184.83 1162.35,176.62 1225.24,169.33 1288.14,164.34 1351.04,160.60" fill="none" stroke="#dc2626" stroke-width="3" stroke-linejoin="round" data-policy="pun"/>
+<circle cx="784.96" cy="431.36" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="847.86" cy="315.89" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="910.76" cy="249.89" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="973.65" cy="217.46" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1036.55" cy="198.73" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1099.45" cy="184.83" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1162.35" cy="176.62" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1225.24" cy="169.33" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1288.14" cy="164.34" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1351.04" cy="160.60" r="3" fill="#dc2626" data-policy="pun"/>
+<polyline points="784.96,431.36 847.86,343.94 910.76,283.38 973.65,258.27 1036.55,231.24 1099.45,212.72 1162.35,200.66 1225.24,188.69 1288.14,181.19 1351.04,174.43" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linejoin="round" data-policy="vggt"/>
+<circle cx="784.96" cy="431.36" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="847.86" cy="343.94" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="910.76" cy="283.38" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="973.65" cy="258.27" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1036.55" cy="231.24" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1099.45" cy="212.72" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1162.35" cy="200.66" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1225.24" cy="188.69" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1288.14" cy="181.19" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1351.04" cy="174.43" r="3" fill="#7c3aed" data-policy="vggt"/>
+<polyline points="784.96,431.36 847.86,285.26 910.76,195.45 973.65,174.93 1036.55,164.05 1099.45,158.12 1162.35,153.91 1225.24,150.69 1288.14,148.05 1351.04,145.84" fill="none" stroke="#059669" stroke-width="3" stroke-linejoin="round" data-policy="oracle"/>
+<circle cx="784.96" cy="431.36" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="847.86" cy="285.26" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="910.76" cy="195.45" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="973.65" cy="174.93" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="1036.55" cy="164.05" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="1099.45" cy="158.12" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="1162.35" cy="153.91" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="1225.24" cy="150.69" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="1288.14" cy="148.05" r="3" fill="#059669" data-policy="oracle"/>
+<circle cx="1351.04" cy="145.84" r="3" fill="#059669" data-policy="oracle"/>
+</svg>

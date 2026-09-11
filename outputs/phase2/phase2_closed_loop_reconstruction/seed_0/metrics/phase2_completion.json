@@ -1,0 +1,21 @@
+{
+  "checks": {
+    "all_rollouts_replay_verified": true,
+    "complete_fixed_test_split": true,
+    "figures_generated": true,
+    "five_core_policies": true,
+    "live_and_cached_profile_modes": true,
+    "per_object_and_per_step_exports": true,
+    "pinned_learned_policy_references": true,
+    "profiling_records": true,
+    "reachable_normalized_coverage_exports": true,
+    "replayable_demo": true,
+    "shared_vggt_reconstruction_reported": true
+  },
+  "note": "Only a complete fixed test-split five-policy run may freeze Phase 2.",
+  "phase": "phase2",
+  "resolved_config": "/content/cv3d-project/outputs/phase2/phase2_closed_loop_reconstruction/seed_0/config.yaml",
+  "result_summary": "/content/cv3d-project/outputs/phase2/phase2_closed_loop_reconstruction/seed_0/metrics/summary.json",
+  "schema_version": 1,
+  "status": "complete"
+}
