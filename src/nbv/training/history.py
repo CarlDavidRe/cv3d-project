@@ -692,18 +692,18 @@ def _validate_datasets(
     if type(train) is not type(validation):
         raise TypeError("training and validation must use the same history dataset type")
     if isinstance(train, HistoryFeatureDataset):
-        train_dim = (
-            train.feature_dim
+        train_shape = (
+            train.feature_shape
             if isinstance(train, MaterializedHistoryFeatureDataset)
-            else train.lookup.feature_dim
+            else (train.lookup.feature_dim,)
         )
-        validation_dim = (
-            validation.feature_dim
+        validation_shape = (
+            validation.feature_shape
             if isinstance(validation, MaterializedHistoryFeatureDataset)
-            else validation.lookup.feature_dim
+            else (validation.lookup.feature_dim,)
         )
-        if train_dim != validation_dim:
-            raise ValueError("training and validation feature dimensions differ")
+        if train_shape != validation_shape:
+            raise ValueError("training and validation feature shapes differ")
         train_histories = train.histories
         validation_histories = validation.histories
     else:

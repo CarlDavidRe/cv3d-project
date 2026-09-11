@@ -29,6 +29,8 @@ from nbv.geometry.anchors import CANONICAL_ANCHOR_COUNT, CANONICAL_ORDERING
 from nbv.models import (
     IndependentHistoryGainModel,
     JointHistoryGainModel,
+    PoseConditionedDeepSetsHistoryGainModel,
+    TokenCandidateAttentionHistoryGainModel,
     count_trainable_parameters,
 )
 from nbv.reproducibility import initialize_run, resolve_run_directory, seed_everything
@@ -50,7 +52,13 @@ class Phase3JointSettings:
     layer_index: int
     expected_feature_dim: int
     feature_components: tuple[str, ...]
+    backbone_representation: str
+    architecture: str
     hidden_dim: int
+    element_dim: int | None
+    attention_dim: int | None
+    attention_heads: int | None
+    token_grid_size: int | None
     dropout: float
     include_anchor_directions: bool
     training: Mapping[str, Any]
@@ -97,11 +105,62 @@ def parse_phase3_joint_settings(
     ):
         raise ValueError("backbone.components must be a non-empty string list")
     components = validate_feature_selection("vggt", components)
-    if model.get("aggregation") != "masked_mean":
-        raise ValueError("Step 17 model.aggregation must be masked_mean")
+    architecture = model.get("architecture", "masked_mean")
+    if architecture not in {
+        "masked_mean", "pose_deepsets", "token_candidate_attention"
+    }:
+        raise ValueError(
+            "model.architecture must be masked_mean, pose_deepsets, or "
+            "token_candidate_attention"
+        )
+    expected_aggregation = {
+        "masked_mean": "masked_mean",
+        "pose_deepsets": "pose_conditioned_deepsets_mean",
+        "token_candidate_attention": "candidate_cross_attention",
+    }[architecture]
+    if model.get("aggregation") != expected_aggregation:
+        raise ValueError(
+            f"model.aggregation must be {expected_aggregation} for {architecture}"
+        )
+    backbone_representation = backbone.get(
+        "representation", "pooled_view_components"
+    )
+    expected_representation = (
+        "spatial_patch_tokens"
+        if architecture == "token_candidate_attention"
+        else "pooled_view_components"
+    )
+    if backbone_representation != expected_representation:
+        raise ValueError(
+            f"backbone.representation must be {expected_representation} for "
+            f"{architecture}"
+        )
     include_directions = model.get("include_anchor_directions")
     if not isinstance(include_directions, bool):
         raise TypeError("model.include_anchor_directions must be a boolean")
+    if architecture == "pose_deepsets":
+        element_dim = _positive_integer(model.get("element_dim"), "model.element_dim")
+        hidden_dim = _positive_integer(model.get("hidden_dim"), "model.hidden_dim")
+        attention_dim = attention_heads = token_grid_size = None
+    elif architecture == "token_candidate_attention":
+        attention_dim = _positive_integer(
+            model.get("attention_dim"), "model.attention_dim"
+        )
+        attention_heads = _positive_integer(
+            model.get("attention_heads"), "model.attention_heads"
+        )
+        if attention_dim % attention_heads:
+            raise ValueError("model.attention_heads must divide model.attention_dim")
+        token_grid_size = _positive_integer(
+            model.get("token_grid_size"), "model.token_grid_size"
+        )
+        hidden_dim = _positive_integer(
+            model.get("score_hidden_dim"), "model.score_hidden_dim"
+        )
+        element_dim = None
+    else:
+        hidden_dim = _positive_integer(model.get("hidden_dim"), "model.hidden_dim")
+        element_dim = attention_dim = attention_heads = token_grid_size = None
     dropout = _finite(model.get("dropout"), "model.dropout", minimum=0.0)
     if dropout >= 1.0:
         raise ValueError("model.dropout must be below 1")
@@ -163,7 +222,13 @@ def parse_phase3_joint_settings(
             backbone.get("expected_feature_dim"), "backbone.expected_feature_dim"
         ),
         feature_components=tuple(components),
-        hidden_dim=_positive_integer(model.get("hidden_dim"), "model.hidden_dim"),
+        backbone_representation=str(backbone_representation),
+        architecture=str(architecture),
+        hidden_dim=hidden_dim,
+        element_dim=element_dim,
+        attention_dim=attention_dim,
+        attention_heads=attention_heads,
+        token_grid_size=token_grid_size,
         dropout=dropout,
         include_anchor_directions=include_directions,
         training=dict(training),
@@ -249,16 +314,11 @@ def run_phase3_joint(
             image_size=settings.image_size,
             layer_index=settings.layer_index,
             expected_feature_dim=settings.expected_feature_dim,
+            spatial_token_grid_size=settings.token_grid_size,
             device=settings.device,
             model_cache_root=settings.model_cache_root,
         )
-    model = JointHistoryGainModel(
-        extractor,
-        settings.expected_feature_dim,
-        hidden_dim=settings.hidden_dim,
-        dropout=settings.dropout,
-        include_anchor_directions=settings.include_anchor_directions,
-    )
+    model = _create_joint_model(extractor, settings)
     resolved_device = _resolve_device(settings.device)
     extractor_device = torch.device(getattr(extractor, "device", resolved_device))
     if extractor_device != resolved_device:
@@ -272,11 +332,12 @@ def run_phase3_joint(
     )
     joint_parameters = count_trainable_parameters(model)
     independent_parameters = count_trainable_parameters(independent_shape)
-    if joint_parameters != independent_parameters:
+    if settings.architecture == "masked_mean" and joint_parameters != independent_parameters:
         raise ValueError("joint and independent trainable head capacities differ")
     context = initialize_run(config, root)
     run_identity = {
         "model_type": "phase3_joint_history_gain",
+        "architecture": settings.architecture,
         "experiment_config_sha256": _mapping_sha256(config),
         "history_dataset_id": manifest["dataset_id"],
         "history_manifest_sha256": _sha256(settings.history_manifest),
@@ -408,6 +469,7 @@ def run_phase3_joint(
         "schema_version": 1,
         "model_type": "phase3_joint_history_gain",
         "model": {
+            "architecture": settings.architecture,
             "feature_dim": settings.expected_feature_dim,
             "hidden_dim": settings.hidden_dim,
             "num_anchors": CANONICAL_ANCHOR_COUNT,
@@ -416,6 +478,21 @@ def run_phase3_joint(
             "aggregation": model.aggregation,
             "backbone_history_mode": model.backbone_history_mode,
             "anchor_ordering": CANONICAL_ORDERING,
+            **(
+                {"element_dim": settings.element_dim}
+                if settings.architecture == "pose_deepsets"
+                else {}
+            ),
+            **(
+                {
+                    "attention_dim": settings.attention_dim,
+                    "attention_heads": settings.attention_heads,
+                    "score_hidden_dim": settings.hidden_dim,
+                    "token_grid_size": settings.token_grid_size,
+                }
+                if settings.architecture == "token_candidate_attention"
+                else {}
+            ),
         },
         "backbone": {
             "name": "vggt",
@@ -423,6 +500,8 @@ def run_phase3_joint(
             "image_size": settings.image_size,
             "layer_index": settings.layer_index,
             "feature_components": list(settings.feature_components),
+            "representation": settings.backbone_representation,
+            "spatial_token_grid_size": settings.token_grid_size,
             "history_mode": "joint_multiview",
             "padding_strategy": "group_by_real_history_length",
             "training_feature_strategy": (
@@ -525,20 +604,33 @@ def load_joint_history_checkpoint(
     extractor: object | None = None,
     device: str | torch.device = "cpu",
     model_cache_root: str | Path | None = None,
-) -> tuple[JointHistoryGainModel, Mapping[str, Any]]:
+) -> tuple[torch.nn.Module, Mapping[str, Any]]:
     payload = torch.load(path, map_location="cpu", weights_only=True)
     if payload.get("schema_version") != 1 or payload.get("model_type") != "phase3_joint_history_gain":
         raise ValueError("unsupported Phase 3 joint checkpoint")
     fields = payload["model"]
     backbone = payload["backbone"]
+    architecture = fields.get("architecture", "masked_mean")
     if (
-        fields.get("aggregation") != "masked_mean"
-        or fields.get("backbone_history_mode") != "joint_multiview"
+        architecture not in {"masked_mean", "pose_deepsets", "token_candidate_attention"}
         or fields.get("anchor_ordering") != CANONICAL_ORDERING
-        or backbone.get("history_mode") != "joint_multiview"
         or backbone.get("padding_strategy") != "group_by_real_history_length"
     ):
         raise ValueError("checkpoint does not describe the Step 17 joint contract")
+    expected_aggregation = {
+        "masked_mean": "masked_mean",
+        "pose_deepsets": "pose_conditioned_deepsets_mean",
+        "token_candidate_attention": "candidate_cross_attention",
+    }[architecture]
+    if fields.get("aggregation") != expected_aggregation:
+        raise ValueError("checkpoint aggregation disagrees with its architecture")
+    expected_representation = (
+        "spatial_patch_tokens"
+        if architecture == "token_candidate_attention"
+        else "pooled_view_components"
+    )
+    if backbone.get("representation", "pooled_view_components") != expected_representation:
+        raise ValueError("checkpoint backbone representation disagrees with its architecture")
     if extractor is None:
         extractor = VGGTJointExtractor(
             feature_components=backbone["feature_components"],
@@ -546,17 +638,43 @@ def load_joint_history_checkpoint(
             image_size=int(backbone["image_size"]),
             layer_index=int(backbone["layer_index"]),
             expected_feature_dim=int(fields["feature_dim"]),
+            spatial_token_grid_size=(
+                int(fields["token_grid_size"])
+                if architecture == "token_candidate_attention"
+                else None
+            ),
             device=device,
             model_cache_root=model_cache_root,
         )
-    model = JointHistoryGainModel(
-        extractor,
-        int(fields["feature_dim"]),
-        hidden_dim=int(fields["hidden_dim"]),
-        num_anchors=int(fields["num_anchors"]),
-        dropout=float(fields["dropout"]),
-        include_anchor_directions=bool(fields["include_anchor_directions"]),
-    )
+    common = {
+        "num_anchors": int(fields["num_anchors"]),
+        "dropout": float(fields["dropout"]),
+        "include_anchor_directions": bool(fields["include_anchor_directions"]),
+    }
+    if architecture == "pose_deepsets":
+        model = PoseConditionedDeepSetsHistoryGainModel(
+            extractor,
+            int(fields["feature_dim"]),
+            element_dim=int(fields["element_dim"]),
+            hidden_dim=int(fields["hidden_dim"]),
+            **common,
+        )
+    elif architecture == "token_candidate_attention":
+        model = TokenCandidateAttentionHistoryGainModel(
+            extractor,
+            int(fields["feature_dim"]),
+            attention_dim=int(fields["attention_dim"]),
+            attention_heads=int(fields["attention_heads"]),
+            score_hidden_dim=int(fields["score_hidden_dim"]),
+            **common,
+        )
+    else:
+        model = JointHistoryGainModel(
+            extractor,
+            int(fields["feature_dim"]),
+            hidden_dim=int(fields["hidden_dim"]),
+            **common,
+        )
     model.load_state_dict(payload["state_dict"], strict=True)
     resolved_device = _resolve_device(device)
     extractor_device = torch.device(getattr(extractor, "device", resolved_device))
@@ -633,9 +751,19 @@ def _validate_matched_control(
         "matched_independent_config_sha256": _sha256(settings.matched_independent_config),
         "all_required_fields_match": True,
         "field_checks": comparisons,
-        "same_vggt_model_id_and_feature_selection": True,
+        "same_vggt_model_id_and_feature_selection": (
+            None if settings.architecture == "token_candidate_attention" else True
+        ),
+        "same_vggt_model_id_layer_and_preprocessing": True,
+        "same_patch_token_source": True,
+        "joint_backbone_representation": settings.backbone_representation,
         "checkpoint_identity_note": (
             "The Step 16 feature cache records facebook/VGGT-1B but no weight "
+            "checksum; model ID, preprocessing, layer, and source patch-token "
+            "family are matched. The token-attention follow-up intentionally "
+            "retains a spatial grid instead of applying the independent max pool."
+            if settings.architecture == "token_candidate_attention"
+            else "The Step 16 feature cache records facebook/VGGT-1B but no weight "
             "checksum; model ID, preprocessing, layer, and selected component "
             "are matched exactly."
         ),
@@ -653,11 +781,49 @@ def _validate_matched_control(
         ),
         "effective_batch_size": effective_batch,
         "optimizer": "AdamW",
+        "capacity_match": (
+            "exact"
+            if settings.architecture == "masked_mean"
+            else "not_required_for_expressive_follow_up_variant"
+        ),
     }
 
 
+def _create_joint_model(
+    extractor: object,
+    settings: Phase3JointSettings,
+) -> torch.nn.Module:
+    common = {
+        "dropout": settings.dropout,
+        "include_anchor_directions": settings.include_anchor_directions,
+    }
+    if settings.architecture == "pose_deepsets":
+        return PoseConditionedDeepSetsHistoryGainModel(
+            extractor,
+            settings.expected_feature_dim,
+            element_dim=int(settings.element_dim),
+            hidden_dim=settings.hidden_dim,
+            **common,
+        )
+    if settings.architecture == "token_candidate_attention":
+        return TokenCandidateAttentionHistoryGainModel(
+            extractor,
+            settings.expected_feature_dim,
+            attention_dim=int(settings.attention_dim),
+            attention_heads=int(settings.attention_heads),
+            score_hidden_dim=settings.hidden_dim,
+            **common,
+        )
+    return JointHistoryGainModel(
+        extractor,
+        settings.expected_feature_dim,
+        hidden_dim=settings.hidden_dim,
+        **common,
+    )
+
+
 def _memory_preflight(
-    model: JointHistoryGainModel,
+    model: torch.nn.Module,
     dataset: HistoryDataset,
     settings: Phase3JointSettings,
     *,
@@ -735,7 +901,7 @@ def _memory_preflight(
 
 
 def _materialize_joint_features(
-    model: JointHistoryGainModel,
+    model: torch.nn.Module,
     dataset: HistoryDataset,
     *,
     batch_size: int,

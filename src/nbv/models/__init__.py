@@ -9,7 +9,11 @@ from nbv.models.independent_multiview import (
     IndependentHistoryGainModel,
     independent_feature_batch,
 )
-from nbv.models.joint_multiview import JointHistoryGainModel
+from nbv.models.joint_multiview import (
+    JointHistoryGainModel,
+    PoseConditionedDeepSetsHistoryGainModel,
+    TokenCandidateAttentionHistoryGainModel,
+)
 from nbv.models.pun import (
     PUN_CHECKPOINT_FILE_ID,
     PUN_CHECKPOINT_SHA256,
@@ -30,6 +34,8 @@ __all__ = [
     "LightweightProbeHead",
     "IndependentHistoryGainModel",
     "JointHistoryGainModel",
+    "PoseConditionedDeepSetsHistoryGainModel",
+    "TokenCandidateAttentionHistoryGainModel",
     "PUNModelError",
     "PUNUPNet",
     "PUN_CHECKPOINT_FILE_ID",

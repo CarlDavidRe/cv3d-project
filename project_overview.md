@@ -341,7 +341,7 @@ Phase 1 was marked complete on 2026-09-07. The frozen primary result is the
 complete seed-1 sweep under `outputs/phase1/backbone_sweep/seed_1`, with all 12
 configured entries evaluated through the common validation/test pipeline.
 
-Repository audit as of 2026-09-07:
+Repository audit as of 2026-09-11:
 
 | Area | Status | Current evidence / remaining work |
 |---|---|---|
@@ -360,6 +360,7 @@ Repository audit as of 2026-09-07:
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
 | Phase 2 visibility and simulator | Steps 9–14 complete | Canonical face rasterization, `Vis`/`VisA` metrics, schema-2 caches, and the Random/Farthest/official-PUN/independent-VGGT/Oracle simulator are implemented. PUN and VGGT share the reproduced map alignment/filter/product rule under the fixed 48-anchor protocol. VGGT uses the checksum-pinned validation-selected Phase 1 max-pooled-patch head and cached single-image features. The complete five-policy, 300-object result is retained under `outputs/phase2/phase2_closed_loop/seed_0`. |
 | Phase 3 direct-gain comparison | Steps 15–18 complete | The deterministic 51,160-history dataset, capacity-matched independent and joint frozen-VGGT controls, 12,000-history paired test, and two-policy 300-object closed-loop result are retained under `outputs/phase3/controlled_history_comparison/seed_0`. Every Step 18 completion check passes. Joint processing improves Huber error alone and does not improve a clear majority of the prespecified outcomes. |
+| Phase 3 joint follow-ups | Implemented; full GPU runs pending | Pose-conditioned DeepSets and spatial-token candidate-attention variants reuse the frozen joint feature/cache/resume pipeline. Step 18 accepts their checkpoints as separately labeled expressive comparisons and reports unequal capacities explicitly. Rationale and commands are documented in `docs/phase3_joint_variants.md`. |
 
 The Phase 1 audit recorded 104 passing tests. This historical count does not
 validate the planned Phase 2/3 changes or replace real-data, real-checkpoint,
@@ -905,6 +906,25 @@ Information from different observations can interact inside VGGT before the pred
 
 The VGGT backbone remains frozen.
 
+The retained baseline then max-pools spatial patch tokens and averages the
+resulting feature/direction concatenations. Two implemented follow-ups isolate
+the main downstream bottlenecks:
+
+* **Pose-conditioned DeepSets:** apply a shared nonlinear encoder to each
+  joint-conditioned feature and its own camera direction before masked-mean
+  pooling. This retains the feature/pose association that direct averaging
+  removes.
+* **Token-preserving candidate attention:** reduce the final VGGT patch grid to
+  a configurable spatial grid, add acquired-pose embeddings, and use all 48
+  canonical candidate directions as cross-attention queries over the observed
+  tokens. The default 2x2 grid retains four tokens per view while bounding
+  cache and attention cost.
+
+Both follow-ups keep VGGT frozen and use identical Phase 3 supervision and
+validation selection. Because they add downstream trainable capacity, they are
+reported as expressive diagnostic variants and do not replace the original
+capacity-matched H4 test. See `docs/phase3_joint_variants.md`.
+
 ---
 
 ### Controlled Phase 3 comparison
@@ -1161,6 +1181,8 @@ project_root/
 │       ├── phase3_histories.yaml
 │       ├── phase3_independent.yaml
 │       ├── phase3_joint.yaml
+│       ├── phase3_joint_pose_deepsets.yaml
+│       ├── phase3_joint_token_attention.yaml
 │       └── phase3_controlled.yaml
 │
 ├── data/
@@ -2207,6 +2229,50 @@ real-view features.
 valid masks, checkpoint, optimizer, loss, training budget, and approximately
 matched head capacity. Document parameter counts and memory at short histories
 before longer runs; do not substitute independent caches for joint features.
+
+### Step 17A — pose-conditioned DeepSets follow-up
+
+**Implementation status:** complete; full GPU training pending. The
+`pose_deepsets` architecture reuses joint max-pooled VGGT vectors but applies a
+shared `LayerNorm → Linear → GELU → Dropout` element encoder to each
+`[feature, acquired_direction]` pair before padding-aware mean pooling. This
+tests whether the baseline failed because averaging separated appearance from
+the pose that observed it. It uses the same atomic feature shards, resumable
+head checkpoint, loss, effective batch size, and validation protocol as Step
+17. Run `configs/experiments/phase3_joint_pose_deepsets.yaml` through
+`scripts/train_joint_history.py`.
+
+**Exit check:** changing the feature/direction pairing while retaining their
+separate means changes the model output; padded views remain inert; the saved
+checkpoint records `architecture: pose_deepsets` and its actual parameter
+count.
+
+### Step 17B — spatial-token candidate-attention follow-up
+
+**Implementation status:** complete; full GPU training pending. The
+`token_candidate_attention` architecture adaptively reduces VGGT's square
+final-layer patch grid to 2x2 by default, preserving four spatial tokens per
+view. It projects tokens and acquired poses into a shared attention space; 48
+queries derived from the canonical candidate directions cross-attend to the
+complete valid history, and a shared scalar head predicts each candidate's
+gain. Materialized history features now support both `[H, D]` vectors and
+`[H, K, D]` token tensors without changing the baseline format.
+
+Run `configs/experiments/phase3_joint_token_attention.yaml` through
+`scripts/train_joint_history.py`. The default head microbatch is 32 with two
+gradient-accumulation steps, retaining the effective batch size of 64. Feature
+shard identities include the architecture, preventing pooled and token caches
+from being mixed.
+
+**Exit check:** the extractor retains the configured token count, padding is
+zero and excluded from attention, candidate scoring returns exactly 48 finite
+values, and training/evaluation can consume resumable `[H, K, D]` caches.
+
+Both follow-ups can enter the Step 18 evaluator through
+`--joint-checkpoint ... --experiment-name ...`. Such runs are labeled
+`expressive_joint_variant`, use architecture-specific policy names, and report
+independent/joint trainable capacities separately. They do not alter the
+retained capacity-matched completion artifact or its H4 conclusion.
 
 ### Step 18 — controlled Phase 3 experiment and reporting
 

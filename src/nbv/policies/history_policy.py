@@ -176,9 +176,13 @@ class JointHistoryPolicy:
         self,
         model: nn.Module,
         *,
+        policy_name: str | None = None,
         device: str | torch.device = "cpu",
         provenance: Mapping[str, Any] | None = None,
     ) -> None:
+        if policy_name is not None and (not isinstance(policy_name, str) or not policy_name):
+            raise ValueError("policy_name must be a non-empty string or null")
+        self.name = policy_name or type(self).name
         self.device = _resolve_device(device)
         self.model = model.to(self.device).eval().requires_grad_(False)
         self._base_provenance = dict(provenance or {})

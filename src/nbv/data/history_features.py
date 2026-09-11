@@ -199,16 +199,16 @@ class MaterializedHistoryFeatureDataset(HistoryFeatureDataset):
             raise HistoryFeatureError(
                 "materialized feature samples must retain history dataset order"
             )
-        feature_dims = {
-            int(sample.history_features.shape[1])
+        feature_shapes = {
+            tuple(int(value) for value in sample.history_features.shape[1:])
             for sample in materialized
-            if sample.history_features.ndim == 2
+            if sample.history_features.ndim >= 2
         }
-        if len(feature_dims) != 1 or any(
-            sample.history_features.ndim != 2 for sample in materialized
+        if len(feature_shapes) != 1 or any(
+            sample.history_features.ndim < 2 for sample in materialized
         ):
             raise HistoryFeatureError(
-                "materialized history features must share one [H, D] shape contract"
+                "materialized history features must share one [H, ...] shape contract"
             )
         for sample in materialized:
             if sample.history_features.requires_grad:
@@ -223,7 +223,8 @@ class MaterializedHistoryFeatureDataset(HistoryFeatureDataset):
                 )
         self.histories = histories
         self.samples = materialized
-        self.feature_dim = feature_dims.pop()
+        self.feature_shape = feature_shapes.pop()
+        self.feature_dim = self.feature_shape[-1]
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -248,7 +249,7 @@ def collate_history_features(
 ) -> HistoryFeatureBatch:
     if not samples:
         raise HistoryDatasetError("cannot collate an empty history-feature batch")
-    feature_dim = int(samples[0].history_features.shape[1])
+    feature_shape = tuple(int(value) for value in samples[0].history_features.shape[1:])
     max_length = max(int(sample.history_features.shape[0]) for sample in samples)
     feature_dtype = samples[0].history_features.dtype
     if not feature_dtype.is_floating_point:
@@ -256,13 +257,18 @@ def collate_history_features(
     if any(sample.history_features.dtype != feature_dtype for sample in samples):
         raise HistoryFeatureError("all history features in a batch must share one dtype")
     features = torch.zeros(
-        (len(samples), max_length, feature_dim), dtype=feature_dtype
+        (len(samples), max_length, *feature_shape), dtype=feature_dtype
     )
     anchors = torch.full((len(samples), max_length), -1, dtype=torch.int64)
     padding = torch.ones((len(samples), max_length), dtype=torch.bool)
     for row, sample in enumerate(samples):
-        if sample.history_features.ndim != 2 or sample.history_features.shape[1] != feature_dim:
-            raise HistoryFeatureError("all history feature tensors must have shape [H, D]")
+        if (
+            sample.history_features.ndim < 2
+            or tuple(sample.history_features.shape[1:]) != feature_shape
+        ):
+            raise HistoryFeatureError(
+                "all history feature tensors must have matching [H, ...] shapes"
+            )
         length = int(sample.history_features.shape[0])
         if sample.history_anchor_ids.shape != (length,):
             raise HistoryFeatureError("history anchors must match the feature sequence")

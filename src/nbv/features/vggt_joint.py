@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
@@ -17,11 +18,12 @@ from nbv.features.selection import validate_feature_selection
 
 @dataclass(frozen=True, slots=True)
 class JointVGGTFeatures:
-    """One history-conditioned vector per real observation.
+    """History-conditioned vectors or spatial tokens for every observation.
 
-    ``view_features`` has shape ``[B, H, D]``. Padded entries are exactly zero
-    and are never passed through VGGT. Real entries come from a forward that
-    contained every real image in that sample's history.
+    ``view_features`` has shape ``[B, H, D]`` for pooled extraction or
+    ``[B, H, K, D]`` for a reduced spatial token grid. Padded entries are
+    exactly zero and are never passed through VGGT. Real entries come from a
+    forward that contained every real image in that sample's history.
     """
 
     view_features: Tensor
@@ -29,8 +31,10 @@ class JointVGGTFeatures:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if self.view_features.ndim != 3:
-            raise FeatureExtractorError("joint view_features must have shape [B, H, D]")
+        if self.view_features.ndim not in (3, 4):
+            raise FeatureExtractorError(
+                "joint view_features must have shape [B, H, D] or [B, H, K, D]"
+            )
         if (
             self.history_padding_mask.shape != self.view_features.shape[:2]
             or self.history_padding_mask.dtype != torch.bool
@@ -70,6 +74,7 @@ class VGGTJointExtractor:
         image_size: int = 518,
         layer_index: int = -1,
         expected_feature_dim: int | None = None,
+        spatial_token_grid_size: int | None = None,
         device: str | torch.device | None = None,
         autocast_dtype: torch.dtype | None = None,
         model_cache_root: str | Path | None = None,
@@ -93,6 +98,13 @@ class VGGTJointExtractor:
         self.image_size = image_size
         self.layer_index = layer_index
         self.expected_feature_dim = expected_feature_dim
+        if spatial_token_grid_size is not None and (
+            isinstance(spatial_token_grid_size, bool)
+            or not isinstance(spatial_token_grid_size, int)
+            or spatial_token_grid_size < 1
+        ):
+            raise ValueError("spatial_token_grid_size must be a positive integer or null")
+        self.spatial_token_grid_size = spatial_token_grid_size
         self.device = resolve_device(device)
         self.autocast_dtype = autocast_dtype
         if model is None:
@@ -182,8 +194,16 @@ class VGGTJointExtractor:
                     raise FeatureExtractorError(
                         "Joint VGGT tokens must have shape [B, H, N, D]"
                     )
-                selected = _select_joint_components(
-                    tokens, int(current_patch_start), self.feature_components
+                selected = (
+                    _select_joint_spatial_tokens(
+                        tokens,
+                        int(current_patch_start),
+                        self.spatial_token_grid_size,
+                    )
+                    if self.spatial_token_grid_size is not None
+                    else _select_joint_components(
+                        tokens, int(current_patch_start), self.feature_components
+                    )
                 )
                 if output is None:
                     if (
@@ -196,14 +216,14 @@ class VGGTJointExtractor:
                             f"got {selected.shape[-1]}"
                         )
                     output = torch.zeros(
-                        (*images.shape[:2], selected.shape[-1]),
+                        (*images.shape[:2], *selected.shape[2:]),
                         dtype=selected.dtype,
                         device=selected.device,
                     )
                     resolved_layer = self.layer_index % len(token_layers)
                     patch_start_idx = int(current_patch_start)
                 elif (
-                    selected.shape[-1] != output.shape[-1]
+                    tuple(selected.shape[2:]) != tuple(output.shape[2:])
                     or int(current_patch_start) != patch_start_idx
                     or self.layer_index % len(token_layers) != resolved_layer
                 ):
@@ -224,6 +244,17 @@ class VGGTJointExtractor:
                 "layer": resolved_layer,
                 "patch_start_idx": patch_start_idx,
                 "feature_components": list(self.feature_components),
+                "representation": (
+                    "spatial_patch_tokens"
+                    if self.spatial_token_grid_size is not None
+                    else "pooled_view_components"
+                ),
+                "spatial_token_grid_size": self.spatial_token_grid_size,
+                "tokens_per_view": (
+                    None
+                    if self.spatial_token_grid_size is None
+                    else self.spatial_token_grid_size ** 2
+                ),
                 "history_mode": self.history_mode,
                 "padding_strategy": "group_by_real_history_length",
                 "forward_history_lengths": sorted(forward_lengths),
@@ -295,6 +326,34 @@ def _select_joint_components(
     if result.ndim != 3 or tuple(result.shape[:2]) != tuple(tokens.shape[:2]):
         raise FeatureExtractorError("selected joint features must have shape [B, H, D]")
     return result
+
+
+def _select_joint_spatial_tokens(
+    tokens: Tensor,
+    patch_start_idx: int,
+    grid_size: int,
+) -> Tensor:
+    """Reduce the square patch grid while retaining multiple spatial tokens."""
+
+    if patch_start_idx < 1 or patch_start_idx >= tokens.shape[2]:
+        raise FeatureExtractorError("VGGT patch_start_idx is incompatible with tokens")
+    patches = tokens[:, :, patch_start_idx:]
+    patch_count = int(patches.shape[2])
+    side = math.isqrt(patch_count)
+    if side * side != patch_count:
+        raise FeatureExtractorError(
+            "spatial token extraction requires a square VGGT patch grid"
+        )
+    if grid_size > side:
+        raise FeatureExtractorError(
+            "spatial_token_grid_size cannot exceed the VGGT patch-grid side"
+        )
+    batch, history, _, dimension = patches.shape
+    spatial = patches.reshape(batch * history, side, side, dimension).permute(0, 3, 1, 2)
+    reduced = F.adaptive_avg_pool2d(spatial, (grid_size, grid_size))
+    return reduced.permute(0, 2, 3, 1).reshape(
+        batch, history, grid_size * grid_size, dimension
+    )
 
 
 __all__ = ["JointVGGTFeatures", "VGGTJointExtractor"]

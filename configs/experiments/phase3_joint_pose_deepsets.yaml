@@ -1,0 +1,65 @@
+schema_version: 1
+
+experiment:
+  phase: phase3
+  name: joint_history_pose_deepsets
+  seed: 0
+  deterministic: true
+
+paths:
+  data_root: data/NUM
+  visibility_cache_root: data/cache/visibility
+  output_root: outputs
+  model_cache_root: data/cache/models
+
+phase3:
+  joint_control:
+    history_manifest: data/processed/histories/random_unique_v1/manifest.json
+    coverage_target: vis_a
+    device: auto
+    matched_independent_config: configs/experiments/phase3_independent.yaml
+
+    backbone:
+      model_id: facebook/VGGT-1B
+      image_size: 518
+      layer_index: -1
+      components: [max_pooled_patch]
+      representation: pooled_view_components
+      expected_feature_dim: 2048
+
+    # Fuse each joint-conditioned feature with its own camera direction before
+    # the permutation-invariant mean. This preserves feature/pose association.
+    model:
+      architecture: pose_deepsets
+      aggregation: pose_conditioned_deepsets_mean
+      include_anchor_directions: true
+      element_dim: 128
+      hidden_dim: 128
+      dropout: 0.1
+
+    frozen_feature_precompute:
+      enabled: true
+      batch_size: 4
+      num_workers: 4
+      pin_memory: true
+      cache_every_batches: 64
+
+    training:
+      epochs: 80
+      batch_size: 64
+      gradient_accumulation_steps: 1
+      learning_rate: 0.001
+      weight_decay: 0.0001
+      huber_delta: 0.01
+      ranking_weight: 0.1
+      ranking_margin: 0.0
+      patience: 10
+      checkpoint_every_batches: 64
+
+    evaluation:
+      batch_size: 256
+      ndcg_k: 5
+
+    memory_preflight:
+      enabled: true
+      history_lengths: [1, 2]

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import sys
 from pathlib import Path
 from typing import Sequence
@@ -45,6 +46,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Reuse verified joint-test shards and replayable object rollouts.",
     )
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument(
+        "--joint-checkpoint",
+        type=Path,
+        help=(
+            "Evaluate a trained expressive joint-variant checkpoint in place of "
+            "the capacity-matched joint checkpoint."
+        ),
+    )
+    parser.add_argument(
+        "--experiment-name",
+        help="Required with --joint-checkpoint to keep variant outputs separate.",
+    )
     return parser
 
 
@@ -52,6 +65,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         config = load_config(args.config, args.set)
+        if args.joint_checkpoint is not None:
+            if not args.experiment_name:
+                raise ValueError("--experiment-name is required with --joint-checkpoint")
+            checkpoint = args.joint_checkpoint.resolve()
+            if not checkpoint.is_file():
+                raise ValueError(f"joint checkpoint does not exist: {checkpoint}")
+            digest = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
+            config["experiment"]["name"] = args.experiment_name
+            controlled = config["phase3"]["controlled"]
+            controlled["comparison_mode"] = "expressive_joint_variant"
+            controlled["joint"]["checkpoint"] = str(checkpoint)
+            controlled["joint"]["checkpoint_sha256"] = digest
+        elif args.experiment_name:
+            raise ValueError("--experiment-name requires --joint-checkpoint")
         parse_phase3_controlled_settings(config, REPOSITORY_ROOT)
     except (ConfigError, KeyError, TypeError, ValueError) as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)

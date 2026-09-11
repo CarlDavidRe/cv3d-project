@@ -11,7 +11,12 @@ import torch
 from torch import nn
 
 from nbv.config import load_config
-from nbv.data import HistorySample
+from nbv.data import (
+    HistoryFeatureSample,
+    HistorySample,
+    MaterializedHistoryFeatureDataset,
+    collate_history_features,
+)
 from nbv.data import (
     VisibilityCache,
     build_history_dataset,
@@ -28,6 +33,8 @@ from nbv.geometry import CANONICAL_ORDERING
 from nbv.models import (
     IndependentHistoryGainModel,
     JointHistoryGainModel,
+    PoseConditionedDeepSetsHistoryGainModel,
+    TokenCandidateAttentionHistoryGainModel,
     count_trainable_parameters,
 )
 from nbv.training import evaluate_history_model, fit_history_model
@@ -108,6 +115,24 @@ class JointExtractorTests(unittest.TestCase):
                 torch.tensor([[False, True, False]]),
             )
 
+    def test_spatial_token_grid_retains_multiple_tokens_per_view(self) -> None:
+        extractor = VGGTJointExtractor(
+            model=_JointAwareAggregator(),
+            image_size=6,
+            device="cpu",
+            expected_feature_dim=4,
+            spatial_token_grid_size=2,
+        )
+        images = torch.rand(2, 2, 3, 6, 6)
+        padding = torch.tensor([[False, True], [False, False]])
+
+        result = extractor.extract(images, padding)
+
+        self.assertEqual(result.view_features.shape, (2, 2, 4, 4))
+        self.assertEqual(torch.count_nonzero(result.view_features[padding]).item(), 0)
+        self.assertEqual(result.metadata["representation"], "spatial_patch_tokens")
+        self.assertEqual(result.metadata["tokens_per_view"], 4)
+
 
 class JointHistoryModelTests(unittest.TestCase):
     def test_joint_head_capacity_exactly_matches_independent_control(self) -> None:
@@ -134,6 +159,50 @@ class JointHistoryModelTests(unittest.TestCase):
             expected_feature_dim=4,
         )
         model = JointHistoryGainModel(extractor, 4, hidden_dim=7, dropout=0.0).eval()
+        images = torch.rand(2, 3, 3, 6, 6)
+        anchors = torch.tensor([[2, -1, -1], [4, 1, 9]])
+        padding = torch.tensor([[False, True, True], [False, False, False]])
+        changed = images.clone()
+        changed[padding] = 1.0
+
+        first = model(images, anchors, padding)
+        second = model(changed, anchors, padding)
+
+        self.assertEqual(first.shape, (2, 48))
+        torch.testing.assert_close(first, second)
+
+    def test_pose_deepsets_preserves_feature_direction_pairing(self) -> None:
+        torch.manual_seed(11)
+        extractor = VGGTJointExtractor(
+            model=_JointAwareAggregator(), image_size=6, device="cpu",
+            expected_feature_dim=4,
+        )
+        model = PoseConditionedDeepSetsHistoryGainModel(
+            extractor, 4, element_dim=8, hidden_dim=7, dropout=0.0
+        ).eval()
+        features = torch.tensor([[[1.0, 0, 0, 0], [0, 1.0, 0, 0]]])
+        swapped = features.flip(1)
+        anchors = torch.tensor([[0, 13]])
+        padding = torch.zeros((1, 2), dtype=torch.bool)
+
+        first = model.forward_features(features, anchors, padding)
+        second = model.forward_features(swapped, anchors, padding)
+
+        self.assertFalse(torch.allclose(first, second))
+
+    def test_token_candidate_attention_returns_one_score_per_anchor(self) -> None:
+        extractor = VGGTJointExtractor(
+            model=_JointAwareAggregator(), image_size=6, device="cpu",
+            expected_feature_dim=4, spatial_token_grid_size=2,
+        )
+        model = TokenCandidateAttentionHistoryGainModel(
+            extractor,
+            4,
+            attention_dim=8,
+            attention_heads=2,
+            score_hidden_dim=6,
+            dropout=0.0,
+        ).eval()
         images = torch.rand(2, 3, 3, 6, 6)
         anchors = torch.tensor([[2, -1, -1], [4, 1, 9]])
         padding = torch.tensor([[False, True, True], [False, False, False]])
@@ -191,6 +260,79 @@ def _image_histories(split: str) -> _SyntheticImageHistories:
 
 
 class JointHistoryTrainingTests(unittest.TestCase):
+    def test_spatial_token_feature_samples_collate_with_history_padding(self) -> None:
+        samples = []
+        for index, length in enumerate((1, 2)):
+            samples.append(HistoryFeatureSample(
+                sample_id=f"token-{index}",
+                object_id="category/object",
+                history_features=torch.full((length, 4, 6), float(index + 1)),
+                history_anchor_ids=torch.arange(length),
+                target_surface_gain=torch.zeros(48),
+                valid_candidate_mask=torch.ones(48, dtype=torch.bool),
+                visibility_cache_id="c" * 64,
+            ))
+
+        batch = collate_history_features(samples)
+
+        self.assertEqual(batch.history_features.shape, (2, 2, 4, 6))
+        self.assertTrue(batch.history_padding_mask[0, 1])
+        self.assertEqual(torch.count_nonzero(batch.history_features[0, 1]).item(), 0)
+
+    def test_token_attention_trains_from_materialized_spatial_features(self) -> None:
+        histories = _image_histories("train")
+        histories._arrays = {
+            "sample_ids": np.asarray(
+                [sample.sample_id for sample in histories.samples], dtype=np.str_
+            )
+        }
+        samples = []
+        for index, sample in enumerate(histories.samples):
+            length = sample.history_length
+            samples.append(HistoryFeatureSample(
+                sample_id=sample.sample_id,
+                object_id=sample.object_id,
+                history_features=torch.rand(length, 4, 6),
+                history_anchor_ids=torch.as_tensor(sample.history_anchor_ids),
+                target_surface_gain=torch.from_numpy(sample.target_surface_gain.copy()),
+                valid_candidate_mask=torch.from_numpy(sample.valid_candidate_mask.copy()),
+                visibility_cache_id=sample.visibility_cache_id,
+            ))
+        materialized = MaterializedHistoryFeatureDataset(histories, samples)
+        extractor = VGGTJointExtractor(
+            model=_JointAwareAggregator(dimension=6),
+            image_size=4,
+            device="cpu",
+            expected_feature_dim=6,
+            spatial_token_grid_size=2,
+        )
+        model = TokenCandidateAttentionHistoryGainModel(
+            extractor,
+            6,
+            attention_dim=8,
+            attention_heads=2,
+            score_hidden_dim=8,
+            dropout=0.0,
+        )
+
+        fit = fit_history_model(
+            model,
+            materialized,
+            materialized,
+            epochs=2,
+            batch_size=2,
+            learning_rate=0.01,
+            weight_decay=0.0,
+            ranking_weight=0.0,
+            patience=None,
+            device="cpu",
+            seed=4,
+        )
+        result = evaluate_history_model(model, materialized, batch_size=2)
+
+        self.assertGreater(fit.best_epoch, 0)
+        self.assertEqual(result.predictions.shape, (4, 48))
+
     def test_joint_rgb_histories_use_shared_loss_and_validation_selection(self) -> None:
         train = _image_histories("train")
         extractor = VGGTJointExtractor(
@@ -343,6 +485,30 @@ class JointConfigTests(unittest.TestCase):
         self.assertTrue(settings.feature_precompute_pin_memory)
         self.assertEqual(settings.evaluation_batch_size, 256)
         self.assertEqual(settings.preflight_history_lengths, (1, 2))
+
+    def test_follow_up_variant_configs_parse(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        pose = parse_phase3_joint_settings(
+            load_config(root / "configs/experiments/phase3_joint_pose_deepsets.yaml"),
+            root,
+        )
+        token = parse_phase3_joint_settings(
+            load_config(root / "configs/experiments/phase3_joint_token_attention.yaml"),
+            root,
+        )
+
+        self.assertEqual(pose.architecture, "pose_deepsets")
+        self.assertEqual(pose.element_dim, 128)
+        self.assertIsNone(pose.token_grid_size)
+        self.assertEqual(token.architecture, "token_candidate_attention")
+        self.assertEqual(token.backbone_representation, "spatial_patch_tokens")
+        self.assertEqual(token.token_grid_size, 2)
+        self.assertEqual(token.attention_heads, 4)
+        self.assertEqual(
+            token.training["batch_size"]
+            * token.training["gradient_accumulation_steps"],
+            64,
+        )
 
     def test_runner_saves_joint_checkpoint_match_and_memory_preflight(self) -> None:
         from PIL import Image

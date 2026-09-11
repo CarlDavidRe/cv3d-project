@@ -22,7 +22,11 @@ from nbv.experiments.phase3_controlled import (
 )
 from nbv.features import CachedFeatureDataset, VGGTJointExtractor, save_feature_cache
 from nbv.geometry.anchors import CANONICAL_ORDERING
-from nbv.models import IndependentHistoryGainModel, JointHistoryGainModel
+from nbv.models import (
+    IndependentHistoryGainModel,
+    JointHistoryGainModel,
+    TokenCandidateAttentionHistoryGainModel,
+)
 
 
 class _JointAwareAggregator(torch.nn.Module):
@@ -309,6 +313,85 @@ class Phase3ControlledTests(unittest.TestCase):
                     config, root, joint_extractor=extractor, resume=True
                 )
             self.assertEqual(resumed, run)
+
+            token_extractor = VGGTJointExtractor(
+                model=_JointAwareAggregator(),
+                image_size=4,
+                device="cpu",
+                expected_feature_dim=4,
+                spatial_token_grid_size=1,
+            )
+            token_model = TokenCandidateAttentionHistoryGainModel(
+                token_extractor,
+                4,
+                attention_dim=8,
+                attention_heads=2,
+                score_hidden_dim=8,
+                dropout=0.0,
+            )
+            token_checkpoint = root / "token_joint.pt"
+            torch.save({
+                "schema_version": 1,
+                "model_type": "phase3_joint_history_gain",
+                "model": {
+                    **common_model,
+                    "architecture": "token_candidate_attention",
+                    "aggregation": "candidate_cross_attention",
+                    "backbone_history_mode": "joint_multiview_spatial_tokens",
+                    "attention_dim": 8,
+                    "attention_heads": 2,
+                    "score_hidden_dim": 8,
+                    "token_grid_size": 1,
+                },
+                "backbone": {
+                    "name": "vggt",
+                    "model_id": "fixture/VGGT",
+                    "image_size": 4,
+                    "layer_index": -1,
+                    "feature_components": ["max_pooled_patch"],
+                    "representation": "spatial_patch_tokens",
+                    "spatial_token_grid_size": 1,
+                    "history_mode": "joint_multiview",
+                    "padding_strategy": "group_by_real_history_length",
+                    "frozen": True,
+                },
+                "state_dict": token_model.state_dict(),
+                "supervision": supervision,
+                "checkpoint_selection": {"split": "val", "best_epoch": 2},
+            }, token_checkpoint)
+            expressive_config = json.loads(json.dumps(config))
+            expressive_config["experiment"]["name"] = "controlled_token"
+            expressive = expressive_config["phase3"]["controlled"]
+            expressive["comparison_mode"] = "expressive_joint_variant"
+            expressive["joint"]["checkpoint"] = str(token_checkpoint)
+            expressive["joint"]["checkpoint_sha256"] = _sha256(token_checkpoint)
+
+            expressive_run = run_phase3_controlled(
+                expressive_config,
+                root,
+                joint_extractor=token_extractor,
+            )
+            expressive_summary = json.loads(
+                (expressive_run / "metrics/summary.json").read_text()
+            )
+            expressive_completion = json.loads(
+                (expressive_run / "metrics/phase3_completion.json").read_text()
+            )
+            self.assertEqual(
+                expressive_summary["comparison_mode"], "expressive_joint_variant"
+            )
+            self.assertEqual(
+                expressive_summary["length_one_feature_equivalence"]["status"],
+                "not_shape_comparable",
+            )
+            self.assertIn(
+                "vggt_joint_token_attention", expressive_summary["policies"]
+            )
+            self.assertNotEqual(
+                expressive_summary["profiling"]["parameters"]["independent_trainable"],
+                expressive_summary["profiling"]["parameters"]["joint_trainable"],
+            )
+            self.assertEqual(expressive_completion["status"], "complete")
 
 
 if __name__ == "__main__":

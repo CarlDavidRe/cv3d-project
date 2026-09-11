@@ -51,6 +51,7 @@ class Phase3ControlledSettings:
     history_manifest: Path
     coverage_target: str
     device: str
+    comparison_mode: str
     independent_checkpoint: Path
     independent_checkpoint_sha256: str
     independent_test_features: Path
@@ -127,10 +128,17 @@ def parse_phase3_controlled_settings(
     ndcg_k = _positive_integer(one_step.get("ndcg_k"), "one_step.ndcg_k")
     if ndcg_k != 5:
         raise ValueError("Step 18 requires one_step.ndcg_k=5")
+    comparison_mode = controlled.get("comparison_mode", "capacity_matched")
+    if comparison_mode not in {"capacity_matched", "expressive_joint_variant"}:
+        raise ValueError(
+            "controlled.comparison_mode must be capacity_matched or "
+            "expressive_joint_variant"
+        )
     return Phase3ControlledSettings(
         history_manifest=_rooted(root, controlled.get("history_manifest"), "history_manifest"),
         coverage_target=_string(controlled.get("coverage_target"), "coverage_target"),
         device=_string(controlled.get("device"), "device"),
+        comparison_mode=str(comparison_mode),
         independent_checkpoint=_rooted(
             root, independent.get("checkpoint"), "independent.checkpoint"
         ),
@@ -234,6 +242,15 @@ def run_phase3_controlled(
         settings.joint_checkpoint_sha256,
         "phase3_joint_history_gain",
     )
+    joint_architecture = joint_payload["model"].get("architecture", "masked_mean")
+    policies = (
+        POLICIES[0],
+        {
+            "masked_mean": POLICIES[1],
+            "pose_deepsets": "vggt_joint_pose_deepsets",
+            "token_candidate_attention": "vggt_joint_token_attention",
+        }.get(joint_architecture, f"vggt_joint_{joint_architecture}"),
+    )
     identity = _validate_checkpoint_history_identity(
         manifest,
         settings.history_manifest,
@@ -271,6 +288,11 @@ def run_phase3_controlled(
             image_size=int(backbone["image_size"]),
             layer_index=int(backbone["layer_index"]),
             expected_feature_dim=int(fields["feature_dim"]),
+            spatial_token_grid_size=(
+                int(fields["token_grid_size"])
+                if joint_architecture == "token_candidate_attention"
+                else None
+            ),
             device=resolved_device,
             model_cache_root=settings.model_cache_root,
         )
@@ -309,14 +331,24 @@ def run_phase3_controlled(
         },
     )
     precompute_seconds_this_invocation = time.perf_counter() - precompute_started
-    feature_equivalence = _length_one_feature_equivalence(
-        independent_data, joint_data
-    )
-    if feature_equivalence["cosine_similarity_min"] < 0.999:
-        raise ValueError(
-            "length-1 joint and independent VGGT features are not equivalent; "
-            "the controls may use different weights or preprocessing"
+    if joint_architecture == "token_candidate_attention":
+        feature_equivalence = {
+            "status": "not_shape_comparable",
+            "reason": (
+                "The token variant intentionally retains K spatial tokens per view; "
+                "its length-1 tensor cannot be compared directly with the independent "
+                "max-pooled vector. Model ID, layer, and preprocessing remain checked."
+            ),
+        }
+    else:
+        feature_equivalence = _length_one_feature_equivalence(
+            independent_data, joint_data
         )
+        if feature_equivalence["cosine_similarity_min"] < 0.999:
+            raise ValueError(
+                "length-1 joint and independent VGGT features are not equivalent; "
+                "the controls may use different weights or preprocessing"
+            )
 
     evaluation_kwargs = {
         "batch_size": settings.evaluation_batch_size,
@@ -342,6 +374,7 @@ def run_phase3_controlled(
         histories_path_only,
         huber_delta=controls["huber_delta"],
         ndcg_k=settings.ndcg_k,
+        policies=policies,
     )
     write_csv(paired_rows, context.metrics_dir / "one_step_paired_samples.csv")
     write_csv(one_step_rows, context.metrics_dir / "one_step_comparison.csv")
@@ -365,10 +398,11 @@ def run_phase3_controlled(
         resolved_device,
         resume=resume,
         logger=active_logger,
+        policies=policies,
     )
     per_object = [result.summary() for result in rollouts]
     per_step = [step for result in rollouts for step in result.steps]
-    closed_loop_rows, coverage_rows = _closed_loop_rows(rollouts)
+    closed_loop_rows, coverage_rows = _closed_loop_rows(rollouts, policies=policies)
     write_csv(per_object, context.metrics_dir / "per_object.csv")
     write_csv(per_step, context.metrics_dir / "per_step.csv")
     write_csv(closed_loop_rows, context.metrics_dir / "closed_loop_comparison.csv")
@@ -417,8 +451,8 @@ def run_phase3_controlled(
         "parameters": {
             # Policy adapters freeze their model objects for inference, so use
             # the validated checkpoint states for architectural capacity.
-            "independent_trainable": controls["trainable_parameters_each"],
-            "joint_trainable": controls["trainable_parameters_each"],
+            "independent_trainable": controls["independent_trainable_parameters"],
+            "joint_trainable": controls["joint_trainable_parameters"],
             "joint_frozen_backbone": sum(
                 parameter.numel() for parameter in joint_extractor.model.parameters()
             ) if hasattr(joint_extractor, "model") else None,
@@ -436,12 +470,20 @@ def run_phase3_controlled(
     write_json(profiling, context.metrics_dir / "profiling.json")
     write_json(external_references, context.metrics_dir / "external_references.json")
 
-    conclusion = _conclusion(one_step_rows, closed_loop_rows, cohort)
+    conclusion = _conclusion(
+        one_step_rows,
+        closed_loop_rows,
+        cohort,
+        policies=policies,
+        comparison_mode=settings.comparison_mode,
+    )
     summary = {
         "schema_version": 1,
         "phase": "phase3",
         "step": 18,
         "coverage_target": settings.coverage_target,
+        "comparison_mode": settings.comparison_mode,
+        "policies": list(policies),
         "history_identity": identity,
         "controlled_match": controls,
         "length_one_feature_equivalence": feature_equivalence,
@@ -459,7 +501,9 @@ def run_phase3_controlled(
     }
     write_json(summary, context.metrics_dir / "summary.json")
     _write_markdown_report(summary, context.metrics_dir / "report.md", settings.ndcg_k)
-    completion = _completion(summary, len(histories_path_only), context.run_dir)
+    completion = _completion(
+        summary, len(histories_path_only), context.run_dir, policies=policies
+    )
     write_json(completion, context.metrics_dir / "phase3_completion.json")
     if cohort["failures"]:
         raise ValueError(
@@ -499,6 +543,7 @@ def _paired_one_step_rows(
     *,
     huber_delta: float,
     ndcg_k: int,
+    policies: tuple[str, str] = POLICIES,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     independent_rows = list(independent.per_sample)
     joint_rows = list(joint.per_sample)
@@ -535,8 +580,8 @@ def _paired_one_step_rows(
         paired.append(row)
     models = []
     for name, result, huber in (
-        (POLICIES[0], independent, independent_huber),
-        (POLICIES[1], joint, joint_huber),
+        (policies[0], independent, independent_huber),
+        (policies[1], joint, joint_huber),
     ):
         models.append({
             "policy": name,
@@ -552,7 +597,7 @@ def _paired_one_step_rows(
     by_length = []
     for length in lengths:
         selected = [row for row in paired if int(row["history_length"]) == length]
-        for prefix, name in (("independent", POLICIES[0]), ("joint", POLICIES[1])):
+        for prefix, name in (("independent", policies[0]), ("joint", policies[1])):
             by_length.append({
                 "policy": name,
                 "history_length": length,
@@ -585,6 +630,7 @@ def _run_closed_loop_comparison(
     *,
     resume: bool,
     logger: logging.Logger,
+    policies: tuple[str, str] = POLICIES,
 ) -> tuple[list[Any], dict[str, Any]]:
     split_objects = tuple(manifest["splits"]["test"]["object_ids"])
     if settings.object_ids:
@@ -610,13 +656,13 @@ def _run_closed_loop_comparison(
         seed=seed,
     )
     checkpoint_info = {
-        POLICIES[0]: {
+        policies[0]: {
             "checkpoint_sha256": settings.independent_checkpoint_sha256,
             "checkpoint_selection": independent_payload["checkpoint_selection"],
             "history_dataset_id": independent_payload["supervision"]["history_dataset_id"],
             "trainable_parameter_count": count_trainable_parameters(independent_model),
         },
-        POLICIES[1]: {
+        policies[1]: {
             "checkpoint_sha256": settings.joint_checkpoint_sha256,
             "checkpoint_selection": joint_payload["checkpoint_selection"],
             "history_dataset_id": joint_payload["supervision"]["history_dataset_id"],
@@ -632,7 +678,7 @@ def _run_closed_loop_comparison(
             expected_cache_id = manifest["visibility_cache_ids"][object_id]
             if visibility_cache_fingerprint(cache) != expected_cache_id:
                 raise ValueError("visibility cache differs from direct-gain labels")
-            for policy_name in POLICIES:
+            for policy_name in policies:
                 destination = run_dir / "rollouts" / policy_name / f"{object_id}.npz"
                 if resume and destination.is_file():
                     result = load_rollout(destination)
@@ -651,9 +697,10 @@ def _run_closed_loop_comparison(
                         device=device,
                         provenance=checkpoint_info[policy_name],
                     )
-                    if policy_name == POLICIES[0]
+                    if policy_name == policies[0]
                     else JointHistoryPolicy(
                         joint_model,
+                        policy_name=policies[1],
                         device=device,
                         provenance=checkpoint_info[policy_name],
                     )
@@ -702,10 +749,12 @@ def _run_closed_loop_comparison(
 
 def _closed_loop_rows(
     rollouts: Sequence[Any],
+    *,
+    policies: tuple[str, str] = POLICIES,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     comparison = []
     curves = []
-    for policy in POLICIES:
+    for policy in policies:
         selected = [result for result in rollouts if result.metadata["policy"] == policy]
         summaries = [result.summary() for result in selected]
         steps = [step for result in selected for step in result.steps]
@@ -828,11 +877,15 @@ def _validate_control_pair(
         "backbone_configuration"
     ]
     joint_backbone = joint["backbone"]
-    model_fields = (
+    matched_model_fields = (
         "feature_dim", "hidden_dim", "num_anchors", "dropout",
         "include_anchor_directions", "aggregation", "anchor_ordering",
     )
-    checks = {field: left.get(field) == right.get(field) for field in model_fields}
+    checks = {
+        field: left.get(field) == right.get(field) for field in matched_model_fields
+    }
+    independent_parameters = _checkpoint_trainable_count(independent)
+    joint_parameters = _checkpoint_trainable_count(joint)
     checks.update({
         "coverage_target": (
             independent["supervision"]["coverage_target"]
@@ -840,10 +893,7 @@ def _validate_control_pair(
             == settings.coverage_target
         ),
         "target": independent["supervision"]["target"] == joint["supervision"]["target"],
-        "trainable_capacity": (
-            _state_trainable_count(independent["state_dict"])
-            == _state_trainable_count(joint["state_dict"])
-        ),
+        "trainable_capacity": independent_parameters == joint_parameters,
         "feature_components": (
             independent["feature"]["components"] == joint["backbone"]["feature_components"]
         ),
@@ -861,25 +911,47 @@ def _validate_control_pair(
         ),
         "joint_backbone_frozen": joint_backbone["frozen"] is True,
     })
-    if not all(checks.values()):
+    required = dict(checks)
+    if settings.comparison_mode == "expressive_joint_variant":
+        for field in (*matched_model_fields, "trainable_capacity"):
+            required.pop(field, None)
+        # The expressive variants deliberately change the downstream
+        # architecture while retaining data, supervision, and VGGT provenance.
+        required["feature_dim"] = checks["feature_dim"]
+        required["num_anchors"] = checks["num_anchors"]
+        required["dropout"] = checks["dropout"]
+        required["include_anchor_directions"] = checks["include_anchor_directions"]
+        required["anchor_ordering"] = checks["anchor_ordering"]
+    if not all(required.values()):
         raise ValueError(
             "Step 18 control mismatch: "
-            + ", ".join(key for key, value in checks.items() if not value)
+            + ", ".join(key for key, value in required.items() if not value)
         )
     return {
+        "comparison_mode": settings.comparison_mode,
         "all_required_fields_match": True,
         "field_checks": checks,
         "independent_checkpoint_sha256": settings.independent_checkpoint_sha256,
         "joint_checkpoint_sha256": settings.joint_checkpoint_sha256,
-        "trainable_parameters_each": _state_trainable_count(independent["state_dict"]),
+        "trainable_parameters_each": (
+            independent_parameters if independent_parameters == joint_parameters else None
+        ),
+        "independent_trainable_parameters": independent_parameters,
+        "joint_trainable_parameters": joint_parameters,
         "huber_delta": settings.huber_delta,
         "ranking_weight": settings.ranking_weight,
         "ranking_margin": settings.ranking_margin,
-        "training_configuration_source": "validation-selected Step 16/17 checkpoint artifacts",
+        "training_configuration_source": "validation-selected Phase 3 checkpoint artifacts",
     }
 
 
-def _completion(summary: Mapping[str, Any], test_count: int, run_dir: Path) -> dict[str, Any]:
+def _completion(
+    summary: Mapping[str, Any],
+    test_count: int,
+    run_dir: Path,
+    *,
+    policies: tuple[str, str] = POLICIES,
+) -> dict[str, Any]:
     one_step = summary["one_step"]
     closed_loop = summary["closed_loop"]
     cohort = summary["cohort"]
@@ -895,7 +967,7 @@ def _completion(summary: Mapping[str, Any], test_count: int, run_dir: Path) -> d
         ),
         "unchanged_evaluator": cohort["same_evaluator"] == "nbv.eval.closed_loop.run_rollout",
         "complete_fixed_test_split": bool(cohort["complete_fixed_test_split"]),
-        "two_control_policies": {row["policy"] for row in closed_loop} == set(POLICIES),
+        "two_control_policies": {row["policy"] for row in closed_loop} == set(policies),
         "coverage_and_ranking_reported": all(
             row.get("final_coverage_mean") is not None
             and row.get("coverage_auc_mean") is not None
@@ -904,8 +976,8 @@ def _completion(summary: Mapping[str, Any], test_count: int, run_dir: Path) -> d
         ),
         "runtime_memory_capacity_reported": (
             (run_dir / "metrics/profiling.json").is_file()
-            and summary["profiling"]["parameters"]["independent_trainable"]
-            == summary["profiling"]["parameters"]["joint_trainable"]
+            and summary["profiling"]["parameters"]["independent_trainable"] is not None
+            and summary["profiling"]["parameters"]["joint_trainable"] is not None
         ),
         "tables_and_figures_generated": bool(summary["figures"]),
         "conclusion_recorded": bool(summary["conclusion"]),
@@ -913,7 +985,11 @@ def _completion(summary: Mapping[str, Any], test_count: int, run_dir: Path) -> d
             summary["negative_or_inconclusive_results_reportable"]
         ),
         "length_one_backbone_equivalence": (
-            summary["length_one_feature_equivalence"]["cosine_similarity_min"] >= 0.999
+            summary["length_one_feature_equivalence"].get("status")
+            == "not_shape_comparable"
+            or summary["length_one_feature_equivalence"].get(
+                "cosine_similarity_min", 0.0
+            ) >= 0.999
         ),
         "external_phase2_references_recorded": (
             summary["external_references"].get("status") == "loaded"
@@ -929,7 +1005,11 @@ def _completion(summary: Mapping[str, Any], test_count: int, run_dir: Path) -> d
         "step": 18,
         "status": "complete" if all(checks.values()) else "pending",
         "checks": checks,
-        "note": "Only a complete paired fixed-test-split run may freeze Phase 3.",
+        "note": (
+            "Only a complete capacity-matched paired fixed-test-split run may "
+            "freeze the primary Phase 3 H4 conclusion; expressive variants are "
+            "separate diagnostic results."
+        ),
     }
 
 
@@ -937,6 +1017,9 @@ def _conclusion(
     one_step: Sequence[Mapping[str, Any]],
     closed_loop: Sequence[Mapping[str, Any]],
     cohort: Mapping[str, Any],
+    *,
+    policies: tuple[str, str] = POLICIES,
+    comparison_mode: str = "capacity_matched",
 ) -> dict[str, Any]:
     one = {row["policy"]: row for row in one_step}
     loop = {row["policy"]: row for row in closed_loop}
@@ -945,8 +1028,8 @@ def _conclusion(
             "status": "inconclusive_partial_cohort",
             "statement": "The controlled run is partial; no final H4 conclusion is permitted.",
         }
-    joint = POLICIES[1]
-    independent = POLICIES[0]
+    joint = policies[1]
+    independent = policies[0]
     indicators = {
         "one_step_huber_improved": one[joint]["huber_loss"] < one[independent]["huber_loss"],
         "one_step_regret_improved": (
@@ -968,6 +1051,32 @@ def _conclusion(
         ),
     }
     wins = sum(indicators.values())
+    if comparison_mode == "expressive_joint_variant":
+        status = (
+            "expressive_variant_outperforms"
+            if wins >= 5
+            else "expressive_variant_underperforms"
+            if wins <= 1
+            else "expressive_variant_mixed"
+        )
+        return {
+            "status": status,
+            "indicators": indicators,
+            "statement": (
+                "The expressive joint variant improves a clear majority of the "
+                "reported outcomes."
+                if wins >= 5
+                else "The expressive joint variant does not improve a clear majority "
+                "of the reported outcomes."
+                if wins <= 1
+                else "The expressive joint variant produces mixed one-step and "
+                "closed-loop outcomes."
+            ),
+            "caution": (
+                "This descriptive rule is not a statistical-significance test and "
+                "the comparison is not trainable-capacity matched."
+            ),
+        }
     status = "supports_h4" if wins >= 5 else "does_not_support_h4" if wins <= 1 else "mixed"
     return {
         "status": status,
@@ -1133,8 +1242,25 @@ def _validate_manifest(manifest: Mapping[str, Any], settings: Phase3ControlledSe
         raise ValueError("closed-loop initial anchors include a dataset-invalid anchor")
 
 
-def _state_trainable_count(state: Mapping[str, torch.Tensor]) -> int:
-    return sum(value.numel() for key, value in state.items() if key.startswith("head."))
+def _checkpoint_trainable_count(payload: Mapping[str, Any]) -> int:
+    state = payload["state_dict"]
+    architecture = payload["model"].get("architecture", "masked_mean")
+    prefixes = {
+        "masked_mean": ("head.",),
+        "pose_deepsets": ("element_encoder.", "head."),
+        "token_candidate_attention": (
+            "token_projection.",
+            "observation_pose_projection.",
+            "candidate_query.",
+            "cross_attention.",
+            "score_head.",
+        ),
+    }.get(architecture)
+    if prefixes is None:
+        raise ValueError(f"unsupported Phase 3 architecture {architecture!r}")
+    return sum(
+        value.numel() for key, value in state.items() if key.startswith(prefixes)
+    )
 
 
 def _mapping(config: Mapping[str, Any], key: str) -> Mapping[str, Any]:

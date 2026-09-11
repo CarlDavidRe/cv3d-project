@@ -344,6 +344,29 @@ accelerator-memory preflight before precomputation. See
 real A100 run selected epoch 40 and stopped at epoch 50; its validation Huber,
 regret, Spearman, and NDCG@5 are 0.008017, 0.162318, 0.727445, and 0.856920.
 
+Two expressive follow-up variants test the pooling bottlenecks exposed by the
+retained result:
+
+```bash
+# Preserve each joint feature's association with its acquired camera pose.
+python3 scripts/train_joint_history.py \
+  --config configs/experiments/phase3_joint_pose_deepsets.yaml
+
+# Retain a 2x2 spatial token grid and score candidate-direction queries by
+# cross-attention over all acquired-view tokens.
+python3 scripts/train_joint_history.py \
+  --config configs/experiments/phase3_joint_token_attention.yaml
+```
+
+Both variants reuse the Step 17 frozen-feature precompute, atomic shard, and
+head-training resume path. They intentionally have more trainable downstream
+capacity than the original control and are reported as expressive follow-up
+ablations, not replacements for the capacity-matched H4 comparison. Their
+architectures, rationale, evaluation commands, and interpretation rules are in
+[`docs/phase3_joint_variants.md`](docs/phase3_joint_variants.md). The code and
+configs are checked in; full real-VGGT GPU results for these follow-ups are not
+yet retained in this repository.
+
 Run the Step 18 paired test-history and closed-loop comparison on the same
 VGGT-capable environment:
 
@@ -351,6 +374,25 @@ VGGT-capable environment:
 python3 scripts/evaluate_phase3.py \
   --config configs/experiments/phase3_controlled.yaml
 ```
+
+To evaluate either trained follow-up on the identical fixed test histories and
+closed-loop cohort, supply its checkpoint and a distinct output name:
+
+```bash
+python3 scripts/evaluate_phase3.py \
+  --config configs/experiments/phase3_controlled.yaml \
+  --joint-checkpoint outputs/phase3/joint_history_pose_deepsets/seed_0/checkpoints/best.pt \
+  --experiment-name controlled_pose_deepsets
+
+python3 scripts/evaluate_phase3.py \
+  --config configs/experiments/phase3_controlled.yaml \
+  --joint-checkpoint outputs/phase3/joint_history_token_attention/seed_0/checkpoints/best.pt \
+  --experiment-name controlled_token_attention
+```
+
+This override computes and records the checkpoint digest, switches Step 18 to
+`expressive_joint_variant` validation, assigns an architecture-specific policy
+name, and reports both trainable parameter counts separately.
 
 If the runtime disconnects, restore the partial run and pass `--resume`. The
 runner checksum-verifies both validation-selected checkpoints and the
@@ -585,6 +627,8 @@ Primary experiment configurations live in
 | `phase3_histories.yaml` | surface-gain history dataset |
 | `phase3_independent.yaml` | independent history direct-gain control |
 | `phase3_joint.yaml` | joint frozen-VGGT history direct-gain control |
+| `phase3_joint_pose_deepsets.yaml` | pose-conditioned joint follow-up |
+| `phase3_joint_token_attention.yaml` | spatial-token candidate-attention follow-up |
 | `phase3_controlled.yaml` | paired Step 18 test and closed-loop comparison |
 
 CLI settings can be overridden repeatably with `--set KEY=VALUE`. Use a new

@@ -1,0 +1,68 @@
+schema_version: 1
+
+experiment:
+  phase: phase3
+  name: joint_history_token_attention
+  seed: 0
+  deterministic: true
+
+paths:
+  data_root: data/NUM
+  visibility_cache_root: data/cache/visibility
+  output_root: outputs
+  model_cache_root: data/cache/models
+
+phase3:
+  joint_control:
+    history_manifest: data/processed/histories/random_unique_v1/manifest.json
+    coverage_target: vis_a
+    device: auto
+    matched_independent_config: configs/experiments/phase3_independent.yaml
+
+    backbone:
+      model_id: facebook/VGGT-1B
+      image_size: 518
+      layer_index: -1
+      # The extractor reads the same patch-token family as the independent
+      # max-pooled control, but retains a reduced spatial grid instead of max.
+      components: [max_pooled_patch]
+      representation: spatial_patch_tokens
+      expected_feature_dim: 2048
+
+    model:
+      architecture: token_candidate_attention
+      aggregation: candidate_cross_attention
+      include_anchor_directions: true
+      # A 2x2 grid retains four tokens/view and bounds the full-data cache.
+      token_grid_size: 2
+      attention_dim: 128
+      attention_heads: 4
+      score_hidden_dim: 128
+      dropout: 0.1
+
+    frozen_feature_precompute:
+      enabled: true
+      batch_size: 4
+      num_workers: 4
+      pin_memory: true
+      cache_every_batches: 32
+
+    training:
+      epochs: 80
+      batch_size: 32
+      gradient_accumulation_steps: 2
+      learning_rate: 0.001
+      weight_decay: 0.0001
+      huber_delta: 0.01
+      ranking_weight: 0.1
+      ranking_margin: 0.0
+      patience: 10
+      checkpoint_every_batches: 64
+
+    evaluation:
+      batch_size: 128
+      ndcg_k: 5
+
+    memory_preflight:
+      enabled: true
+      history_lengths: [1, 2]
