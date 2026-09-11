@@ -161,7 +161,9 @@ venv.bak/
 data/NUM/
 data/ShapeNetCore.v2/
 data/cache/
-data/processed/
+data/processed/*
+!data/processed/histories/
+!data/processed/histories/**
 
 # Spyder project settings
 .spyderproject

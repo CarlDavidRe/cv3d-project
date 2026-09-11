@@ -163,7 +163,8 @@ fi
 for PATH_TO_RESTORE in \
   data/cache/features \
   data/cache/visibility \
-  data/cache/reconstruction
+  data/cache/reconstruction \
+  data/processed/histories
 do
   if [ -d "$DRIVE/cv3d-project/$PATH_TO_RESTORE" ]; then
     mkdir -p "$REPO/$PATH_TO_RESTORE"
@@ -173,8 +174,9 @@ do
 done
 ```
 
-Do not restore `data/processed/histories` from Drive; rebuild the history
-dataset when needed in the training section below.
+Keep the restored `data/processed/histories` when resuming Phase 3. Rebuilding
+it can change the dataset identity and cause the matching feature cache and
+training checkpoint to be rejected.
 
 Restore Phase 3 outputs from Drive, excluding rollouts:
 
@@ -245,8 +247,9 @@ python3 scripts/evaluate_closed_loop.py \
 
 ### Phase 3
 
-Create visibility caches for every split and build the history dataset before
-training either history model:
+For a new Phase 3 run, create visibility caches for every split and build the
+history dataset before training either history model. Skip this block when
+resuming a run whose histories were restored from Drive:
 
 ```bash
 cd /content/cv3d-project
