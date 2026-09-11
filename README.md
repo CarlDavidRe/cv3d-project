@@ -163,8 +163,7 @@ fi
 for PATH_TO_RESTORE in \
   data/cache/features \
   data/cache/visibility \
-  data/cache/reconstruction \
-  data/processed/histories
+  data/cache/reconstruction
 do
   if [ -d "$DRIVE/cv3d-project/$PATH_TO_RESTORE" ]; then
     mkdir -p "$REPO/$PATH_TO_RESTORE"
@@ -174,9 +173,9 @@ do
 done
 ```
 
-Keep the restored `data/processed/histories` when resuming Phase 3. Rebuilding
-it can change the dataset identity and cause the matching feature cache and
-training checkpoint to be rejected.
+The versioned history dataset is included in the repository. Do not rebuild it
+when resuming Phase 3: rebuilding can change its identity and cause the matching
+feature cache and training checkpoint to be rejected.
 
 Restore Phase 3 outputs from Drive, excluding rollouts:
 
@@ -247,9 +246,9 @@ python3 scripts/evaluate_closed_loop.py \
 
 ### Phase 3
 
-For a new Phase 3 run, create visibility caches for every split and build the
-history dataset before training either history model. Skip this block when
-resuming a run whose histories were restored from Drive:
+The checked-in history dataset is ready for the configured Phase 3 runs. To
+intentionally generate a new history dataset for a new run, create visibility
+caches for every split and then build it. Skip this block when resuming:
 
 ```bash
 cd /content/cv3d-project
@@ -350,7 +349,7 @@ for RESULT_DIR in phase1 phase2 phase3 all_policy_comparison; do
 done
 ```
 
-Save generated histories and reusable caches as well:
+Save reusable caches as well:
 
 ```bash
 cd /content/cv3d-project
@@ -360,8 +359,7 @@ BACKUP=/content/drive/MyDrive/cv3d-project
 for PATH_TO_SYNC in \
   data/cache/features \
   data/cache/visibility \
-  data/cache/reconstruction \
-  data/processed/histories
+  data/cache/reconstruction
 do
   if [ -d "$PATH_TO_SYNC" ]; then
     mkdir -p "$BACKUP/$PATH_TO_SYNC"
@@ -391,8 +389,7 @@ else
         outputs \
         data/cache/features \
         data/cache/visibility \
-        data/cache/reconstruction \
-        data/processed/histories
+        data/cache/reconstruction
       do
         if [ -d "$REPO/$PATH_TO_SYNC" ]; then
           mkdir -p "$BACKUP/$PATH_TO_SYNC"
@@ -419,8 +416,7 @@ for PATH_TO_SYNC in \
   outputs \
   data/cache/features \
   data/cache/visibility \
-  data/cache/reconstruction \
-  data/processed/histories
+  data/cache/reconstruction
 do
   if [ -d "$REPO/$PATH_TO_SYNC" ]; then
     mkdir -p "$BACKUP/$PATH_TO_SYNC"

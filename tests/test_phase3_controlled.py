@@ -17,6 +17,7 @@ from nbv.data.visibility_cache import (
     visibility_cache_path,
 )
 from nbv.experiments.phase3_controlled import (
+    _validate_checkpoint_history_identity,
     parse_phase3_controlled_settings,
     run_phase3_controlled,
 )
@@ -53,6 +54,79 @@ def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     digest.update(path.read_bytes())
     return digest.hexdigest()
+
+
+class Phase3HistoryIdentityTests(unittest.TestCase):
+    def test_accepts_checkpoints_saved_at_different_repository_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest_path = root / "data/processed/histories/example/manifest.json"
+            manifest_path.parent.mkdir(parents=True)
+            manifest = {
+                "dataset_id": "pending",
+                "provenance": {
+                    "history_config": str(root / "configs/history.yaml"),
+                    "visibility_config": str(root / "configs/visibility.yaml"),
+                    "evaluation_config": str(root / "configs/evaluation.yaml"),
+                    "split_manifest": str(root / "data/splits/example.json"),
+                },
+                "split_manifest_sha256": "split",
+                "coverage_target": "vis_a",
+                "visibility_definition": {"kind": "fixture"},
+                "sampling": {"seed": 0},
+                "rotation_metadata": {"convention": "fixture"},
+                "invalid_anchor_ids": [],
+                "visibility_cache_ids": {"fixture": "cache"},
+                "splits": {
+                    split: {"sha256": f"{split}-sha"}
+                    for split in ("train", "val", "test")
+                },
+            }
+            dataset_id, _ = relocated_history_manifest_identity(
+                manifest,
+                current_repository_root=root,
+                artifact_repository_root=root,
+            )
+            manifest["dataset_id"] = dataset_id
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+            )
+            local_sha = _sha256(manifest_path)
+            other_root = Path("/content/cv3d-project")
+            relocated_id, relocated_sha = relocated_history_manifest_identity(
+                manifest,
+                current_repository_root=root,
+                artifact_repository_root=other_root,
+            )
+            relative = manifest_path.relative_to(root)
+            payloads = (
+                {
+                    "model_type": "phase3_independent_history_gain",
+                    "supervision": {
+                        "history_dataset_id": dataset_id,
+                        "history_manifest_sha256": local_sha,
+                        "history_manifest": str(manifest_path),
+                    },
+                },
+                {
+                    "model_type": "phase3_joint_history_gain",
+                    "supervision": {
+                        "history_dataset_id": relocated_id,
+                        "history_manifest_sha256": relocated_sha,
+                        "history_manifest": str(other_root / relative),
+                    },
+                },
+            )
+
+            identity = _validate_checkpoint_history_identity(
+                manifest, manifest_path, root, payloads
+            )
+
+            self.assertTrue(identity["match"])
+            self.assertEqual(
+                identity["mode"], "mixed_exact_and_repository_root_relocation"
+            )
+            self.assertEqual(len(identity["checkpoint_identities"]), 2)
 
 
 class Phase3ControlledTests(unittest.TestCase):

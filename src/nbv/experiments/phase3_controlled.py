@@ -37,6 +37,7 @@ from nbv.eval.reconstruction import (
 from nbv.eval.result_schema import load_rollout, save_rollout, write_csv, write_json
 from nbv.experiments.phase3_independent import load_independent_history_checkpoint
 from nbv.experiments.phase3_joint import (
+    _history_manifest_repository_root,
     _materialize_joint_features,
     load_joint_history_checkpoint,
 )
@@ -884,33 +885,63 @@ def _validate_checkpoint_history_identity(
     repository_root: Path,
     payloads: Sequence[Mapping[str, Any]],
 ) -> dict[str, Any]:
-    identities = {
-        (
-            payload["supervision"]["history_dataset_id"],
-            payload["supervision"]["history_manifest_sha256"],
-        )
-        for payload in payloads
-    }
-    if len(identities) != 1:
-        raise ValueError("independent and joint checkpoints use different history datasets")
-    expected_id, expected_sha = identities.pop()
     current_sha = _sha256(manifest_path)
-    if manifest.get("dataset_id") == expected_id and current_sha == expected_sha:
-        mode = "exact"
-        artifact_root = str(repository_root)
-    else:
-        artifact_manifest = Path(payloads[0]["supervision"]["history_manifest"])
-        relative = manifest_path.resolve().relative_to(repository_root)
-        artifact_root_path = artifact_manifest.parents[len(relative.parts) - 1]
-        relocated_id, relocated_sha = relocated_history_manifest_identity(
-            manifest,
-            current_repository_root=repository_root,
-            artifact_repository_root=artifact_root_path,
+    current_identity = (manifest.get("dataset_id"), current_sha)
+    relative = manifest_path.resolve().relative_to(repository_root)
+    manifest_repository_root = (
+        _history_manifest_repository_root(manifest) or repository_root
+    )
+    checkpoint_identities = []
+    for payload in payloads:
+        supervision = payload["supervision"]
+        checkpoint_identity = (
+            supervision["history_dataset_id"],
+            supervision["history_manifest_sha256"],
         )
-        if (relocated_id, relocated_sha) != (expected_id, expected_sha):
-            raise ValueError("checkpoint and local history manifest differ beyond relocation")
-        mode = "repository_root_relocation_only"
-        artifact_root = str(artifact_root_path)
+        if checkpoint_identity == current_identity:
+            checkpoint_mode = "exact"
+            artifact_root_path = repository_root
+        else:
+            artifact_manifest = Path(supervision["history_manifest"])
+            artifact_root_path = artifact_manifest.parents[len(relative.parts) - 1]
+            relocated_identity = relocated_history_manifest_identity(
+                manifest,
+                current_repository_root=manifest_repository_root,
+                artifact_repository_root=artifact_root_path,
+            )
+            if relocated_identity != checkpoint_identity:
+                model_type = payload.get("model_type", "unknown checkpoint")
+                raise ValueError(
+                    f"{model_type} and local history manifest differ beyond relocation"
+                )
+            checkpoint_mode = "repository_root_relocation_only"
+        checkpoint_identities.append({
+            "model_type": payload.get("model_type"),
+            "history_dataset_id": checkpoint_identity[0],
+            "history_manifest_sha256": checkpoint_identity[1],
+            "mode": checkpoint_mode,
+            "artifact_repository_root": str(artifact_root_path),
+        })
+
+    raw_identities = {
+        (row["history_dataset_id"], row["history_manifest_sha256"])
+        for row in checkpoint_identities
+    }
+    modes = {row["mode"] for row in checkpoint_identities}
+    artifact_roots = {
+        row["artifact_repository_root"] for row in checkpoint_identities
+    }
+    mode = (
+        modes.pop()
+        if len(modes) == 1
+        else "mixed_exact_and_repository_root_relocation"
+    )
+    expected_id, expected_sha = (
+        next(iter(raw_identities)) if len(raw_identities) == 1 else (None, None)
+    )
+    artifact_root = (
+        next(iter(artifact_roots)) if len(artifact_roots) == 1 else None
+    )
     fingerprint_fields = {
         "split_manifest_sha256": manifest["split_manifest_sha256"],
         "coverage_target": manifest["coverage_target"],
@@ -932,6 +963,7 @@ def _validate_checkpoint_history_identity(
         "local_dataset_id": manifest["dataset_id"],
         "local_manifest_sha256": current_sha,
         "artifact_repository_root": artifact_root,
+        "checkpoint_identities": checkpoint_identities,
         "history_data_fingerprint": _mapping_sha256(fingerprint_fields),
     }
 
