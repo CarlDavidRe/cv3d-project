@@ -1,0 +1,180 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2300" height="590" viewBox="0 0 2300 590">
+<style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;fill:#475569}.panel{font-size:14px;font-weight:650}.tick{font-size:10px;fill:#475569}.axis{stroke:#64748b;stroke-width:1}.grid{stroke:#e2e8f0;stroke-width:1}.legend{font-size:12px}.value{font-size:10px;font-weight:600}</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="1150.00" y="32" class="title" text-anchor="middle">Reconstruction quality under the shared frozen VGGT backend</text>
+<text x="1150.00" y="54" class="subtitle" text-anchor="middle">Mean over 300 objects; distances are normalized by ground-truth bounding-box diameter.</text>
+<line x1="1074.00" y1="92" x2="1094.00" y2="92" stroke="#d97706" stroke-width="3"/>
+<text x="1101.00" y="96.00" class="legend">vggt_independent_history</text>
+<line x1="1186.00" y1="92" x2="1206.00" y2="92" stroke="#0891b2" stroke-width="3"/>
+<text x="1213.00" y="96.00" class="legend">vggt_joint_history</text>
+<text x="273.20" y="116" class="panel" text-anchor="middle">Normalized Chamfer-L1 ↓</text>
+<line x1="75.00" y1="510.00" x2="471.40" y2="510.00" class="grid"/>
+<text x="67.00" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="75.00" y1="433.00" x2="471.40" y2="433.00" class="grid"/>
+<text x="67.00" y="437.00" class="tick" text-anchor="end">0.60</text>
+<line x1="75.00" y1="356.00" x2="471.40" y2="356.00" class="grid"/>
+<text x="67.00" y="360.00" class="tick" text-anchor="end">1.19</text>
+<line x1="75.00" y1="279.00" x2="471.40" y2="279.00" class="grid"/>
+<text x="67.00" y="283.00" class="tick" text-anchor="end">1.79</text>
+<line x1="75.00" y1="202.00" x2="471.40" y2="202.00" class="grid"/>
+<text x="67.00" y="206.00" class="tick" text-anchor="end">2.38</text>
+<line x1="75.00" y1="125.00" x2="471.40" y2="125.00" class="grid"/>
+<text x="67.00" y="129.00" class="tick" text-anchor="end">2.98</text>
+<line x1="75.00" y1="125.00" x2="75.00" y2="510.00" class="axis"/>
+<line x1="75.00" y1="510.00" x2="471.40" y2="510.00" class="axis"/>
+<text x="75.00" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="154.28" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="233.56" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="312.84" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="392.12" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="471.40" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="273.20" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="96.24,146.79 135.56,414.31 174.89,441.31 253.54,476.19 450.16,484.31" fill="none" stroke="#d97706" stroke-width="3" stroke-linejoin="round" data-policy="vggt_independent_history"/>
+<circle cx="96.24" cy="146.79" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="135.56" cy="414.31" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="174.89" cy="441.31" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="253.54" cy="476.19" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="450.16" cy="484.31" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<polyline points="96.24,146.79 135.56,406.29 174.89,442.70 253.54,469.24 450.16,482.70" fill="none" stroke="#0891b2" stroke-width="3" stroke-linejoin="round" data-policy="vggt_joint_history"/>
+<circle cx="96.24" cy="146.79" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="135.56" cy="406.29" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="174.89" cy="442.70" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="253.54" cy="469.24" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="450.16" cy="482.70" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<text x="711.60" y="116" class="panel" text-anchor="middle">Normalized completeness ↓</text>
+<line x1="513.40" y1="510.00" x2="909.80" y2="510.00" class="grid"/>
+<text x="505.40" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="513.40" y1="433.00" x2="909.80" y2="433.00" class="grid"/>
+<text x="505.40" y="437.00" class="tick" text-anchor="end">0.63</text>
+<line x1="513.40" y1="356.00" x2="909.80" y2="356.00" class="grid"/>
+<text x="505.40" y="360.00" class="tick" text-anchor="end">1.25</text>
+<line x1="513.40" y1="279.00" x2="909.80" y2="279.00" class="grid"/>
+<text x="505.40" y="283.00" class="tick" text-anchor="end">1.88</text>
+<line x1="513.40" y1="202.00" x2="909.80" y2="202.00" class="grid"/>
+<text x="505.40" y="206.00" class="tick" text-anchor="end">2.51</text>
+<line x1="513.40" y1="125.00" x2="909.80" y2="125.00" class="grid"/>
+<text x="505.40" y="129.00" class="tick" text-anchor="end">3.13</text>
+<line x1="513.40" y1="125.00" x2="513.40" y2="510.00" class="axis"/>
+<line x1="513.40" y1="510.00" x2="909.80" y2="510.00" class="axis"/>
+<text x="513.40" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="592.68" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="671.96" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="751.24" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="830.52" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="909.80" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="711.60" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="534.64,146.79 573.96,408.47 613.29,434.74 691.94,471.47 888.56,481.32" fill="none" stroke="#d97706" stroke-width="3" stroke-linejoin="round" data-policy="vggt_independent_history"/>
+<circle cx="534.64" cy="146.79" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="573.96" cy="408.47" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="613.29" cy="434.74" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="691.94" cy="471.47" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="888.56" cy="481.32" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<polyline points="534.64,146.79 573.96,400.43 613.29,436.20 691.94,464.94 888.56,479.73" fill="none" stroke="#0891b2" stroke-width="3" stroke-linejoin="round" data-policy="vggt_joint_history"/>
+<circle cx="534.64" cy="146.79" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="573.96" cy="400.43" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="613.29" cy="436.20" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="691.94" cy="464.94" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="888.56" cy="479.73" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<text x="1150.00" y="116" class="panel" text-anchor="middle">Fscore 1Pct ↑</text>
+<line x1="951.80" y1="510.00" x2="1348.20" y2="510.00" class="grid"/>
+<text x="943.80" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="951.80" y1="433.00" x2="1348.20" y2="433.00" class="grid"/>
+<text x="943.80" y="437.00" class="tick" text-anchor="end">0.20</text>
+<line x1="951.80" y1="356.00" x2="1348.20" y2="356.00" class="grid"/>
+<text x="943.80" y="360.00" class="tick" text-anchor="end">0.40</text>
+<line x1="951.80" y1="279.00" x2="1348.20" y2="279.00" class="grid"/>
+<text x="943.80" y="283.00" class="tick" text-anchor="end">0.60</text>
+<line x1="951.80" y1="202.00" x2="1348.20" y2="202.00" class="grid"/>
+<text x="943.80" y="206.00" class="tick" text-anchor="end">0.80</text>
+<line x1="951.80" y1="125.00" x2="1348.20" y2="125.00" class="grid"/>
+<text x="943.80" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="951.80" y1="125.00" x2="951.80" y2="510.00" class="axis"/>
+<line x1="951.80" y1="510.00" x2="1348.20" y2="510.00" class="axis"/>
+<text x="951.80" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="1031.08" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="1110.36" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="1189.64" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="1268.92" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="1348.20" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="1150.00" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="973.04,510.00 1012.36,507.74 1051.69,506.17 1130.34,494.79 1326.96,481.79" fill="none" stroke="#d97706" stroke-width="3" stroke-linejoin="round" data-policy="vggt_independent_history"/>
+<circle cx="973.04" cy="510.00" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="1012.36" cy="507.74" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="1051.69" cy="506.17" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="1130.34" cy="494.79" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="1326.96" cy="481.79" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<polyline points="973.04,510.00 1012.36,508.05 1051.69,506.83 1130.34,497.92 1326.96,480.72" fill="none" stroke="#0891b2" stroke-width="3" stroke-linejoin="round" data-policy="vggt_joint_history"/>
+<circle cx="973.04" cy="510.00" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="1012.36" cy="508.05" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="1051.69" cy="506.83" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="1130.34" cy="497.92" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="1326.96" cy="480.72" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<text x="1588.40" y="116" class="panel" text-anchor="middle">Fscore 2Pct ↑</text>
+<line x1="1390.20" y1="510.00" x2="1786.60" y2="510.00" class="grid"/>
+<text x="1382.20" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="1390.20" y1="433.00" x2="1786.60" y2="433.00" class="grid"/>
+<text x="1382.20" y="437.00" class="tick" text-anchor="end">0.20</text>
+<line x1="1390.20" y1="356.00" x2="1786.60" y2="356.00" class="grid"/>
+<text x="1382.20" y="360.00" class="tick" text-anchor="end">0.40</text>
+<line x1="1390.20" y1="279.00" x2="1786.60" y2="279.00" class="grid"/>
+<text x="1382.20" y="283.00" class="tick" text-anchor="end">0.60</text>
+<line x1="1390.20" y1="202.00" x2="1786.60" y2="202.00" class="grid"/>
+<text x="1382.20" y="206.00" class="tick" text-anchor="end">0.80</text>
+<line x1="1390.20" y1="125.00" x2="1786.60" y2="125.00" class="grid"/>
+<text x="1382.20" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="1390.20" y1="125.00" x2="1390.20" y2="510.00" class="axis"/>
+<line x1="1390.20" y1="510.00" x2="1786.60" y2="510.00" class="axis"/>
+<text x="1390.20" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="1469.48" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="1548.76" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="1628.04" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="1707.32" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="1786.60" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="1588.40" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="1411.44,510.00 1450.76,505.10 1490.09,501.63 1568.74,477.57 1765.36,451.87" fill="none" stroke="#d97706" stroke-width="3" stroke-linejoin="round" data-policy="vggt_independent_history"/>
+<circle cx="1411.44" cy="510.00" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="1450.76" cy="505.10" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="1490.09" cy="501.63" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="1568.74" cy="477.57" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="1765.36" cy="451.87" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<polyline points="1411.44,510.00 1450.76,505.58 1490.09,503.11 1568.74,482.39 1765.36,449.73" fill="none" stroke="#0891b2" stroke-width="3" stroke-linejoin="round" data-policy="vggt_joint_history"/>
+<circle cx="1411.44" cy="510.00" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="1450.76" cy="505.58" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="1490.09" cy="503.11" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="1568.74" cy="482.39" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="1765.36" cy="449.73" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<text x="2026.80" y="116" class="panel" text-anchor="middle">Fscore 10Pct ↑</text>
+<line x1="1828.60" y1="510.00" x2="2225.00" y2="510.00" class="grid"/>
+<text x="1820.60" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="1828.60" y1="433.00" x2="2225.00" y2="433.00" class="grid"/>
+<text x="1820.60" y="437.00" class="tick" text-anchor="end">0.20</text>
+<line x1="1828.60" y1="356.00" x2="2225.00" y2="356.00" class="grid"/>
+<text x="1820.60" y="360.00" class="tick" text-anchor="end">0.40</text>
+<line x1="1828.60" y1="279.00" x2="2225.00" y2="279.00" class="grid"/>
+<text x="1820.60" y="283.00" class="tick" text-anchor="end">0.60</text>
+<line x1="1828.60" y1="202.00" x2="2225.00" y2="202.00" class="grid"/>
+<text x="1820.60" y="206.00" class="tick" text-anchor="end">0.80</text>
+<line x1="1828.60" y1="125.00" x2="2225.00" y2="125.00" class="grid"/>
+<text x="1820.60" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="1828.60" y1="125.00" x2="1828.60" y2="510.00" class="axis"/>
+<line x1="1828.60" y1="510.00" x2="2225.00" y2="510.00" class="axis"/>
+<text x="1828.60" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="1907.88" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="1987.16" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="2066.44" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="2145.72" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="2225.00" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="2026.80" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="1849.84,509.94 1889.16,473.91 1928.49,464.48 2007.14,363.25 2203.76,295.04" fill="none" stroke="#d97706" stroke-width="3" stroke-linejoin="round" data-policy="vggt_independent_history"/>
+<circle cx="1849.84" cy="509.94" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="1889.16" cy="473.91" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="1928.49" cy="464.48" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="2007.14" cy="363.25" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<circle cx="2203.76" cy="295.04" r="3" fill="#d97706" data-policy="vggt_independent_history"/>
+<polyline points="1849.84,509.94 1889.16,473.36 1928.49,465.31 2007.14,367.84 2203.76,286.71" fill="none" stroke="#0891b2" stroke-width="3" stroke-linejoin="round" data-policy="vggt_joint_history"/>
+<circle cx="1849.84" cy="509.94" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="1889.16" cy="473.36" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="1928.49" cy="465.31" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="2007.14" cy="367.84" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+<circle cx="2203.76" cy="286.71" r="3" fill="#0891b2" data-policy="vggt_joint_history"/>
+</svg>

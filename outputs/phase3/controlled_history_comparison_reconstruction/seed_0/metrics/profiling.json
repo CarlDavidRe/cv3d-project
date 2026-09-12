@@ -1,0 +1,45 @@
+{
+  "closed_loop": {
+    "vggt_independent_history": {
+      "median_policy_ms": 1.6913109998313303,
+      "peak_cuda_allocated_bytes": 3649323520,
+      "peak_process_rss_bytes": 5306236928,
+      "peak_process_rss_delta_bytes": 1064960,
+      "profiling_modes": [
+        "cached_independent_features_plus_live_history_head"
+      ]
+    },
+    "vggt_joint_history": {
+      "median_policy_ms": 244.16547649934728,
+      "peak_cuda_allocated_bytes": 4496655872,
+      "peak_process_rss_bytes": 5306228736,
+      "peak_process_rss_delta_bytes": 76689408,
+      "profiling_modes": [
+        "live_joint_vggt_plus_history_head"
+      ]
+    }
+  },
+  "device": "cuda",
+  "joint_test_feature_precompute": {
+    "cached_shards_before_invocation": 47,
+    "invocation_kind": "resumed_cache_restore_or_live_completion",
+    "note": "Do not interpret a resumed cache-restore duration as live VGGT precompute time.",
+    "seconds_this_invocation": 5.79984515399974,
+    "shard_count": 47,
+    "storage_bytes": 412876800
+  },
+  "one_step": {
+    "independent_cached_seconds": 9.721973460999834,
+    "independent_peak_cuda_allocated_bytes": 3716350464,
+    "joint_cached_seconds": 5.954645697999695,
+    "joint_peak_cuda_allocated_bytes": 3716350464,
+    "sample_count": 12000
+  },
+  "parameters": {
+    "independent_frozen_backbone_reference": 909112320,
+    "independent_trainable": 272950,
+    "joint_frozen_backbone": 909112320,
+    "joint_trainable": 272950
+  },
+  "timing_protocol": "One-step cached-head evaluation is timed separately from joint feature materialization. Closed-loop policy timing synchronizes CUDA and excludes evaluator geometry and RGB loading; independent uses cached per-image features while joint recomputes the complete live history."
+}

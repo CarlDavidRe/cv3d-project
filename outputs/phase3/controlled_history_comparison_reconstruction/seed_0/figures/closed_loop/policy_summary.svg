@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1780" height="560" viewBox="0 0 1780 560">
+<style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;fill:#475569}.panel{font-size:14px;font-weight:650}.tick{font-size:10px;fill:#475569}.axis{stroke:#64748b;stroke-width:1}.grid{stroke:#e2e8f0;stroke-width:1}.legend{font-size:12px}.value{font-size:10px;font-weight:600}</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="890.00" y="32" class="title" text-anchor="middle">Closed-loop policy summary</text>
+<text x="890.00" y="54" class="subtitle" text-anchor="middle">Mean over 300 objects; absolute target: vis_a; reachable normalization uses each object&#x27;s eligible-view union.</text>
+<text x="218.00" y="108" class="panel" text-anchor="middle">Final coverage ↑</text>
+<line x1="70.00" y1="455.00" x2="366.00" y2="455.00" class="grid"/>
+<text x="62.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="70.00" y1="389.00" x2="366.00" y2="389.00" class="grid"/>
+<text x="62.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="70.00" y1="323.00" x2="366.00" y2="323.00" class="grid"/>
+<text x="62.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="70.00" y1="257.00" x2="366.00" y2="257.00" class="grid"/>
+<text x="62.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="70.00" y1="191.00" x2="366.00" y2="191.00" class="grid"/>
+<text x="62.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="70.00" y1="125.00" x2="366.00" y2="125.00" class="grid"/>
+<text x="62.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="70.00" y1="125.00" x2="70.00" y2="455.00" class="axis"/>
+<line x1="70.00" y1="455.00" x2="366.00" y2="455.00" class="axis"/>
+<rect x="96.64" y="169.87" width="94.72" height="285.13" fill="#d97706" data-policy="vggt_independent_history" data-value="0.86403392"/>
+<text x="144.00" y="162.87" class="value" text-anchor="middle">0.864</text>
+<text x="144.00" y="479.00" class="tick" text-anchor="middle">vggt_independent_history</text>
+<rect x="244.64" y="170.43" width="94.72" height="284.57" fill="#0891b2" data-policy="vggt_joint_history" data-value="0.86231878"/>
+<text x="292.00" y="163.43" class="value" text-anchor="middle">0.862</text>
+<text x="292.00" y="479.00" class="tick" text-anchor="middle">vggt_joint_history</text>
+<text x="554.00" y="108" class="panel" text-anchor="middle">Final reachable-normalized ↑</text>
+<line x1="406.00" y1="455.00" x2="702.00" y2="455.00" class="grid"/>
+<text x="398.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="406.00" y1="389.00" x2="702.00" y2="389.00" class="grid"/>
+<text x="398.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="406.00" y1="323.00" x2="702.00" y2="323.00" class="grid"/>
+<text x="398.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="406.00" y1="257.00" x2="702.00" y2="257.00" class="grid"/>
+<text x="398.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="406.00" y1="191.00" x2="702.00" y2="191.00" class="grid"/>
+<text x="398.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="406.00" y1="125.00" x2="702.00" y2="125.00" class="grid"/>
+<text x="398.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="406.00" y1="125.00" x2="406.00" y2="455.00" class="axis"/>
+<line x1="406.00" y1="455.00" x2="702.00" y2="455.00" class="axis"/>
+<rect x="432.64" y="150.44" width="94.72" height="304.56" fill="#d97706" data-policy="vggt_independent_history" data-value="0.9229009"/>
+<text x="480.00" y="143.44" class="value" text-anchor="middle">0.923</text>
+<text x="480.00" y="479.00" class="tick" text-anchor="middle">vggt_independent_history</text>
+<rect x="580.64" y="151.07" width="94.72" height="303.93" fill="#0891b2" data-policy="vggt_joint_history" data-value="0.92101303"/>
+<text x="628.00" y="144.07" class="value" text-anchor="middle">0.921</text>
+<text x="628.00" y="479.00" class="tick" text-anchor="middle">vggt_joint_history</text>
+<text x="890.00" y="108" class="panel" text-anchor="middle">Coverage AUC ↑</text>
+<line x1="742.00" y1="455.00" x2="1038.00" y2="455.00" class="grid"/>
+<text x="734.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="742.00" y1="389.00" x2="1038.00" y2="389.00" class="grid"/>
+<text x="734.00" y="393.00" class="tick" text-anchor="end">1.44</text>
+<line x1="742.00" y1="323.00" x2="1038.00" y2="323.00" class="grid"/>
+<text x="734.00" y="327.00" class="tick" text-anchor="end">2.88</text>
+<line x1="742.00" y1="257.00" x2="1038.00" y2="257.00" class="grid"/>
+<text x="734.00" y="261.00" class="tick" text-anchor="end">4.31</text>
+<line x1="742.00" y1="191.00" x2="1038.00" y2="191.00" class="grid"/>
+<text x="734.00" y="195.00" class="tick" text-anchor="end">5.75</text>
+<line x1="742.00" y1="125.00" x2="1038.00" y2="125.00" class="grid"/>
+<text x="734.00" y="129.00" class="tick" text-anchor="end">7.19</text>
+<line x1="742.00" y1="125.00" x2="742.00" y2="455.00" class="axis"/>
+<line x1="742.00" y1="455.00" x2="1038.00" y2="455.00" class="axis"/>
+<rect x="768.64" y="143.68" width="94.72" height="311.32" fill="#d97706" data-policy="vggt_independent_history" data-value="6.7833786"/>
+<text x="816.00" y="136.68" class="value" text-anchor="middle">6.783</text>
+<text x="816.00" y="479.00" class="tick" text-anchor="middle">vggt_independent_history</text>
+<rect x="916.64" y="145.04" width="94.72" height="309.96" fill="#0891b2" data-policy="vggt_joint_history" data-value="6.7537286"/>
+<text x="964.00" y="138.04" class="value" text-anchor="middle">6.754</text>
+<text x="964.00" y="479.00" class="tick" text-anchor="middle">vggt_joint_history</text>
+<text x="1226.00" y="108" class="panel" text-anchor="middle">Mean regret ↓</text>
+<line x1="1078.00" y1="455.00" x2="1374.00" y2="455.00" class="grid"/>
+<text x="1070.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="1078.00" y1="389.00" x2="1374.00" y2="389.00" class="grid"/>
+<text x="1070.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="1078.00" y1="323.00" x2="1374.00" y2="323.00" class="grid"/>
+<text x="1070.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="1078.00" y1="257.00" x2="1374.00" y2="257.00" class="grid"/>
+<text x="1070.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="1078.00" y1="191.00" x2="1374.00" y2="191.00" class="grid"/>
+<text x="1070.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="1078.00" y1="125.00" x2="1374.00" y2="125.00" class="grid"/>
+<text x="1070.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="1078.00" y1="125.00" x2="1078.00" y2="455.00" class="axis"/>
+<line x1="1078.00" y1="455.00" x2="1374.00" y2="455.00" class="axis"/>
+<rect x="1104.64" y="321.74" width="94.72" height="133.26" fill="#d97706" data-policy="vggt_independent_history" data-value="0.40382618"/>
+<text x="1152.00" y="314.74" class="value" text-anchor="middle">0.404</text>
+<text x="1152.00" y="479.00" class="tick" text-anchor="middle">vggt_independent_history</text>
+<rect x="1252.64" y="317.22" width="94.72" height="137.78" fill="#0891b2" data-policy="vggt_joint_history" data-value="0.4175164"/>
+<text x="1300.00" y="310.22" class="value" text-anchor="middle">0.418</text>
+<text x="1300.00" y="479.00" class="tick" text-anchor="middle">vggt_joint_history</text>
+<text x="1562.00" y="108" class="panel" text-anchor="middle">Mean NDCG@5 ↑</text>
+<line x1="1414.00" y1="455.00" x2="1710.00" y2="455.00" class="grid"/>
+<text x="1406.00" y="459.00" class="tick" text-anchor="end">0.00</text>
+<line x1="1414.00" y1="389.00" x2="1710.00" y2="389.00" class="grid"/>
+<text x="1406.00" y="393.00" class="tick" text-anchor="end">0.20</text>
+<line x1="1414.00" y1="323.00" x2="1710.00" y2="323.00" class="grid"/>
+<text x="1406.00" y="327.00" class="tick" text-anchor="end">0.40</text>
+<line x1="1414.00" y1="257.00" x2="1710.00" y2="257.00" class="grid"/>
+<text x="1406.00" y="261.00" class="tick" text-anchor="end">0.60</text>
+<line x1="1414.00" y1="191.00" x2="1710.00" y2="191.00" class="grid"/>
+<text x="1406.00" y="195.00" class="tick" text-anchor="end">0.80</text>
+<line x1="1414.00" y1="125.00" x2="1710.00" y2="125.00" class="grid"/>
+<text x="1406.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="1414.00" y1="125.00" x2="1414.00" y2="455.00" class="axis"/>
+<line x1="1414.00" y1="455.00" x2="1710.00" y2="455.00" class="axis"/>
+<rect x="1440.64" y="234.66" width="94.72" height="220.34" fill="#d97706" data-policy="vggt_independent_history" data-value="0.66770547"/>
+<text x="1488.00" y="227.66" class="value" text-anchor="middle">0.668</text>
+<text x="1488.00" y="479.00" class="tick" text-anchor="middle">vggt_independent_history</text>
+<rect x="1588.64" y="240.05" width="94.72" height="214.95" fill="#0891b2" data-policy="vggt_joint_history" data-value="0.65135845"/>
+<text x="1636.00" y="233.05" class="value" text-anchor="middle">0.651</text>
+<text x="1636.00" y="479.00" class="tick" text-anchor="middle">vggt_joint_history</text>
+</svg>
