@@ -270,6 +270,101 @@ same frozen VGGT reconstruction evaluator to every policy. Interpret `oracle`
 as a privileged upper bound because its view selection uses ground-truth
 visibility.
 
+To visually compare any cached reconstruction with its ground-truth surface
+sample, select its object and policy from `reconstruction_per_object.csv`:
+
+```bash
+python3 scripts/visualize_reconstruction.py \
+  outputs/phase2/phase2_closed_loop_reconstruction/seed_0/metrics/reconstruction_per_object.csv \
+  --object-id 02691156/1628b65a9f3cd7c05e9e2656aff7dd5b \
+  --policy vggt \
+  --views 10
+```
+
+The command uses only the reconstruction and visibility caches; it does not
+run VGGT again. It writes a three-projection `comparison.png`, a self-contained
+interactive `comparison_interactive.html`, colored `comparison.ply`, separate
+aligned-prediction and ground-truth PLY files, and the recomputed alignment
+transform. Omit `--views` to use the largest cached view count. Open the HTML
+directly in a browser for Phase-1-style rotation, zoom, auto-rotation, cloud
+toggles, overlay or side-by-side layouts, and a toggleable ground-truth box
+with X/Y/Z world dimensions, or open the PLY in MeshLab or CloudCompare
+(ground truth is blue; prediction is orange).
+
+To serve the interactive HTML from localhost, run this from the repository
+root and keep the terminal open:
+
+```bash
+python3 -m http.server 8000 --bind 127.0.0.1
+```
+
+Then open the generated viewer at:
+
+```text
+http://127.0.0.1:8000/outputs/phase2/phase2_closed_loop_reconstruction/seed_0/metrics/reconstruction_visualizations/02691156_1628b65a9f3cd7c05e9e2656aff7dd5b_vggt_10views/comparison_interactive.html
+```
+
+Replace the final visualization directory or filename to inspect another run;
+use `comparison_oracle_icp_interactive.html` for the oracle-ICP diagnostic.
+Stop the server with Ctrl+C.
+
+Add `--oracle-icp` to also export a ground-truth-assisted Sim(3) ICP overlay.
+This is useful for separating residual global alignment error from structural
+reconstruction error, but its metrics are an oracle diagnostic and must not be
+reported as official evaluation results.
+It also writes `comparison_oracle_icp_interactive.html` for that diagnostic.
+
+#### Gaussian-splatting reconstruction
+
+Gaussian splatting is an optional CUDA workflow and is not part of the base
+installation. Install the official `gsplat` rasterizer in the project
+environment:
+
+```bash
+python3 -m pip install -e '.[gaussian-splatting]'
+```
+
+Train and geometrically evaluate 2D Gaussian Splatting, and independently
+train 3D Gaussian Splatting for qualitative visualization, from one cached
+VGGT history:
+
+```bash
+python3 scripts/evaluate_gaussian_splatting.py \
+  outputs/phase2/phase2_closed_loop_reconstruction/seed_0/metrics/reconstruction_per_object.csv \
+  --object-id 02691156/1628b65a9f3cd7c05e9e2656aff7dd5b \
+  --policy vggt \
+  --views 10 \
+  --backend both \
+  --iterations 1500
+```
+
+Both backends use the cached, camera-aligned VGGT points for initialization
+and train against the selected RGB history with known NUM cameras. The 2DGS
+backend renders median depth from all 48 canonical cameras, alpha-filters and
+voxel-fuses those depths into `surface.ply`, and reports the existing
+diameter-normalized Chamfer, accuracy, completeness, precision, recall, and
+F-score metrics in `2dgs/summary.json` and `2dgs/metrics.csv`. It also writes
+`comparison.png`, `comparison.ply`, and a self-contained
+`comparison_interactive.html` that overlays the fused 2DGS surface with the
+ground-truth sample or displays them side by side using the same world box.
+It never applies ground-truth ICP. Treat this as a new evaluation candidate
+until it has been validated on the complete cohort; it does not silently
+replace the existing shared-VGGT reconstruction protocol.
+
+The 3DGS backend is deliberately qualitative: it writes a checkpoint, a
+self-contained `3dgs/turntable.html`, and
+`3dgs/ground_truth_comparison.html`. The comparison synchronizes each
+canonical 3DGS render with its corresponding ground-truth NUM RGB image,
+supports side-by-side and opacity-overlay modes, and identifies training versus
+held-out views. It does not report geometric metrics. This prevents raw
+Gaussian centers—which are not a surface—from being compared with the
+ground-truth mesh as though they were surface samples. The 2DGS backend also
+writes a turntable for inspecting the representation used for evaluation.
+
+Use `--backend 2dgs` or `--backend 3dgs` to run only one backend. Actual
+training requires a CUDA-capable PyTorch environment; a missing CUDA runtime
+or `gsplat` installation is reported before any outputs are written.
+
 ```bash
 cd /content/cv3d-project
 

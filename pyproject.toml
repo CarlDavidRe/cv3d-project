@@ -17,6 +17,11 @@ dependencies = [
     "timm>=1.0,<2",
 ]
 
+[project.optional-dependencies]
+gaussian-splatting = [
+    "gsplat>=1.5,<2",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
