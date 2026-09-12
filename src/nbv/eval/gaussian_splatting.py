@@ -259,6 +259,36 @@ def _expand_2dgs_colors_for_cameras(
     return (*values[:-1], expanded_colors)
 
 
+def _rasterize_3dgs(
+    rasterizer: Any,
+    values: tuple[torch.Tensor, ...],
+    views: torch.Tensor,
+    intrinsics: torch.Tensor,
+    resolution: int,
+    background: torch.Tensor,
+    render_mode: str,
+) -> tuple[torch.Tensor, ...]:
+    """Render 3DGS without gsplat's packed-background shape mismatch.
+
+    In affected gsplat releases, packed projected means have shape ``[nnz,2]``;
+    the low-level wrapper consequently validates backgrounds as ``[D]`` even
+    though the public rasterizer contract requires ``[C,D]``.  Unpacked mode
+    retains the camera dimension and works for single- and multi-camera calls.
+    """
+
+    return rasterizer(
+        *values,
+        views,
+        intrinsics,
+        resolution,
+        resolution,
+        backgrounds=background,
+        render_mode=render_mode,
+        rasterize_mode="antialiased",
+        packed=False,
+    )
+
+
 def train_gaussian_splats(
     initial_points: np.ndarray,
     image_paths: Sequence[str | Path],
@@ -313,10 +343,14 @@ def train_gaussian_splats(
                 + settings.normal_loss_weight * normal_loss
             )
         else:
-            rendered, alpha, _ = rasterizer(
-                *values, views[index : index + 1], intrinsics[index : index + 1],
-                settings.resolution, settings.resolution,
-                backgrounds=white, render_mode="RGB", rasterize_mode="antialiased",
+            rendered, alpha, _ = _rasterize_3dgs(
+                rasterizer,
+                values,
+                views[index : index + 1],
+                intrinsics[index : index + 1],
+                settings.resolution,
+                white,
+                "RGB",
             )
             regularization = torch.zeros((), device=device)
         color_loss = F.l1_loss(rendered[0, ..., :3], target_images[index])
@@ -364,10 +398,14 @@ def render_splats(
             depth = median_depth[..., 0] if include_depth else None
         else:
             mode = "RGB+ED" if include_depth else "RGB"
-            rendered, alpha, _ = rasterizer(
-                *values, batch_views, batch_intrinsics,
-                settings.resolution, settings.resolution,
-                backgrounds=white, render_mode=mode, rasterize_mode="antialiased",
+            rendered, alpha, _ = _rasterize_3dgs(
+                rasterizer,
+                values,
+                batch_views,
+                batch_intrinsics,
+                settings.resolution,
+                white,
+                mode,
             )
             rgb = rendered[..., :3]
             depth = rendered[..., 3] if include_depth else None

@@ -13,6 +13,7 @@ from nbv.eval.gaussian_splatting import (
     GaussianSplatSettings,
     SplatCameras,
     _rasterize_2dgs_training,
+    _rasterize_3dgs,
     evaluate_2dgs_geometry,
     fuse_depth_surfaces,
     initialize_point_colors,
@@ -86,6 +87,29 @@ class GaussianSplattingTests(unittest.TestCase):
         torch.testing.assert_close(expanded[0], colors)
         expanded.sum().backward()
         torch.testing.assert_close(colors.grad, torch.full_like(colors, 3.0))
+
+    def test_3dgs_disables_packed_mode_for_camera_backgrounds(self) -> None:
+        captured: dict[str, object] = {}
+        expected = (object(),) * 3
+
+        def rasterizer(*args: object, **kwargs: object) -> tuple[object, ...]:
+            captured.update(kwargs)
+            return expected
+
+        actual = _rasterize_3dgs(
+            rasterizer,
+            (torch.zeros(1),) * 5,
+            torch.zeros((3, 4, 4)),
+            torch.zeros((3, 3, 3)),
+            16,
+            torch.ones((3, 3)),
+            "RGB+ED",
+        )
+
+        self.assertIs(actual, expected)
+        self.assertIs(captured["packed"], False)
+        self.assertEqual(captured["render_mode"], "RGB+ED")
+        self.assertEqual(captured["rasterize_mode"], "antialiased")
 
     def test_num_camera_conversion_flips_opengl_axes(self) -> None:
         pose = np.eye(4)[None]
