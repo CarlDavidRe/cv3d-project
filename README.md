@@ -361,7 +361,7 @@ environment:
 python3 -m pip install -e '.[gaussian-splatting]'
 ```
 
-To evaluate two objects from every category in the frozen held-out test split,
+To evaluate two objects from each category held out entirely from training,
 train every Phase 2 and Phase 3 variant independently at each incremental view
 count, geometrically evaluate 2D Gaussian Splatting, and render 3D Gaussian
 Splatting for qualitative visualization:
@@ -370,16 +370,43 @@ Splatting for qualitative visualization:
 mapfile -t test_objects < <(
   python3 - <<'PY'
 import json
+import sys
 from collections import defaultdict
+from pathlib import Path
 
 with open("data/splits/num_v1.json", encoding="utf-8") as handle:
-    test_objects = json.load(handle)["splits"]["test"]
+    manifest = json.load(handle)
+
+held_out_categories = set(manifest["protocol"]["held_out_test_categories"])
+test_objects = manifest["splits"]["test"]
+views = (1, 2, 3, 5, 10)
+variants = (
+    "phase2_random", "phase2_farthest", "phase2_pun", "phase2_vggt",
+    "phase2_oracle", "phase3_vggt_independent_history",
+    "phase3_vggt_joint_history", "phase3_vggt_joint_pose_deepsets",
+)
+backends = ("2dgs", "3dgs")
+output_root = Path("outputs/gaussian_splatting_variant_comparison")
 
 by_category = defaultdict(list)
 for object_id in test_objects:
-    by_category[object_id.split("/", 1)[0]].append(object_id)
+    category_id = object_id.split("/", 1)[0]
+    if category_id in held_out_categories:
+        by_category[category_id].append(object_id)
+
 for category_id in sorted(by_category):
-    print(*sorted(by_category[category_id])[:2], sep="\n")
+    for object_id in sorted(by_category[category_id])[:2]:
+        root = output_root / object_id.replace("/", "_")
+        complete = all(
+            (root / f"{view_count}views" / variant / backend / "summary.json").is_file()
+            for view_count in views
+            for variant in variants
+            for backend in backends
+        )
+        if complete:
+            print(f"SKIP {object_id} (already complete)", file=sys.stderr)
+        else:
+            print(object_id)
 PY
 )
 
@@ -392,9 +419,11 @@ for object_id in "${test_objects[@]}"; do
 done
 ```
 
-Selection is deterministic: the command takes the first two sorted test object
-IDs in each category recorded by `data/splits/num_v1.json` (24 objects across
-the 12 categories in the checked-in manifest).
+Selection is deterministic: the command reads the categories listed in
+`protocol.held_out_test_categories` and takes the first two sorted test object
+IDs in each (four objects across the two held-out categories in the checked-in
+manifest). An object is omitted from the loop once all requested view, variant,
+and backend summaries exist.
 
 The runner discovers the five Phase 2 policies (`random`, `farthest`, `pun`,
 `vggt`, and `oracle`) and the three distinct Phase 3 policies
@@ -402,7 +431,8 @@ The runner discovers the five Phase 2 policies (`random`, `farthest`, `pun`,
 `vggt_joint_pose_deepsets`) from their reconstruction CSV files. A duplicated
 independent-history control is run only once. Each policy/view-count pair gets
 a fresh model; view counts do not continue training from the preceding model.
-Completed backend summaries are skipped on reruns unless `--force` is given.
+Completed backend summaries are skipped individually on reruns unless `--force`
+is given, so a failed `both` run resumes only its missing backend.
 Use `--dry-run` to validate all histories and inspect the commands without
 starting CUDA training.
 

@@ -165,6 +165,7 @@ def build_command(
     views: int,
     output: Path,
     args: argparse.Namespace,
+    backend: str,
 ) -> list[str]:
     return [
         sys.executable,
@@ -173,7 +174,7 @@ def build_command(
         "--object-id", object_id,
         "--policy", variant.policy,
         "--views", str(views),
-        "--backend", args.backend,
+        "--backend", backend,
         "--iterations", str(args.iterations),
         "--resolution", str(args.resolution),
         "--render-frames", str(args.render_frames),
@@ -248,14 +249,22 @@ def main() -> int:
             for variant in variants:
                 output = object_root / f"{view_count}views" / variant.key
                 summaries = backend_summaries(output, args.backend)
-                if not args.force and all(path.is_file() for path in summaries):
+                missing_backends = tuple(
+                    path.parent.name for path in summaries
+                    if args.force or not path.is_file()
+                )
+                if not missing_backends:
                     print(f"SKIP {variant.key} at {view_count} views (already complete)")
                     results.append(RunResult(
                         variant.key, variant.policy, view_count, str(output), "skipped"
                     ))
                     continue
+                backend = (
+                    args.backend if args.force or len(missing_backends) > 1
+                    else missing_backends[0]
+                )
                 command = build_command(
-                    variant, args.object_id, view_count, output, args
+                    variant, args.object_id, view_count, output, args, backend
                 )
                 print("DRY RUN" if args.dry_run else "RUN", " ".join(command))
                 if args.dry_run:

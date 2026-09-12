@@ -146,6 +146,62 @@ class GaussianSplattingVariantTests(unittest.TestCase):
             self.assertEqual({run["status"] for run in payload["runs"]}, {"dry_run"})
             self.assertTrue((object_root / "index.html").is_file())
 
+    def test_resume_runs_only_the_missing_backend(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            phase2 = root / "phase2"
+            phase3 = root / "phase3"
+            output = root / "output"
+            write_rows(
+                phase2 / "combined/metrics/reconstruction_per_object.csv",
+                PHASE2_POLICIES,
+                views=(1,),
+            )
+            write_rows(
+                phase3 / "controlled/metrics/reconstruction_per_object.csv",
+                ("vggt_independent_history", "vggt_joint_history"),
+                views=(1,),
+            )
+            write_rows(
+                phase3 / "pose/metrics/reconstruction_per_object.csv",
+                ("vggt_joint_pose_deepsets",),
+                views=(1,),
+            )
+            variant_names = (
+                *(f"phase2_{policy}" for policy in PHASE2_POLICIES),
+                *(f"phase3_{policy}" for policy in PHASE3_POLICIES),
+            )
+            for variant_name in variant_names:
+                summary = (
+                    output / "category_object/1views" / variant_name
+                    / "2dgs/summary.json"
+                )
+                summary.parent.mkdir(parents=True)
+                summary.write_text("{}", encoding="utf-8")
+            arguments = [
+                "evaluate_gaussian_splatting_variants.py",
+                "--object-id", "category/object",
+                "--views", "1",
+                "--phase2-root", str(phase2),
+                "--phase3-root", str(phase3),
+                "--output-root", str(output),
+            ]
+
+            with (
+                patch("sys.argv", arguments),
+                patch(
+                    "scripts.evaluate_gaussian_splatting_variants.subprocess.run"
+                ) as run,
+                redirect_stdout(StringIO()),
+            ):
+                run.return_value.returncode = 0
+                self.assertEqual(main(), 0)
+
+            self.assertEqual(run.call_count, len(variant_names))
+            for call in run.call_args_list:
+                command = call.args[0]
+                self.assertEqual(command[command.index("--backend") + 1], "3dgs")
+
 
 if __name__ == "__main__":
     unittest.main()
