@@ -13,7 +13,7 @@ import sys
 
 if __package__:
     from .plot_all_policy_coverage import (
-        DEFAULT_PHASE2,
+        DEFAULT_PHASE2_RUNS,
         DEFAULT_PHASE3_ROOT,
         PHASE2_POLICIES,
         _completed_phase3_runs,
@@ -23,7 +23,7 @@ if __package__:
     )
 else:
     from plot_all_policy_coverage import (
-        DEFAULT_PHASE2,
+        DEFAULT_PHASE2_RUNS,
         DEFAULT_PHASE3_ROOT,
         PHASE2_POLICIES,
         _completed_phase3_runs,
@@ -46,7 +46,15 @@ REQUIRED_METRICS = METRICS[:3]
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--phase2-run", type=Path, default=DEFAULT_PHASE2)
+    parser.add_argument(
+        "--phase2-run",
+        type=Path,
+        action="append",
+        help=(
+            "Phase 2 run to include; repeat to merge multiple runs. Defaults to "
+            "the phase2_random/farthest/pun/vggt/oracle runs."
+        ),
+    )
     parser.add_argument(
         "--phase3-root",
         type=Path,
@@ -270,12 +278,19 @@ def write_plot(
 
 def main() -> int:
     args = parse_args()
-    phase2_csv = _reconstruction_path(args.phase2_run)
-    if not phase2_csv.is_file():
-        raise FileNotFoundError(
-            f"Missing required Phase 2 reconstruction data: {phase2_csv}"
+    phase2_runs = args.phase2_run or list(DEFAULT_PHASE2_RUNS)
+    curves: dict[str, dict[str, list[tuple[int, float]]]] = {}
+    cohort_sizes: dict[str, int] = {}
+    for phase2_run in phase2_runs:
+        phase2_csv = _reconstruction_path(phase2_run)
+        if not phase2_csv.is_file():
+            raise FileNotFoundError(
+                f"Missing required Phase 2 reconstruction data: {phase2_csv}"
+            )
+        phase2_curves, phase2_sizes = _read_reconstruction(phase2_csv)
+        _merge_reconstruction(
+            curves, cohort_sizes, phase2_curves, phase2_sizes, phase2_run
         )
-    curves, cohort_sizes = _read_reconstruction(phase2_csv)
 
     phase3_runs = args.phase3_run or _completed_phase3_runs(args.phase3_root)
     phase3_policy_names: set[str] = set()

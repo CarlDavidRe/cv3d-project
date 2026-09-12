@@ -13,7 +13,10 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_PHASE2 = ROOT / "outputs/phase2/phase2_closed_loop_reconstruction/seed_0"
+DEFAULT_PHASE2_RUNS = tuple(
+    ROOT / "outputs/phase2" / f"phase2_{policy}" / "seed_0"
+    for policy in ("random", "farthest", "pun", "vggt", "oracle")
+)
 DEFAULT_PHASE3_ROOT = ROOT / "outputs/phase3"
 DEFAULT_OUTPUT = ROOT / "outputs/all_policy_comparison/coverage_curves.svg"
 
@@ -40,7 +43,15 @@ EXTRA_PHASE3_COLORS = ("#4f46e5", "#0d9488", "#9333ea", "#65a30d", "#be123c")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--phase2-run", type=Path, default=DEFAULT_PHASE2)
+    parser.add_argument(
+        "--phase2-run",
+        type=Path,
+        action="append",
+        help=(
+            "Phase 2 run to include; repeat to merge multiple runs. Defaults to "
+            "the phase2_random/farthest/pun/vggt/oracle runs."
+        ),
+    )
     parser.add_argument(
         "--phase3-root",
         type=Path,
@@ -251,12 +262,27 @@ def write_plot(
 
 def main() -> int:
     args = parse_args()
-    phase2_csv = _coverage_path(args.phase2_run)
-    if not phase2_csv.is_file():
-        raise FileNotFoundError(f"Missing required Phase 2 coverage data: {phase2_csv}")
-
-    curves, cohort_sizes = _read_coverage(phase2_csv)
-    phase2_target = _coverage_target(args.phase2_run)
+    phase2_runs = args.phase2_run or list(DEFAULT_PHASE2_RUNS)
+    curves: dict[str, list[tuple[int, float]]] = {}
+    cohort_sizes: dict[str, int] = {}
+    phase2_target: str | None = None
+    for phase2_run in phase2_runs:
+        phase2_csv = _coverage_path(phase2_run)
+        if not phase2_csv.is_file():
+            raise FileNotFoundError(
+                f"Missing required Phase 2 coverage data: {phase2_csv}"
+            )
+        phase2_curves, phase2_sizes = _read_coverage(phase2_csv)
+        run_target = _coverage_target(phase2_run)
+        if phase2_target and run_target and phase2_target != run_target:
+            raise ValueError(
+                f"Coverage targets differ between Phase 2 runs: "
+                f"{phase2_target} and {run_target} in {phase2_run}"
+            )
+        phase2_target = phase2_target or run_target
+        _merge_curves(
+            curves, cohort_sizes, phase2_curves, phase2_sizes, phase2_run
+        )
     phase3_runs = args.phase3_run or _completed_phase3_runs(args.phase3_root)
     phase3_policy_names: set[str] = set()
     for phase3_run in phase3_runs:

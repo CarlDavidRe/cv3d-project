@@ -383,6 +383,10 @@ python3 scripts/plot_all_policy_coverage.py
 python3 scripts/plot_all_policy_reconstruction.py
 ```
 
+By default, both plotters merge the standalone `phase2_random`,
+`phase2_farthest`, `phase2_pun`, `phase2_vggt`, and `phase2_oracle` seed-0
+runs. Repeat `--phase2-run` to select a different set of Phase 2 runs.
+
 The plotters recursively discover Phase 3 evaluation runs below
 `outputs/phase3` and include every policy from runs whose
 `metrics/phase3_completion.json` status is `complete`. Incomplete evaluations
