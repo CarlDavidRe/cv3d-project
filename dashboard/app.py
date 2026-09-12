@@ -16,6 +16,16 @@ import streamlit as st
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PHASE1_ROOT = REPO_ROOT / "outputs" / "phase1" / "backbone_sweep"
+PHASE2_CLOSED_LOOP_ROOT = (
+    REPO_ROOT / "outputs" / "phase2" / "phase2_closed_loop_reconstruction" / "seed_0"
+)
+PHASE3_CLOSED_LOOP_ROOT = (
+    REPO_ROOT
+    / "outputs"
+    / "phase3"
+    / "controlled_history_comparison_reconstruction"
+    / "seed_0"
+)
 NUM_ROOT = REPO_ROOT / "data" / "NUM"
 SHAPENET_ROOT = REPO_ROOT / "data" / "ShapeNetCore.v2"
 SPLIT_MANIFEST = REPO_ROOT / "data" / "splits" / "num_v1.json"
@@ -96,6 +106,26 @@ BACKBONE_COLORS = {
     "ImageNet ViT": "#3b82f6",
     "Raw RGB": "#ec4899",
     "Baseline": "#64748b",
+}
+
+CLOSED_LOOP_POLICY_LABELS = {
+    "random": "Random",
+    "farthest": "Farthest view",
+    "pun": "PUN",
+    "vggt": "VGGT · single image",
+    "oracle": "Oracle",
+    "vggt_independent_history": "VGGT · independent history",
+    "vggt_joint_history": "VGGT · joint history",
+}
+
+CLOSED_LOOP_POLICY_COLORS = {
+    "Random": "#64748b",
+    "Farthest view": "#3b82f6",
+    "PUN": "#f59e0b",
+    "VGGT · single image": "#8b5cf6",
+    "Oracle": "#34d399",
+    "VGGT · independent history": "#06b6d4",
+    "VGGT · joint history": "#ec4899",
 }
 
 VARIANT_DESCRIPTIONS = {
@@ -699,6 +729,206 @@ def build_metric_chart(data: pd.DataFrame, metric: str) -> alt.LayerChart:
     )
 
 
+def pretty_policy(value: str) -> str:
+    """Return a paper-friendly label for a closed-loop policy identifier."""
+    return CLOSED_LOOP_POLICY_LABELS.get(value, value.replace("_", " ").title())
+
+
+@st.cache_data(show_spinner=False)
+def load_closed_loop_tables(
+    phase2_root: str, phase3_root: str
+) -> dict[str, pd.DataFrame]:
+    """Load the canonical Phase 2 and Phase 3 evaluation tables."""
+    specifications = (
+        ("Phase 2", Path(phase2_root), "comparison.csv"),
+        ("Phase 3", Path(phase3_root), "closed_loop_comparison.csv"),
+    )
+    grouped: dict[str, list[pd.DataFrame]] = {
+        "comparison": [],
+        "coverage": [],
+        "per_step": [],
+        "reconstruction": [],
+    }
+    for phase, root, comparison_name in specifications:
+        paths = {
+            "comparison": root / "metrics" / comparison_name,
+            "coverage": root / "metrics" / "coverage.csv",
+            "per_step": root / "metrics" / "per_step.csv",
+            "reconstruction": root / "metrics" / "reconstruction_curves.csv",
+        }
+        for table_name, path in paths.items():
+            if not path.is_file():
+                continue
+            frame = pd.read_csv(path)
+            frame["phase"] = phase
+            frame["policy_label"] = frame["policy"].map(pretty_policy)
+            grouped[table_name].append(frame)
+    return {
+        name: pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+        for name, frames in grouped.items()
+    }
+
+
+@st.cache_data(show_spinner=False)
+def load_rollout_catalog(phase2_root: str, phase3_root: str) -> pd.DataFrame:
+    """Index replay files without loading their large score arrays."""
+    records: list[dict[str, str]] = []
+    for phase, root in (("Phase 2", Path(phase2_root)), ("Phase 3", Path(phase3_root))):
+        rollout_root = root / "rollouts"
+        for path in sorted(rollout_root.glob("*/*/*.npz")):
+            relative = path.relative_to(rollout_root)
+            policy, category_id, filename = relative.parts
+            records.append(
+                {
+                    "phase": phase,
+                    "policy": policy,
+                    "policy_label": pretty_policy(policy),
+                    "category_id": category_id,
+                    "object_id": Path(filename).stem,
+                    "object_key": f"{category_id}/{Path(filename).stem}",
+                    "path": str(path),
+                }
+            )
+    return pd.DataFrame.from_records(records)
+
+
+@st.cache_data(show_spinner=False)
+def load_dashboard_rollout(path: str) -> dict[str, object]:
+    """Load only the replay fields used by the interactive dashboard."""
+    with np.load(path, allow_pickle=False) as payload:
+        metadata = json.loads(str(payload["metadata_json"].item()))
+        steps = json.loads(str(payload["steps_json"].item()))
+        return {
+            "metadata": metadata,
+            "steps": steps,
+            "acquired_anchor_ids": payload["acquired_anchor_ids"].copy(),
+            "acquired_view_counts": payload["acquired_view_counts"].copy(),
+            "coverage": payload["coverage"].copy(),
+        }
+
+
+def build_closed_loop_curve(
+    data: pd.DataFrame,
+    *,
+    x: str,
+    y: str,
+    x_title: str,
+    y_title: str,
+) -> alt.LayerChart:
+    """Build a consistent multi-policy closed-loop trajectory chart."""
+    domain = [label for label in CLOSED_LOOP_POLICY_COLORS if label in set(data["policy_label"])]
+    color = alt.Color(
+        "policy_label:N",
+        title=None,
+        scale=alt.Scale(domain=domain, range=[CLOSED_LOOP_POLICY_COLORS[label] for label in domain]),
+        legend=alt.Legend(orient="top", direction="horizontal", columns=4),
+    )
+    phase_dash = alt.StrokeDash(
+        "phase:N",
+        title="Evaluation",
+        scale=alt.Scale(domain=["Phase 2", "Phase 3"], range=[[1, 0], [7, 4]]),
+    )
+    selection = alt.selection_point(fields=["policy_label"], bind="legend")
+    opacity = alt.condition(selection, alt.value(1.0), alt.value(0.14))
+    encoding = {
+        "x": alt.X(f"{x}:Q", title=x_title, axis=alt.Axis(tickMinStep=1)),
+        "y": alt.Y(f"{y}:Q", title=y_title, scale=alt.Scale(zero=False)),
+        "color": color,
+        "strokeDash": phase_dash,
+        "opacity": opacity,
+        "tooltip": [
+            alt.Tooltip("phase:N", title="Evaluation"),
+            alt.Tooltip("policy_label:N", title="Policy"),
+            alt.Tooltip(f"{x}:Q", title=x_title),
+            alt.Tooltip(f"{y}:Q", title=y_title, format=".4f"),
+        ],
+    }
+    line = alt.Chart(data).mark_line(point=False, strokeWidth=3).encode(**encoding)
+    points = alt.Chart(data).mark_circle(size=48).encode(**encoding)
+    return (
+        alt.layer(line, points)
+        .add_params(selection)
+        .properties(height=430)
+        .configure_view(strokeWidth=0)
+        .configure_axis(
+            labelColor="#cbd5e1", titleColor="#e2e8f0", gridColor="#263247"
+        )
+        .configure_legend(labelColor="#cbd5e1", titleColor="#e2e8f0")
+    )
+
+
+def build_policy_summary_chart(
+    data: pd.DataFrame, metric: str, label: str
+) -> alt.Chart:
+    """Build a compact phase-aware policy summary chart."""
+    order = data.sort_values(metric, ascending=False)["policy_label"].tolist()
+    domain = [name for name in CLOSED_LOOP_POLICY_COLORS if name in set(data["policy_label"])]
+    return (
+        alt.Chart(data)
+        .mark_bar(cornerRadiusEnd=5, height=20)
+        .encode(
+            x=alt.X(f"{metric}:Q", title=label, scale=alt.Scale(zero=False)),
+            y=alt.Y("policy_label:N", title=None, sort=order),
+            color=alt.Color(
+                "policy_label:N",
+                title=None,
+                scale=alt.Scale(
+                    domain=domain, range=[CLOSED_LOOP_POLICY_COLORS[name] for name in domain]
+                ),
+                legend=None,
+            ),
+            opacity=alt.condition(
+                alt.datum.phase == "Phase 2", alt.value(0.72), alt.value(1.0)
+            ),
+            tooltip=[
+                alt.Tooltip("phase:N", title="Evaluation"),
+                alt.Tooltip("policy_label:N", title="Policy"),
+                alt.Tooltip(f"{metric}:Q", title=label, format=".4f"),
+                alt.Tooltip("object_count:Q", title="Objects"),
+            ],
+        )
+        .properties(height=340)
+        .configure_view(strokeWidth=0)
+        .configure_axis(
+            labelColor="#cbd5e1", titleColor="#e2e8f0", gridColor="#263247"
+        )
+    )
+
+
+def build_rollout_trajectory(
+    anchors: pd.DataFrame,
+    acquired_anchor_ids: np.ndarray,
+    mesh: tuple[np.ndarray, np.ndarray] | None,
+) -> go.Figure:
+    """Show the ordered camera trajectory around the selected object."""
+    figure = build_anchor_sphere(anchors, int(acquired_anchor_ids[-1]), mesh)
+    selected = anchors.set_index("anchor_id").loc[acquired_anchor_ids.astype(int)]
+    radius = 1.35
+    x = selected["direction_x"].to_numpy() * radius
+    y = selected["direction_y"].to_numpy() * radius
+    z = selected["direction_z"].to_numpy() * radius
+    figure.add_trace(
+        go.Scatter3d(
+            x=x,
+            y=y,
+            z=z,
+            mode="lines+markers+text",
+            line={"color": "#22d3ee", "width": 7},
+            marker={"color": "#22d3ee", "size": 7},
+            text=[str(index + 1) for index in range(len(x))],
+            textposition="top center",
+            textfont={"color": "#f8fafc", "size": 12},
+            hovertemplate=(
+                "View %{text}<br>Anchor %{customdata}<extra>Acquisition order</extra>"
+            ),
+            customdata=acquired_anchor_ids,
+            name="Acquisition order",
+        )
+    )
+    figure.update_layout(height=560, showlegend=False)
+    return figure
+
+
 st.set_page_config(
     page_title="CV3D · Experiment dashboard",
     page_icon="◈",
@@ -1090,6 +1320,331 @@ def render_representation_page() -> None:
         )
 
 
+def render_closed_loop_page() -> None:
+    """Render the Phase 2 and Phase 3 closed-loop evaluation page."""
+    tables = load_closed_loop_tables(
+        str(PHASE2_CLOSED_LOOP_ROOT), str(PHASE3_CLOSED_LOOP_ROOT)
+    )
+    comparison = tables["comparison"]
+
+    header_left, header_right = st.columns([4, 1], vertical_alignment="center")
+    with header_left:
+        st.markdown(
+            '<div class="eyebrow">CV3D / closed-loop evaluation</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="hero-title">Follow the policy<br>around the object.</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="hero-copy">Phase 2 compares single-image policies and geometric '
+            'baselines. Phase 3 tests whether independent or joint observation histories '
+            'make better next-view decisions over the same ten-view test protocol.</div>',
+            unsafe_allow_html=True,
+        )
+    with header_right:
+        policy_count = comparison["policy"].nunique() if not comparison.empty else 0
+        st.markdown(
+            f'<div class="run-pill"><span class="run-dot"></span>{policy_count} policies '
+            'loaded · 2 phases</div>',
+            unsafe_allow_html=True,
+        )
+
+    if comparison.empty or tables["coverage"].empty:
+        st.error(
+            "Closed-loop result tables were not found under the configured Phase 2 and "
+            "Phase 3 output directories."
+        )
+        return
+
+    st.markdown(
+        '<div class="section-title">Which policy leaves the most surface observed?</div>',
+        unsafe_allow_html=True,
+    )
+    summary_metrics = {
+        "final_reachable_normalized_coverage_mean": (
+            "Final reachable-normalized coverage",
+            "↑ higher is better",
+        ),
+        "final_coverage_mean": ("Final absolute coverage", "↑ higher is better"),
+        "coverage_auc_mean": ("Coverage AUC", "↑ higher is better"),
+        "normalized_regret_mean": ("Mean normalized regret", "↓ lower is better"),
+        "ndcg_at_5_mean": ("Mean NDCG @ 5", "↑ higher is better"),
+        "median_policy_ms": ("Median decision time (ms)", "↓ lower is better"),
+    }
+    summary_control, coverage_control = st.columns([1, 1])
+    with summary_control:
+        summary_metric = st.selectbox(
+            "Policy summary metric",
+            list(summary_metrics),
+            format_func=lambda value: summary_metrics[value][0],
+        )
+    with coverage_control:
+        coverage_metric = st.selectbox(
+            "Coverage trajectory",
+            ["reachable_normalized_coverage_mean", "coverage_mean"],
+            format_func=lambda value: (
+                "Reachable-normalized coverage"
+                if value.startswith("reachable")
+                else "Absolute coverage"
+            ),
+        )
+
+    metric_label, direction = summary_metrics[summary_metric]
+    leading_row = comparison.loc[
+        comparison[summary_metric].idxmin()
+        if direction.startswith("↓")
+        else comparison[summary_metric].idxmax()
+    ]
+    best_a, best_b, best_c = st.columns(3)
+    best_a.metric("Leading policy", leading_row["policy_label"])
+    best_b.metric(metric_label, f'{float(leading_row[summary_metric]):.4f}')
+    best_c.metric("Evaluation cohort", f'{int(leading_row["object_count"]):,} objects')
+    st.markdown(
+        f'<div class="metric-note"><strong>{direction}</strong> · Solid lines are Phase 2; '
+        'dashed lines are Phase 3. Select a policy in the legend to isolate it.</div>',
+        unsafe_allow_html=True,
+    )
+
+    overview_left, overview_right = st.columns([1, 1.55])
+    with overview_left:
+        st.altair_chart(
+            build_policy_summary_chart(comparison, summary_metric, metric_label),
+            width="stretch",
+        )
+    with overview_right:
+        coverage_label = (
+            "Reachable-normalized coverage"
+            if coverage_metric.startswith("reachable")
+            else "Absolute surface coverage"
+        )
+        st.altair_chart(
+            build_closed_loop_curve(
+                tables["coverage"].dropna(subset=[coverage_metric]),
+                x="acquired_view_count",
+                y=coverage_metric,
+                x_title="Acquired views",
+                y_title=coverage_label,
+            ),
+            width="stretch",
+        )
+
+    st.markdown(
+        '<div class="section-kicker">Decision quality</div>', unsafe_allow_html=True
+    )
+    st.markdown(
+        '<div class="section-title">How does ranking quality change as history grows?</div>',
+        unsafe_allow_html=True,
+    )
+    quality_metrics = {
+        "normalized_regret": "Normalized regret ↓",
+        "selected_true_gain": "Selected true surface gain ↑",
+        "spearman": "Spearman correlation ↑",
+        "ndcg_at_5": "NDCG @ 5 ↑",
+    }
+    quality_metric = st.selectbox(
+        "Per-decision metric",
+        list(quality_metrics),
+        format_func=lambda value: quality_metrics[value],
+    )
+    quality = tables["per_step"].dropna(subset=[quality_metric]).copy()
+    quality["decision_number"] = quality["step_index"].astype(int) + 1
+    quality = (
+        quality.groupby(
+            ["phase", "policy", "policy_label", "decision_number"], as_index=False
+        )[quality_metric]
+        .mean()
+    )
+    st.altair_chart(
+        build_closed_loop_curve(
+            quality,
+            x="decision_number",
+            y=quality_metric,
+            x_title="Decision number",
+            y_title=quality_metrics[quality_metric],
+        ),
+        width="stretch",
+    )
+
+    reconstruction = tables["reconstruction"]
+    if not reconstruction.empty:
+        st.markdown(
+            '<div class="section-kicker">Shared reconstruction backend</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="section-title">Does the selected history reconstruct well?</div>',
+            unsafe_allow_html=True,
+        )
+        reconstruction_metrics = {
+            "chamfer_l1_normalized_mean": "Normalized Chamfer-L1 ↓",
+            "completeness_normalized_mean": "Normalized completeness ↓",
+            "fscore_1pct_mean": "F-score @ 1% ↑",
+            "fscore_2pct_mean": "F-score @ 2% ↑",
+        }
+        available_reconstruction_metrics = [
+            metric for metric in reconstruction_metrics if metric in reconstruction.columns
+        ]
+        reconstruction_metric = st.selectbox(
+            "Reconstruction metric",
+            available_reconstruction_metrics,
+            format_func=lambda value: reconstruction_metrics[value],
+        )
+        st.altair_chart(
+            build_closed_loop_curve(
+                reconstruction.dropna(subset=[reconstruction_metric]),
+                x="acquired_view_count",
+                y=reconstruction_metric,
+                x_title="Acquired views",
+                y_title=reconstruction_metrics[reconstruction_metric],
+            ),
+            width="stretch",
+        )
+
+    st.markdown(
+        '<div class="section-kicker">Rollout inspection</div>', unsafe_allow_html=True
+    )
+    st.markdown(
+        '<div class="section-title">Inspect one policy trajectory view by view.</div>',
+        unsafe_allow_html=True,
+    )
+    catalog = load_rollout_catalog(
+        str(PHASE2_CLOSED_LOOP_ROOT), str(PHASE3_CLOSED_LOOP_ROOT)
+    )
+    if catalog.empty:
+        st.info("No replayable rollout files are available for object-level inspection.")
+        return
+
+    rollout_a, rollout_b, rollout_c, rollout_d = st.columns([1, 1.25, 2.1, 1.8])
+    with rollout_a:
+        rollout_phase = st.selectbox("Evaluation phase", ["Phase 2", "Phase 3"])
+    phase_catalog = catalog[catalog["phase"] == rollout_phase]
+    category_options = sorted(
+        phase_catalog["category_id"].unique(),
+        key=lambda value: CATEGORY_NAMES.get(value, value),
+    )
+    with rollout_b:
+        rollout_category = st.selectbox(
+            "Rollout category",
+            category_options,
+            format_func=lambda value: CATEGORY_NAMES.get(value, value),
+        )
+    category_catalog = phase_catalog[phase_catalog["category_id"] == rollout_category]
+    with rollout_c:
+        rollout_object = st.selectbox(
+            "Rollout object", sorted(category_catalog["object_id"].unique())
+        )
+    object_catalog = category_catalog[category_catalog["object_id"] == rollout_object]
+    with rollout_d:
+        rollout_policy = st.selectbox(
+            "Rollout policy",
+            sorted(object_catalog["policy"].unique(), key=pretty_policy),
+            format_func=pretty_policy,
+        )
+    rollout_path = object_catalog.loc[
+        object_catalog["policy"] == rollout_policy, "path"
+    ].iloc[0]
+    rollout = load_dashboard_rollout(str(rollout_path))
+    acquired = np.asarray(rollout["acquired_anchor_ids"], dtype=int)
+    counts = np.asarray(rollout["acquired_view_counts"], dtype=int)
+    coverage = np.asarray(rollout["coverage"], dtype=float)
+    metadata = rollout["metadata"]
+    steps = rollout["steps"]
+
+    acquired_count = st.slider(
+        "Views acquired",
+        min_value=int(counts[0]),
+        max_value=int(counts[-1]),
+        value=int(counts[-1]),
+        step=1,
+    )
+    current_index = int(np.flatnonzero(counts == acquired_count)[0])
+    current_anchor = int(acquired[current_index])
+    current_step = steps[current_index - 1] if current_index > 0 else None
+    ceiling = metadata.get("reachable_coverage_ceiling")
+    current_reachable = coverage[current_index] / float(ceiling) if ceiling else None
+    object_key = f"{rollout_category}/{rollout_object}"
+
+    rollout_kpis = st.columns(4)
+    rollout_kpis[0].metric("Current anchor", current_anchor)
+    rollout_kpis[1].metric("Absolute coverage", f"{coverage[current_index]:.3f}")
+    rollout_kpis[2].metric(
+        "Reachable-normalized",
+        f"{current_reachable:.3f}" if current_reachable is not None else "—",
+    )
+    rollout_kpis[3].metric(
+        "Decision regret",
+        f'{float(current_step["normalized_regret"]):.3f}'
+        if current_step and current_step.get("normalized_regret") is not None
+        else "Initial view",
+    )
+
+    mesh_path = SHAPENET_ROOT / object_key / "models" / "model_normalized.ply"
+    trajectory_column, observation_column = st.columns([2.1, 1], vertical_alignment="center")
+    with trajectory_column:
+        st.plotly_chart(
+            build_rollout_trajectory(
+                load_anchor_directions(str(ANCHOR_PATH)),
+                acquired[: current_index + 1],
+                load_object_mesh(str(mesh_path)),
+            ),
+            width="stretch",
+            config={"displayModeBar": False, "scrollZoom": False},
+        )
+    with observation_column:
+        observation_path = (
+            NUM_ROOT
+            / object_key
+            / "images"
+            / f"viewpoint_{current_anchor}_offset_phi_0.png"
+        )
+        if observation_path.is_file():
+            st.image(
+                str(observation_path),
+                caption=(
+                    f"Acquired view {acquired_count} · anchor {current_anchor} · "
+                    f"{pretty_policy(rollout_policy)}"
+                ),
+                width="stretch",
+            )
+        else:
+            st.info(
+                "The rollout metrics are available, but observation previews require "
+                "the local `data/NUM` dataset."
+            )
+        trajectory = pd.DataFrame(
+            {
+                "Acquired views": counts[: current_index + 1],
+                "Absolute coverage": coverage[: current_index + 1],
+            }
+        ).set_index("Acquired views")
+        if ceiling:
+            trajectory["Reachable-normalized"] = (
+                coverage[: current_index + 1] / float(ceiling)
+            )
+        st.line_chart(trajectory, height=210)
+
+    with st.expander("Inspect aggregate closed-loop metrics"):
+        display_columns = [
+            "phase",
+            "policy_label",
+            "object_count",
+            "final_coverage_mean",
+            "final_reachable_normalized_coverage_mean",
+            "coverage_auc_mean",
+            "normalized_regret_mean",
+            "spearman_mean",
+            "ndcg_at_5_mean",
+            "median_policy_ms",
+        ]
+        st.dataframe(
+            comparison[display_columns].sort_values(["phase", "policy_label"]),
+            hide_index=True,
+            width="stretch",
+        )
+
+
 navigation = st.navigation(
     [
         st.Page(render_dataset_page, title="Dataset", url_path="dataset", default=True),
@@ -1097,6 +1652,11 @@ navigation = st.navigation(
             render_representation_page,
             title="Representation sweep",
             url_path="representations",
+        ),
+        st.Page(
+            render_closed_loop_page,
+            title="Closed-loop evaluation",
+            url_path="closed-loop",
         ),
     ],
     position="top",

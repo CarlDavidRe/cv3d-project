@@ -21,18 +21,18 @@
   },
   "device": "cuda",
   "joint_test_feature_precompute": {
-    "cached_shards_before_invocation": 7,
+    "cached_shards_before_invocation": 47,
     "invocation_kind": "resumed_cache_restore_or_live_completion",
     "note": "Do not interpret a resumed cache-restore duration as live VGGT precompute time.",
-    "seconds_this_invocation": 1529.0758222650002,
+    "seconds_this_invocation": 7.201783552999586,
     "shard_count": 47,
     "storage_bytes": 1651507200
   },
   "one_step": {
-    "independent_cached_seconds": 9.78988228199978,
-    "independent_peak_cuda_allocated_bytes": 3716690944,
-    "joint_cached_seconds": 6.842551014000492,
-    "joint_peak_cuda_allocated_bytes": 3834014208,
+    "independent_cached_seconds": 9.282880164000744,
+    "independent_peak_cuda_allocated_bytes": 3716658688,
+    "joint_cached_seconds": 7.094081412999913,
+    "joint_peak_cuda_allocated_bytes": 3833981952,
     "sample_count": 12000
   },
   "parameters": {

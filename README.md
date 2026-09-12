@@ -28,7 +28,11 @@ git sparse-checkout set --no-cone \
   '/requirements-dashboard.txt' \
   '/data/splits/num_v1.json' \
   '/src/nbv/geometry/anchors_v1.csv' \
-  '/outputs/phase1/backbone_sweep/**/summary.json'
+  '/outputs/phase1/backbone_sweep/**/summary.json' \
+  '/outputs/phase2/phase2_closed_loop_reconstruction/seed_0/metrics/**' \
+  '/outputs/phase2/phase2_closed_loop_reconstruction/seed_0/rollouts/**' \
+  '/outputs/phase3/controlled_history_comparison_reconstruction/seed_0/metrics/**' \
+  '/outputs/phase3/controlled_history_comparison_reconstruction/seed_0/rollouts/**'
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -41,7 +45,8 @@ repository history and large experiment artifacts. The dataset explorer still
 shows every category, split assignment, object ID, and camera anchor. Clone or
 place the NUM dataset at `data/NUM` to also show the selected RGB observation,
 and ShapeNet meshes at `data/ShapeNetCore.v2` to place the selected object inside
-the anchor sphere.
+the anchor sphere. The closed-loop page reads the saved Phase 2 and Phase 3
+metric tables and rollout replays directly; it does not run model inference.
 
 Select a GPU runtime and mount Google Drive with Colab's left-sidebar folder
 icon. Drive authorization is the only UI prerequisite. Every command below is
