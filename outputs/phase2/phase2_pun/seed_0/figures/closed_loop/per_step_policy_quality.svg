@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1460" height="560" viewBox="0 0 1460 560">
+<style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;fill:#475569}.panel{font-size:14px;font-weight:650}.tick{font-size:10px;fill:#475569}.axis{stroke:#64748b;stroke-width:1}.grid{stroke:#e2e8f0;stroke-width:1}.legend{font-size:12px}.value{font-size:10px;font-weight:600}</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="730.00" y="32" class="title" text-anchor="middle">Per-step policy quality against true geometric gain</text>
+<text x="730.00" y="54" class="subtitle" text-anchor="middle">Each point is a mean over available object rollouts; decision 1 follows the initial view.</text>
+<line x1="710.00" y1="92" x2="730.00" y2="92" stroke="#dc2626" stroke-width="3"/>
+<text x="737.00" y="96.00" class="legend">pun</text>
+<text x="223.00" y="116" class="panel" text-anchor="middle">Selected true gain</text>
+<line x1="75.00" y1="480.00" x2="371.00" y2="480.00" class="grid"/>
+<text x="67.00" y="484.00" class="tick" text-anchor="end">0.00</text>
+<line x1="75.00" y1="409.00" x2="371.00" y2="409.00" class="grid"/>
+<text x="67.00" y="413.00" class="tick" text-anchor="end">0.06</text>
+<line x1="75.00" y1="338.00" x2="371.00" y2="338.00" class="grid"/>
+<text x="67.00" y="342.00" class="tick" text-anchor="end">0.12</text>
+<line x1="75.00" y1="267.00" x2="371.00" y2="267.00" class="grid"/>
+<text x="67.00" y="271.00" class="tick" text-anchor="end">0.18</text>
+<line x1="75.00" y1="196.00" x2="371.00" y2="196.00" class="grid"/>
+<text x="67.00" y="200.00" class="tick" text-anchor="end">0.24</text>
+<line x1="75.00" y1="125.00" x2="371.00" y2="125.00" class="grid"/>
+<text x="67.00" y="129.00" class="tick" text-anchor="end">0.30</text>
+<line x1="75.00" y1="125.00" x2="75.00" y2="480.00" class="axis"/>
+<line x1="75.00" y1="480.00" x2="371.00" y2="480.00" class="axis"/>
+<text x="75.00" y="499.00" class="tick" text-anchor="middle">0.5</text>
+<text x="134.20" y="499.00" class="tick" text-anchor="middle">2.3</text>
+<text x="193.40" y="499.00" class="tick" text-anchor="middle">4.1</text>
+<text x="252.60" y="499.00" class="tick" text-anchor="middle">5.9</text>
+<text x="311.80" y="499.00" class="tick" text-anchor="middle">7.7</text>
+<text x="371.00" y="499.00" class="tick" text-anchor="middle">9.5</text>
+<text x="223.00" y="528.00" class="subtitle" text-anchor="middle">decision number</text>
+<polyline points="90.86,145.09 123.89,288.50 156.93,386.78 189.96,426.96 223.00,440.12 256.04,456.51 289.07,459.29 322.11,465.83 355.14,469.38" fill="none" stroke="#dc2626" stroke-width="3" stroke-linejoin="round" data-policy="pun"/>
+<circle cx="90.86" cy="145.09" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="123.89" cy="288.50" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="156.93" cy="386.78" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="189.96" cy="426.96" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="223.00" cy="440.12" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="256.04" cy="456.51" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="289.07" cy="459.29" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="322.11" cy="465.83" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="355.14" cy="469.38" r="3" fill="#dc2626" data-policy="pun"/>
+<text x="561.00" y="116" class="panel" text-anchor="middle">Normalized regret ↓</text>
+<line x1="413.00" y1="480.00" x2="709.00" y2="480.00" class="grid"/>
+<text x="405.00" y="484.00" class="tick" text-anchor="end">0.00</text>
+<line x1="413.00" y1="409.00" x2="709.00" y2="409.00" class="grid"/>
+<text x="405.00" y="413.00" class="tick" text-anchor="end">0.20</text>
+<line x1="413.00" y1="338.00" x2="709.00" y2="338.00" class="grid"/>
+<text x="405.00" y="342.00" class="tick" text-anchor="end">0.40</text>
+<line x1="413.00" y1="267.00" x2="709.00" y2="267.00" class="grid"/>
+<text x="405.00" y="271.00" class="tick" text-anchor="end">0.60</text>
+<line x1="413.00" y1="196.00" x2="709.00" y2="196.00" class="grid"/>
+<text x="405.00" y="200.00" class="tick" text-anchor="end">0.80</text>
+<line x1="413.00" y1="125.00" x2="709.00" y2="125.00" class="grid"/>
+<text x="405.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="413.00" y1="125.00" x2="413.00" y2="480.00" class="axis"/>
+<line x1="413.00" y1="480.00" x2="709.00" y2="480.00" class="axis"/>
+<text x="413.00" y="499.00" class="tick" text-anchor="middle">0.5</text>
+<text x="472.20" y="499.00" class="tick" text-anchor="middle">2.3</text>
+<text x="531.40" y="499.00" class="tick" text-anchor="middle">4.1</text>
+<text x="590.60" y="499.00" class="tick" text-anchor="middle">5.9</text>
+<text x="649.80" y="499.00" class="tick" text-anchor="middle">7.7</text>
+<text x="709.00" y="499.00" class="tick" text-anchor="middle">9.5</text>
+<text x="561.00" y="528.00" class="subtitle" text-anchor="middle">decision number</text>
+<polyline points="428.86,391.20 461.89,335.41 494.93,284.24 527.96,267.77 561.00,269.00 594.04,255.08 627.07,255.65 660.11,256.78 693.14,247.65" fill="none" stroke="#dc2626" stroke-width="3" stroke-linejoin="round" data-policy="pun"/>
+<circle cx="428.86" cy="391.20" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="461.89" cy="335.41" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="494.93" cy="284.24" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="527.96" cy="267.77" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="561.00" cy="269.00" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="594.04" cy="255.08" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="627.07" cy="255.65" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="660.11" cy="256.78" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="693.14" cy="247.65" r="3" fill="#dc2626" data-policy="pun"/>
+<text x="899.00" y="116" class="panel" text-anchor="middle">Spearman ↑</text>
+<line x1="751.00" y1="480.00" x2="1047.00" y2="480.00" class="grid"/>
+<text x="743.00" y="484.00" class="tick" text-anchor="end">-1.00</text>
+<line x1="751.00" y1="409.00" x2="1047.00" y2="409.00" class="grid"/>
+<text x="743.00" y="413.00" class="tick" text-anchor="end">-0.60</text>
+<line x1="751.00" y1="338.00" x2="1047.00" y2="338.00" class="grid"/>
+<text x="743.00" y="342.00" class="tick" text-anchor="end">-0.20</text>
+<line x1="751.00" y1="267.00" x2="1047.00" y2="267.00" class="grid"/>
+<text x="743.00" y="271.00" class="tick" text-anchor="end">0.20</text>
+<line x1="751.00" y1="196.00" x2="1047.00" y2="196.00" class="grid"/>
+<text x="743.00" y="200.00" class="tick" text-anchor="end">0.60</text>
+<line x1="751.00" y1="125.00" x2="1047.00" y2="125.00" class="grid"/>
+<text x="743.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="751.00" y1="125.00" x2="751.00" y2="480.00" class="axis"/>
+<line x1="751.00" y1="480.00" x2="1047.00" y2="480.00" class="axis"/>
+<text x="751.00" y="499.00" class="tick" text-anchor="middle">0.5</text>
+<text x="810.20" y="499.00" class="tick" text-anchor="middle">2.3</text>
+<text x="869.40" y="499.00" class="tick" text-anchor="middle">4.1</text>
+<text x="928.60" y="499.00" class="tick" text-anchor="middle">5.9</text>
+<text x="987.80" y="499.00" class="tick" text-anchor="middle">7.7</text>
+<text x="1047.00" y="499.00" class="tick" text-anchor="middle">9.5</text>
+<text x="899.00" y="528.00" class="subtitle" text-anchor="middle">decision number</text>
+<polyline points="766.86,204.68 799.89,252.25 832.93,270.63 865.96,278.30 899.00,280.79 932.04,284.87 965.07,285.79 998.11,283.98 1031.14,284.22" fill="none" stroke="#dc2626" stroke-width="3" stroke-linejoin="round" data-policy="pun"/>
+<circle cx="766.86" cy="204.68" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="799.89" cy="252.25" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="832.93" cy="270.63" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="865.96" cy="278.30" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="899.00" cy="280.79" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="932.04" cy="284.87" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="965.07" cy="285.79" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="998.11" cy="283.98" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1031.14" cy="284.22" r="3" fill="#dc2626" data-policy="pun"/>
+<text x="1237.00" y="116" class="panel" text-anchor="middle">NDCG@5 ↑</text>
+<line x1="1089.00" y1="480.00" x2="1385.00" y2="480.00" class="grid"/>
+<text x="1081.00" y="484.00" class="tick" text-anchor="end">0.00</text>
+<line x1="1089.00" y1="409.00" x2="1385.00" y2="409.00" class="grid"/>
+<text x="1081.00" y="413.00" class="tick" text-anchor="end">0.20</text>
+<line x1="1089.00" y1="338.00" x2="1385.00" y2="338.00" class="grid"/>
+<text x="1081.00" y="342.00" class="tick" text-anchor="end">0.40</text>
+<line x1="1089.00" y1="267.00" x2="1385.00" y2="267.00" class="grid"/>
+<text x="1081.00" y="271.00" class="tick" text-anchor="end">0.60</text>
+<line x1="1089.00" y1="196.00" x2="1385.00" y2="196.00" class="grid"/>
+<text x="1081.00" y="200.00" class="tick" text-anchor="end">0.80</text>
+<line x1="1089.00" y1="125.00" x2="1385.00" y2="125.00" class="grid"/>
+<text x="1081.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="1089.00" y1="125.00" x2="1089.00" y2="480.00" class="axis"/>
+<line x1="1089.00" y1="480.00" x2="1385.00" y2="480.00" class="axis"/>
+<text x="1089.00" y="499.00" class="tick" text-anchor="middle">0.5</text>
+<text x="1148.20" y="499.00" class="tick" text-anchor="middle">2.3</text>
+<text x="1207.40" y="499.00" class="tick" text-anchor="middle">4.1</text>
+<text x="1266.60" y="499.00" class="tick" text-anchor="middle">5.9</text>
+<text x="1325.80" y="499.00" class="tick" text-anchor="middle">7.7</text>
+<text x="1385.00" y="499.00" class="tick" text-anchor="middle">9.5</text>
+<text x="1237.00" y="528.00" class="subtitle" text-anchor="middle">decision number</text>
+<polyline points="1104.86,188.90 1137.89,254.47 1170.93,294.99 1203.96,306.89 1237.00,308.91 1270.04,318.21 1303.07,319.27 1336.11,318.62 1369.14,322.04" fill="none" stroke="#dc2626" stroke-width="3" stroke-linejoin="round" data-policy="pun"/>
+<circle cx="1104.86" cy="188.90" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1137.89" cy="254.47" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1170.93" cy="294.99" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1203.96" cy="306.89" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1237.00" cy="308.91" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1270.04" cy="318.21" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1303.07" cy="319.27" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1336.11" cy="318.62" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1369.14" cy="322.04" r="3" fill="#dc2626" data-policy="pun"/>
+</svg>

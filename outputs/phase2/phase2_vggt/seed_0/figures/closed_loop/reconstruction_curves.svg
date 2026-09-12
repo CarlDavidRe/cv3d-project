@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2300" height="590" viewBox="0 0 2300 590">
+<style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;fill:#475569}.panel{font-size:14px;font-weight:650}.tick{font-size:10px;fill:#475569}.axis{stroke:#64748b;stroke-width:1}.grid{stroke:#e2e8f0;stroke-width:1}.legend{font-size:12px}.value{font-size:10px;font-weight:600}</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="1150.00" y="32" class="title" text-anchor="middle">Reconstruction quality under the shared frozen VGGT backend</text>
+<text x="1150.00" y="54" class="subtitle" text-anchor="middle">Mean over 300 objects; distances are normalized by ground-truth bounding-box diameter.</text>
+<line x1="1130.00" y1="92" x2="1150.00" y2="92" stroke="#7c3aed" stroke-width="3"/>
+<text x="1157.00" y="96.00" class="legend">vggt</text>
+<text x="273.20" y="116" class="panel" text-anchor="middle">Normalized Chamfer-L1 ↓</text>
+<line x1="75.00" y1="510.00" x2="471.40" y2="510.00" class="grid"/>
+<text x="67.00" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="75.00" y1="433.00" x2="471.40" y2="433.00" class="grid"/>
+<text x="67.00" y="437.00" class="tick" text-anchor="end">0.60</text>
+<line x1="75.00" y1="356.00" x2="471.40" y2="356.00" class="grid"/>
+<text x="67.00" y="360.00" class="tick" text-anchor="end">1.19</text>
+<line x1="75.00" y1="279.00" x2="471.40" y2="279.00" class="grid"/>
+<text x="67.00" y="283.00" class="tick" text-anchor="end">1.79</text>
+<line x1="75.00" y1="202.00" x2="471.40" y2="202.00" class="grid"/>
+<text x="67.00" y="206.00" class="tick" text-anchor="end">2.38</text>
+<line x1="75.00" y1="125.00" x2="471.40" y2="125.00" class="grid"/>
+<text x="67.00" y="129.00" class="tick" text-anchor="end">2.98</text>
+<line x1="75.00" y1="125.00" x2="75.00" y2="510.00" class="axis"/>
+<line x1="75.00" y1="510.00" x2="471.40" y2="510.00" class="axis"/>
+<text x="75.00" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="154.28" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="233.56" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="312.84" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="392.12" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="471.40" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="273.20" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="96.24,146.79 135.56,428.86 174.89,445.58 253.54,460.77 450.16,464.97" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linejoin="round" data-policy="vggt"/>
+<circle cx="96.24" cy="146.79" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="135.56" cy="428.86" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="174.89" cy="445.58" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="253.54" cy="460.77" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="450.16" cy="464.97" r="3" fill="#7c3aed" data-policy="vggt"/>
+<text x="711.60" y="116" class="panel" text-anchor="middle">Normalized completeness ↓</text>
+<line x1="513.40" y1="510.00" x2="909.80" y2="510.00" class="grid"/>
+<text x="505.40" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="513.40" y1="433.00" x2="909.80" y2="433.00" class="grid"/>
+<text x="505.40" y="437.00" class="tick" text-anchor="end">0.63</text>
+<line x1="513.40" y1="356.00" x2="909.80" y2="356.00" class="grid"/>
+<text x="505.40" y="360.00" class="tick" text-anchor="end">1.25</text>
+<line x1="513.40" y1="279.00" x2="909.80" y2="279.00" class="grid"/>
+<text x="505.40" y="283.00" class="tick" text-anchor="end">1.88</text>
+<line x1="513.40" y1="202.00" x2="909.80" y2="202.00" class="grid"/>
+<text x="505.40" y="206.00" class="tick" text-anchor="end">2.51</text>
+<line x1="513.40" y1="125.00" x2="909.80" y2="125.00" class="grid"/>
+<text x="505.40" y="129.00" class="tick" text-anchor="end">3.13</text>
+<line x1="513.40" y1="125.00" x2="513.40" y2="510.00" class="axis"/>
+<line x1="513.40" y1="510.00" x2="909.80" y2="510.00" class="axis"/>
+<text x="513.40" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="592.68" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="671.96" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="751.24" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="830.52" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="909.80" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="711.60" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="534.64,146.79 573.96,416.75 613.29,436.79 691.94,452.91 888.56,458.13" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linejoin="round" data-policy="vggt"/>
+<circle cx="534.64" cy="146.79" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="573.96" cy="416.75" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="613.29" cy="436.79" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="691.94" cy="452.91" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="888.56" cy="458.13" r="3" fill="#7c3aed" data-policy="vggt"/>
+<text x="1150.00" y="116" class="panel" text-anchor="middle">Fscore 1Pct ↑</text>
+<line x1="951.80" y1="510.00" x2="1348.20" y2="510.00" class="grid"/>
+<text x="943.80" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="951.80" y1="433.00" x2="1348.20" y2="433.00" class="grid"/>
+<text x="943.80" y="437.00" class="tick" text-anchor="end">0.20</text>
+<line x1="951.80" y1="356.00" x2="1348.20" y2="356.00" class="grid"/>
+<text x="943.80" y="360.00" class="tick" text-anchor="end">0.40</text>
+<line x1="951.80" y1="279.00" x2="1348.20" y2="279.00" class="grid"/>
+<text x="943.80" y="283.00" class="tick" text-anchor="end">0.60</text>
+<line x1="951.80" y1="202.00" x2="1348.20" y2="202.00" class="grid"/>
+<text x="943.80" y="206.00" class="tick" text-anchor="end">0.80</text>
+<line x1="951.80" y1="125.00" x2="1348.20" y2="125.00" class="grid"/>
+<text x="943.80" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="951.80" y1="125.00" x2="951.80" y2="510.00" class="axis"/>
+<line x1="951.80" y1="510.00" x2="1348.20" y2="510.00" class="axis"/>
+<text x="951.80" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="1031.08" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="1110.36" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="1189.64" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="1268.92" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="1348.20" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="1150.00" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="973.04,510.00 1012.36,509.34 1051.69,507.09 1130.34,503.56 1326.96,499.70" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linejoin="round" data-policy="vggt"/>
+<circle cx="973.04" cy="510.00" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1012.36" cy="509.34" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1051.69" cy="507.09" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1130.34" cy="503.56" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1326.96" cy="499.70" r="3" fill="#7c3aed" data-policy="vggt"/>
+<text x="1588.40" y="116" class="panel" text-anchor="middle">Fscore 2Pct ↑</text>
+<line x1="1390.20" y1="510.00" x2="1786.60" y2="510.00" class="grid"/>
+<text x="1382.20" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="1390.20" y1="433.00" x2="1786.60" y2="433.00" class="grid"/>
+<text x="1382.20" y="437.00" class="tick" text-anchor="end">0.20</text>
+<line x1="1390.20" y1="356.00" x2="1786.60" y2="356.00" class="grid"/>
+<text x="1382.20" y="360.00" class="tick" text-anchor="end">0.40</text>
+<line x1="1390.20" y1="279.00" x2="1786.60" y2="279.00" class="grid"/>
+<text x="1382.20" y="283.00" class="tick" text-anchor="end">0.60</text>
+<line x1="1390.20" y1="202.00" x2="1786.60" y2="202.00" class="grid"/>
+<text x="1382.20" y="206.00" class="tick" text-anchor="end">0.80</text>
+<line x1="1390.20" y1="125.00" x2="1786.60" y2="125.00" class="grid"/>
+<text x="1382.20" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="1390.20" y1="125.00" x2="1390.20" y2="510.00" class="axis"/>
+<line x1="1390.20" y1="510.00" x2="1786.60" y2="510.00" class="axis"/>
+<text x="1390.20" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="1469.48" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="1548.76" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="1628.04" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="1707.32" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="1786.60" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="1588.40" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="1411.44,510.00 1450.76,508.35 1490.09,503.28 1568.74,496.58 1765.36,488.44" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linejoin="round" data-policy="vggt"/>
+<circle cx="1411.44" cy="510.00" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1450.76" cy="508.35" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1490.09" cy="503.28" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1568.74" cy="496.58" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1765.36" cy="488.44" r="3" fill="#7c3aed" data-policy="vggt"/>
+<text x="2026.80" y="116" class="panel" text-anchor="middle">Fscore 10Pct ↑</text>
+<line x1="1828.60" y1="510.00" x2="2225.00" y2="510.00" class="grid"/>
+<text x="1820.60" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="1828.60" y1="433.00" x2="2225.00" y2="433.00" class="grid"/>
+<text x="1820.60" y="437.00" class="tick" text-anchor="end">0.20</text>
+<line x1="1828.60" y1="356.00" x2="2225.00" y2="356.00" class="grid"/>
+<text x="1820.60" y="360.00" class="tick" text-anchor="end">0.40</text>
+<line x1="1828.60" y1="279.00" x2="2225.00" y2="279.00" class="grid"/>
+<text x="1820.60" y="283.00" class="tick" text-anchor="end">0.60</text>
+<line x1="1828.60" y1="202.00" x2="2225.00" y2="202.00" class="grid"/>
+<text x="1820.60" y="206.00" class="tick" text-anchor="end">0.80</text>
+<line x1="1828.60" y1="125.00" x2="2225.00" y2="125.00" class="grid"/>
+<text x="1820.60" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="1828.60" y1="125.00" x2="1828.60" y2="510.00" class="axis"/>
+<line x1="1828.60" y1="510.00" x2="2225.00" y2="510.00" class="axis"/>
+<text x="1828.60" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="1907.88" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="1987.16" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="2066.44" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="2145.72" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="2225.00" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="2026.80" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="1849.84,509.94 1889.16,491.82 1928.49,462.42 2007.14,436.41 2203.76,415.61" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linejoin="round" data-policy="vggt"/>
+<circle cx="1849.84" cy="509.94" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1889.16" cy="491.82" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="1928.49" cy="462.42" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="2007.14" cy="436.41" r="3" fill="#7c3aed" data-policy="vggt"/>
+<circle cx="2203.76" cy="415.61" r="3" fill="#7c3aed" data-policy="vggt"/>
+</svg>

@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1460" height="590" viewBox="0 0 1460 590">
+<style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;fill:#475569}.panel{font-size:14px;font-weight:650}.tick{font-size:10px;fill:#475569}.axis{stroke:#64748b;stroke-width:1}.grid{stroke:#e2e8f0;stroke-width:1}.legend{font-size:12px}.value{font-size:10px;font-weight:600}</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="730.00" y="32" class="title" text-anchor="middle">Mean surface coverage by acquired-view count</text>
+<text x="730.00" y="54" class="subtitle" text-anchor="middle">Mean over 300 objects; absolute target: vis_a; reachable normalization uses each object&#x27;s eligible-view union.</text>
+<line x1="710.00" y1="92" x2="730.00" y2="92" stroke="#dc2626" stroke-width="3"/>
+<text x="737.00" y="96.00" class="legend">pun</text>
+<text x="392.00" y="116" class="panel" text-anchor="middle">Absolute coverage</text>
+<line x1="75.00" y1="510.00" x2="709.00" y2="510.00" class="grid"/>
+<text x="67.00" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="75.00" y1="433.00" x2="709.00" y2="433.00" class="grid"/>
+<text x="67.00" y="437.00" class="tick" text-anchor="end">0.20</text>
+<line x1="75.00" y1="356.00" x2="709.00" y2="356.00" class="grid"/>
+<text x="67.00" y="360.00" class="tick" text-anchor="end">0.40</text>
+<line x1="75.00" y1="279.00" x2="709.00" y2="279.00" class="grid"/>
+<text x="67.00" y="283.00" class="tick" text-anchor="end">0.60</text>
+<line x1="75.00" y1="202.00" x2="709.00" y2="202.00" class="grid"/>
+<text x="67.00" y="206.00" class="tick" text-anchor="end">0.80</text>
+<line x1="75.00" y1="125.00" x2="709.00" y2="125.00" class="grid"/>
+<text x="67.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="75.00" y1="125.00" x2="75.00" y2="510.00" class="axis"/>
+<line x1="75.00" y1="510.00" x2="709.00" y2="510.00" class="axis"/>
+<text x="75.00" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="201.80" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="328.60" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="455.40" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="582.20" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="709.00" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="392.00" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="108.96,434.82 171.86,326.85 234.76,265.12 297.65,235.07 360.55,217.97 423.45,205.11 486.35,197.54 549.24,190.86 612.14,186.30 675.04,182.87" fill="none" stroke="#dc2626" stroke-width="3" stroke-linejoin="round" data-policy="pun"/>
+<circle cx="108.96" cy="434.82" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="171.86" cy="326.85" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="234.76" cy="265.12" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="297.65" cy="235.07" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="360.55" cy="217.97" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="423.45" cy="205.11" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="486.35" cy="197.54" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="549.24" cy="190.86" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="612.14" cy="186.30" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="675.04" cy="182.87" r="3" fill="#dc2626" data-policy="pun"/>
+<text x="1068.00" y="116" class="panel" text-anchor="middle">Reachable-normalized coverage</text>
+<line x1="751.00" y1="510.00" x2="1385.00" y2="510.00" class="grid"/>
+<text x="743.00" y="514.00" class="tick" text-anchor="end">0.00</text>
+<line x1="751.00" y1="433.00" x2="1385.00" y2="433.00" class="grid"/>
+<text x="743.00" y="437.00" class="tick" text-anchor="end">0.20</text>
+<line x1="751.00" y1="356.00" x2="1385.00" y2="356.00" class="grid"/>
+<text x="743.00" y="360.00" class="tick" text-anchor="end">0.40</text>
+<line x1="751.00" y1="279.00" x2="1385.00" y2="279.00" class="grid"/>
+<text x="743.00" y="283.00" class="tick" text-anchor="end">0.60</text>
+<line x1="751.00" y1="202.00" x2="1385.00" y2="202.00" class="grid"/>
+<text x="743.00" y="206.00" class="tick" text-anchor="end">0.80</text>
+<line x1="751.00" y1="125.00" x2="1385.00" y2="125.00" class="grid"/>
+<text x="743.00" y="129.00" class="tick" text-anchor="end">1.00</text>
+<line x1="751.00" y1="125.00" x2="751.00" y2="510.00" class="axis"/>
+<line x1="751.00" y1="510.00" x2="1385.00" y2="510.00" class="axis"/>
+<text x="751.00" y="529.00" class="tick" text-anchor="middle">0.5</text>
+<text x="877.80" y="529.00" class="tick" text-anchor="middle">2.5</text>
+<text x="1004.60" y="529.00" class="tick" text-anchor="middle">4.5</text>
+<text x="1131.40" y="529.00" class="tick" text-anchor="middle">6.5</text>
+<text x="1258.20" y="529.00" class="tick" text-anchor="middle">8.5</text>
+<text x="1385.00" y="529.00" class="tick" text-anchor="middle">10.5</text>
+<text x="1068.00" y="558.00" class="subtitle" text-anchor="middle">total acquired views (initial views included)</text>
+<polyline points="784.96,431.36 847.86,315.89 910.76,249.89 973.65,217.46 1036.55,198.73 1099.45,184.83 1162.35,176.62 1225.24,169.33 1288.14,164.34 1351.04,160.60" fill="none" stroke="#dc2626" stroke-width="3" stroke-linejoin="round" data-policy="pun"/>
+<circle cx="784.96" cy="431.36" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="847.86" cy="315.89" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="910.76" cy="249.89" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="973.65" cy="217.46" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1036.55" cy="198.73" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1099.45" cy="184.83" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1162.35" cy="176.62" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1225.24" cy="169.33" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1288.14" cy="164.34" r="3" fill="#dc2626" data-policy="pun"/>
+<circle cx="1351.04" cy="160.60" r="3" fill="#dc2626" data-policy="pun"/>
+</svg>
