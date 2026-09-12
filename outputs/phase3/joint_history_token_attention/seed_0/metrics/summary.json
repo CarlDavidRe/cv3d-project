@@ -1,0 +1,138 @@
+{
+  "backbone": {
+    "feature_components": [
+      "max_pooled_patch"
+    ],
+    "frozen": true,
+    "history_mode": "joint_multiview",
+    "image_size": 518,
+    "layer_index": -1,
+    "model_id": "facebook/VGGT-1B",
+    "name": "vggt",
+    "padding_strategy": "group_by_real_history_length",
+    "representation": "spatial_patch_tokens",
+    "spatial_token_grid_size": 2,
+    "training_feature_strategy": "materialize_joint_features_once_in_system_memory"
+  },
+  "best_epoch": 48,
+  "best_validation_loss": 0.050389904446831536,
+  "checkpoint": "/content/cv3d-project/outputs/phase3/joint_history_token_attention/seed_0/checkpoints/best.pt",
+  "checkpoint_sha256": "8e257d0d09ff3a91a609911b91acd4ee240a0f15c487eaa5628854923202a48b",
+  "control_match": {
+    "all_required_fields_match": true,
+    "capacity_match": "not_required_for_expressive_follow_up_variant",
+    "checkpoint_identity_note": "The Step 16 feature cache records facebook/VGGT-1B but no weight checksum; model ID, preprocessing, layer, and source patch-token family are matched. The token-attention follow-up intentionally retains a spatial grid instead of applying the independent max pool.",
+    "effective_batch_size": 64,
+    "field_checks": {
+      "coverage_target": true,
+      "deterministic_mode": true,
+      "dropout": true,
+      "effective_batch_size": true,
+      "feature_components": true,
+      "hidden_dim": true,
+      "history_manifest": true,
+      "include_anchor_directions": true,
+      "optimizer_loss_and_budget": true,
+      "seed": true
+    },
+    "independent_feature_cache": "/content/cv3d-project/data/cache/features/vggt/vggt_max_pooled_patch/train_0b3f8faf5af10256.pt",
+    "independent_feature_cache_sha256": "e2f06f4a08cf34310c2b94f000c3ac863bba9a1156049efbcaef386b126c20c4",
+    "independent_microbatch_size": 64,
+    "joint_backbone_precompute_batch_size": 4,
+    "joint_backbone_representation": "spatial_patch_tokens",
+    "joint_gradient_accumulation_steps": 2,
+    "joint_head_microbatch_size": 32,
+    "matched_independent_config": "/content/cv3d-project/configs/experiments/phase3_independent.yaml",
+    "matched_independent_config_sha256": "a232c0e3a886ebaabfdf4788bbc1d0736bc0096d87f040a97380c424418afaf2",
+    "optimizer": "AdamW",
+    "same_patch_token_source": true,
+    "same_vggt_model_id_and_feature_selection": null,
+    "same_vggt_model_id_layer_and_preprocessing": true
+  },
+  "coverage_target": "vis_a",
+  "epochs_completed": 58,
+  "frozen_backbone_parameters": 909112320,
+  "frozen_feature_precompute": {
+    "backbone_forwards_per_history": 1,
+    "cache_every_batches": 32,
+    "cache_root": "/content/cv3d-project/outputs/phase3/joint_history_token_attention/seed_0/joint_feature_cache",
+    "cache_shards": 307,
+    "configured_batch_size": 4,
+    "elapsed_seconds": 276.97225531499953,
+    "enabled": true,
+    "num_workers": 4,
+    "pin_memory": true,
+    "storage": "system_memory_and_resumable_disk_shards",
+    "train_bytes": 4789370880,
+    "validation_bytes": 600047616
+  },
+  "held_out_test_and_closed_loop_comparison": "deferred_to_step_18",
+  "history_dataset_id": "dd7f802d5c8f15e3f47110f4d7a72402bc95673777b663a28889c0bc6aaf9a36",
+  "matched_independent_trainable_parameters": 272950,
+  "memory_preflight": {
+    "cpu_memory_note": null,
+    "device": "cuda:0",
+    "enabled": true,
+    "measurement_scope": "frozen_joint_vggt_plus_trainable_head_forward",
+    "measurements": [
+      {
+        "batch_size": 1,
+        "elapsed_seconds": 0.7448920000006183,
+        "history_length": 1,
+        "peak_memory_allocated_bytes": 3742134272,
+        "peak_memory_reserved_bytes": 3779067904,
+        "prediction_shape": [
+          1,
+          48
+        ]
+      },
+      {
+        "batch_size": 1,
+        "elapsed_seconds": 0.15815269499944407,
+        "history_length": 2,
+        "peak_memory_allocated_bytes": 3839261696,
+        "peak_memory_reserved_bytes": 3911188480,
+        "prediction_shape": [
+          1,
+          48
+        ]
+      }
+    ]
+  },
+  "model": {
+    "aggregation": "candidate_cross_attention",
+    "anchor_ordering": "pun_healpix_nside2_ring_anchor0_positive_z_v1",
+    "architecture": "token_candidate_attention",
+    "attention_dim": 128,
+    "attention_heads": 4,
+    "backbone_history_mode": "joint_multiview_spatial_tokens",
+    "dropout": 0.1,
+    "feature_dim": 2048,
+    "hidden_dim": 128,
+    "include_anchor_directions": true,
+    "num_anchors": 48,
+    "score_hidden_dim": 128,
+    "token_grid_size": 2
+  },
+  "resumed": true,
+  "scope": "joint_control_training_and_short_history_preflight",
+  "step": 17,
+  "train_samples": 34800,
+  "trainable_parameters": 350209,
+  "training_checkpoint": "/content/cv3d-project/outputs/phase3/joint_history_token_attention/seed_0/checkpoints/training_state.pt",
+  "training_checkpoint_sha256": "d088e64b90aa856818de52a0fccd679f71ec30b5bed4b55d44c00f1c8d023a13",
+  "training_resumed": false,
+  "validation": {
+    "huber_loss": 0.00942517097765973,
+    "loss": 0.05035516858237599,
+    "ndcg_at_5_mean": 0.8935079914727598,
+    "ndcg_at_5_valid_count": 4360,
+    "normalized_regret_mean": 0.12733162608801496,
+    "normalized_regret_valid_count": 4360,
+    "num_samples": 4360,
+    "ranking_loss": 0.4092999672124145,
+    "spearman_mean": 0.7912944887072958,
+    "spearman_valid_count": 4360
+  },
+  "validation_samples": 4360
+}
