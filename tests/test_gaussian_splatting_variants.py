@@ -1,0 +1,151 @@
+from __future__ import annotations
+
+import csv
+import json
+import tempfile
+import unittest
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
+from unittest.mock import patch
+
+from scripts.evaluate_gaussian_splatting_variants import (
+    PHASE2_POLICIES,
+    PHASE3_POLICIES,
+    Variant,
+    discover_variants,
+    main,
+    normalize_views,
+    validate_inputs,
+    write_index,
+)
+
+
+def write_rows(path: Path, policies: tuple[str, ...], views=(1, 2, 3, 5, 10)) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=("object_id", "policy", "acquired_view_count"),
+        )
+        writer.writeheader()
+        for policy in policies:
+            for view_count in views:
+                writer.writerow({
+                    "object_id": "category/object",
+                    "policy": policy,
+                    "acquired_view_count": view_count,
+                })
+
+
+class GaussianSplattingVariantTests(unittest.TestCase):
+    def test_views_are_unique_sorted_and_positive(self) -> None:
+        self.assertEqual(normalize_views((10, 1, 5, 1)), (1, 5, 10))
+        with self.assertRaisesRegex(ValueError, "positive"):
+            normalize_views((1, 0))
+
+    def test_discovers_eight_variants_and_deduplicates_independent_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            phase2 = root / "phase2"
+            phase3 = root / "phase3"
+            phase2_metrics = phase2 / "combined/metrics/reconstruction_per_object.csv"
+            controlled = phase3 / "controlled/metrics/reconstruction_per_object.csv"
+            deeper = phase3 / "nested/deeper/metrics/reconstruction_per_object.csv"
+            write_rows(phase2_metrics, PHASE2_POLICIES)
+            write_rows(
+                controlled,
+                ("vggt_independent_history", "vggt_joint_history"),
+            )
+            write_rows(
+                deeper,
+                ("vggt_independent_history", "vggt_joint_pose_deepsets"),
+            )
+
+            variants = discover_variants(phase2, phase3)
+
+            self.assertEqual(len(variants), 8)
+            self.assertEqual(len({variant.key for variant in variants}), 8)
+            independent = next(
+                variant for variant in variants
+                if variant.policy == "vggt_independent_history"
+            )
+            self.assertEqual(independent.metrics, controlled)
+
+    def test_validation_reports_missing_increment(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            metrics = Path(temporary) / "metrics.csv"
+            write_rows(metrics, ("random",), views=(1, 2))
+            with self.assertRaisesRegex(ValueError, r"phase2_random: \[3\]"):
+                validate_inputs(
+                    (Variant("phase2", "random", metrics),),
+                    "category/object",
+                    (1, 2, 3),
+                )
+
+    def test_index_links_existing_outputs_and_marks_missing_ones(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            variant = Variant("phase2", "random", root / "metrics.csv")
+            target = root / "1views/phase2_random/2dgs/comparison_interactive.html"
+            target.parent.mkdir(parents=True)
+            target.write_text("fixture", encoding="utf-8")
+
+            write_index(
+                root / "index.html", "category/object", (variant,), (1,), "both"
+            )
+
+            document = (root / "index.html").read_text(encoding="utf-8")
+            self.assertIn(
+                'href="1views/phase2_random/2dgs/comparison_interactive.html"',
+                document,
+            )
+            self.assertIn('<span class="missing">3DGS vs GT</span>', document)
+            self.assertIn("Each view count is trained independently", document)
+
+    def test_dry_run_builds_all_variant_increment_combinations(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            phase2 = root / "phase2"
+            phase3 = root / "phase3"
+            output = root / "output"
+            write_rows(
+                phase2 / "combined/metrics/reconstruction_per_object.csv",
+                PHASE2_POLICIES,
+                views=(1, 3),
+            )
+            write_rows(
+                phase3 / "controlled/metrics/reconstruction_per_object.csv",
+                ("vggt_independent_history", "vggt_joint_history"),
+                views=(1, 3),
+            )
+            write_rows(
+                phase3 / "pose/deeper/metrics/reconstruction_per_object.csv",
+                ("vggt_independent_history", "vggt_joint_pose_deepsets"),
+                views=(1, 3),
+            )
+            arguments = [
+                "evaluate_gaussian_splatting_variants.py",
+                "--object-id", "category/object",
+                "--views", "1", "3",
+                "--phase2-root", str(phase2),
+                "--phase3-root", str(phase3),
+                "--output-root", str(output),
+                "--dry-run",
+            ]
+
+            with patch("sys.argv", arguments), redirect_stdout(StringIO()):
+                self.assertEqual(main(), 0)
+
+            object_root = output / "category_object"
+            payload = json.loads(
+                (object_root / "manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(len(payload["variants"]), 8)
+            self.assertEqual(len(payload["runs"]), 16)
+            self.assertEqual({run["status"] for run in payload["runs"]}, {"dry_run"})
+            self.assertTrue((object_root / "index.html").is_file())
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -2,7 +2,7 @@
 
 ## Local dashboard
 
-Launch the blank dashboard shell from the repository root:
+Launch the interactive experiment dashboard from the repository root:
 
 ```bash
 make dashboard
@@ -335,19 +335,32 @@ environment:
 python3 -m pip install -e '.[gaussian-splatting]'
 ```
 
-Train and geometrically evaluate 2D Gaussian Splatting, and independently
-train 3D Gaussian Splatting for qualitative visualization, from one cached
-VGGT history:
+For one test object, train every Phase 2 and Phase 3 variant independently at
+each incremental view count, geometrically evaluate 2D Gaussian Splatting, and
+render 3D Gaussian Splatting for qualitative visualization:
 
 ```bash
-python3 scripts/evaluate_gaussian_splatting.py \
-  outputs/phase2/phase2_closed_loop_reconstruction/seed_0/metrics/reconstruction_per_object.csv \
+python3 scripts/evaluate_gaussian_splatting_variants.py \
   --object-id 02691156/1628b65a9f3cd7c05e9e2656aff7dd5b \
-  --policy vggt \
-  --views 10 \
+  --views 1 2 3 5 10 \
   --backend both \
   --iterations 1500
 ```
+
+The runner discovers the five Phase 2 policies (`random`, `farthest`, `pun`,
+`vggt`, and `oracle`) and the three distinct Phase 3 policies
+(`vggt_independent_history`, `vggt_joint_history`, and
+`vggt_joint_pose_deepsets`) from their reconstruction CSV files. A duplicated
+independent-history control is run only once. Each policy/view-count pair gets
+a fresh model; view counts do not continue training from the preceding model.
+Completed backend summaries are skipped on reruns unless `--force` is given.
+Use `--dry-run` to validate all histories and inspect the commands without
+starting CUDA training.
+
+Results are written below
+`outputs/gaussian_splatting_variant_comparison/<category>_<object>/`, where
+`index.html` links the 2DGS ground-truth overlays and the 2DGS/3DGS render
+galleries for every variant and view count.
 
 Both backends use the cached, camera-aligned VGGT points for initialization
 and train against the selected RGB history with known NUM cameras. The 2DGS
