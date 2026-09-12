@@ -361,23 +361,21 @@ environment:
 python3 -m pip install -e '.[gaussian-splatting]'
 ```
 
-To evaluate two objects from each category held out entirely from training,
-train every Phase 2 and Phase 3 variant independently at each incremental view
-count, geometrically evaluate 2D Gaussian Splatting, and render 3D Gaussian
-Splatting for qualitative visualization:
+To evaluate every object in the test split, train every Phase 2 and Phase 3
+variant independently at each incremental view count, geometrically evaluate
+2D Gaussian Splatting, and render 3D Gaussian Splatting for qualitative
+visualization:
 
 ```bash
 mapfile -t test_objects < <(
   python3 - <<'PY'
 import json
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 with open("data/splits/num_v1.json", encoding="utf-8") as handle:
     manifest = json.load(handle)
 
-held_out_categories = set(manifest["protocol"]["held_out_test_categories"])
 test_objects = manifest["splits"]["test"]
 views = (1, 2, 3, 5, 10)
 variants = (
@@ -388,25 +386,18 @@ variants = (
 backends = ("2dgs", "3dgs")
 output_root = Path("outputs/gaussian_splatting_variant_comparison")
 
-by_category = defaultdict(list)
 for object_id in test_objects:
-    category_id = object_id.split("/", 1)[0]
-    if category_id in held_out_categories:
-        by_category[category_id].append(object_id)
-
-for category_id in sorted(by_category):
-    for object_id in sorted(by_category[category_id])[:2]:
-        root = output_root / object_id.replace("/", "_")
-        complete = all(
-            (root / f"{view_count}views" / variant / backend / "summary.json").is_file()
-            for view_count in views
-            for variant in variants
-            for backend in backends
-        )
-        if complete:
-            print(f"SKIP {object_id} (already complete)", file=sys.stderr)
-        else:
-            print(object_id)
+    root = output_root / object_id.replace("/", "_")
+    complete = all(
+        (root / f"{view_count}views" / variant / backend / "summary.json").is_file()
+        for view_count in views
+        for variant in variants
+        for backend in backends
+    )
+    if complete:
+        print(f"SKIP {object_id} (already complete)", file=sys.stderr)
+    else:
+        print(object_id)
 PY
 )
 
@@ -419,11 +410,9 @@ for object_id in "${test_objects[@]}"; do
 done
 ```
 
-Selection is deterministic: the command reads the categories listed in
-`protocol.held_out_test_categories` and takes the first two sorted test object
-IDs in each (four objects across the two held-out categories in the checked-in
-manifest). An object is omitted from the loop once all requested view, variant,
-and backend summaries exist.
+Selection is deterministic: the command processes every object ID in
+`splits.test` in manifest order. An object is omitted from the loop once all
+requested view, variant, and backend summaries exist.
 
 The runner discovers the five Phase 2 policies (`random`, `farthest`, `pun`,
 `vggt`, and `oracle`) and the three distinct Phase 3 policies

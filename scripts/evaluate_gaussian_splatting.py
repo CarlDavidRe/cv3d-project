@@ -44,6 +44,7 @@ from scripts.visualize_reconstruction import (
     cached_path,
     find_ground_truth,
     load_prediction,
+    mapping_sha256,
     parse_history,
     select_row,
     validate_object_id,
@@ -51,6 +52,45 @@ from scripts.visualize_reconstruction import (
     write_ply,
     write_preview,
 )
+
+
+def resolve_metric_cache(
+    root: Path,
+    object_id: str,
+    recorded: str,
+    prediction_identity: dict[str, object],
+) -> tuple[Path, dict[str, object]]:
+    """Resolve a metric cache, tolerating a stale hash recorded in an old CSV."""
+
+    try:
+        path = cached_path(root, "metrics", object_id, recorded)
+    except ValueError as recorded_error:
+        prediction_id = mapping_sha256(prediction_identity)
+        matches: list[tuple[Path, dict[str, object]]] = []
+        directory = root / "metrics" / object_id
+        for candidate in sorted(directory.glob("*.json")):
+            try:
+                payload = json.loads(candidate.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            identity = payload.get("identity")
+            if (
+                isinstance(identity, dict)
+                and identity.get("prediction_id") == prediction_id
+                and isinstance(identity.get("target_id"), str)
+            ):
+                matches.append((candidate, payload))
+        if not matches:
+            raise recorded_error
+        target_ids = {match[1]["identity"]["target_id"] for match in matches}
+        if len(target_ids) != 1:
+            raise ValueError(
+                "compatible metric caches disagree on the ground-truth target for "
+                f"prediction {prediction_id}"
+            )
+        return matches[0]
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return path, payload
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -99,14 +139,15 @@ def main() -> int:
             args.reconstruction_cache_root, "predictions", object_id,
             row["prediction_cache_path"],
         )
-        metric_path = cached_path(
-            args.reconstruction_cache_root, "metrics", object_id,
-            row["metric_cache_path"],
-        )
         raw_points, predicted_cameras, identity = load_prediction(prediction_path)
+        metric_path, metric_payload = resolve_metric_cache(
+            args.reconstruction_cache_root,
+            object_id,
+            row["metric_cache_path"],
+            identity,
+        )
         if identity.get("history_anchor_ids") != history:
             raise ValueError("prediction cache history does not match the metric row")
-        metric_payload = json.loads(metric_path.read_text(encoding="utf-8"))
         target_path, target_points = find_ground_truth(
             args.reconstruction_cache_root,
             object_id,

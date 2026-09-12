@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,6 +8,9 @@ from unittest.mock import patch
 
 import numpy as np
 import torch
+
+from scripts.evaluate_gaussian_splatting import resolve_metric_cache
+from scripts.visualize_reconstruction import mapping_sha256
 
 from nbv.eval.gaussian_splatting import (
     GaussianParameters,
@@ -27,6 +31,28 @@ from nbv.geometry.visibility import PerspectiveCamera
 
 
 class GaussianSplattingTests(unittest.TestCase):
+    def test_stale_metric_cache_path_resolves_by_prediction_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            object_id = "category/object"
+            identity = {"object_id": object_id, "history_anchor_ids": [0]}
+            current = root / "metrics" / object_id / "current.json"
+            current.parent.mkdir(parents=True)
+            current.write_text(json.dumps({
+                "identity": {
+                    "prediction_id": mapping_sha256(identity),
+                    "target_id": "target-hash",
+                },
+                "metrics": {},
+            }), encoding="utf-8")
+
+            path, payload = resolve_metric_cache(
+                root, object_id, "/old/location/stale.json", identity
+            )
+
+            self.assertEqual(path, current)
+            self.assertEqual(payload["identity"]["target_id"], "target-hash")
+
     def test_2dgs_distortion_loss_requests_depth_rendering(self) -> None:
         captured: dict[str, object] = {}
         expected = (object(),) * 7
