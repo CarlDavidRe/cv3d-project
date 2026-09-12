@@ -227,6 +227,7 @@ def _rasterize_2dgs_training(
 ) -> tuple[torch.Tensor, ...]:
     """Render RGB and depth required by gsplat's 2DGS distortion loss."""
 
+    values = _expand_2dgs_colors_for_cameras(values, len(view))
     return rasterizer(
         *values,
         view,
@@ -237,6 +238,25 @@ def _rasterize_2dgs_training(
         render_mode="RGB+ED",
         distloss=True,
     )
+
+
+def _expand_2dgs_colors_for_cameras(
+    values: tuple[torch.Tensor, ...], camera_count: int
+) -> tuple[torch.Tensor, ...]:
+    """Work around gsplat >=1.5.3's missing 2DGS color broadcasting.
+
+    Camera-specific ``[C,N,D]`` colors are part of gsplat's public contract and
+    work in both affected and unaffected releases.  ``expand`` also preserves
+    gradient accumulation into the model's view-independent ``[N,D]`` colors.
+    """
+
+    if len(values) != 5:
+        raise ValueError("Gaussian rasterizer values must contain five tensors")
+    colors = values[-1]
+    if colors.ndim != 2:
+        raise ValueError("View-independent Gaussian colors must have shape [N,D]")
+    expanded_colors = colors.unsqueeze(0).expand(camera_count, -1, -1).contiguous()
+    return (*values[:-1], expanded_colors)
 
 
 def train_gaussian_splats(
@@ -333,8 +353,11 @@ def render_splats(
         batch_intrinsics = intrinsics[start : start + settings.render_batch_size]
         white = torch.ones((len(batch_views), 3), device=device)
         if settings.backend == "2dgs":
+            batch_values = _expand_2dgs_colors_for_cameras(
+                values, len(batch_views)
+            )
             rgb, alpha, _, _, _, median_depth, _ = rasterizer(
-                *values, batch_views, batch_intrinsics,
+                *batch_values, batch_views, batch_intrinsics,
                 settings.resolution, settings.resolution,
                 backgrounds=white, render_mode="RGB", depth_mode="median",
             )

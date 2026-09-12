@@ -11,6 +11,32 @@ make dashboard
 The command creates a local `.venv` when needed and installs the dashboard
 dependencies on first launch.
 
+### Run the dashboard without cloning the full repository
+
+The dashboard does not require the project source code, datasets, model
+checkpoints, or ML dependencies. A shallow sparse clone can download only the
+dashboard and the Phase 1 summary files it displays:
+
+```bash
+git clone --depth 1 --filter=blob:none --sparse \
+  git@github.com:CarlDavidRe/cv3d-project.git cv3d-dashboard
+
+cd cv3d-dashboard
+
+git sparse-checkout set --no-cone \
+  '/dashboard/' \
+  '/requirements-dashboard.txt' \
+  '/outputs/phase1/backbone_sweep/**/summary.json'
+
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements-dashboard.txt
+streamlit run dashboard/app.py
+```
+
+This keeps the directory layout expected by the app while avoiding the full
+repository history and large experiment artifacts.
+
 Select a GPU runtime and mount Google Drive with Colab's left-sidebar folder
 icon. Drive authorization is the only UI prerequisite. Every command below is
 ordinary Bash intended to be pasted directly into the **Colab terminal**; do
@@ -335,17 +361,40 @@ environment:
 python3 -m pip install -e '.[gaussian-splatting]'
 ```
 
-For one test object, train every Phase 2 and Phase 3 variant independently at
-each incremental view count, geometrically evaluate 2D Gaussian Splatting, and
-render 3D Gaussian Splatting for qualitative visualization:
+To evaluate two objects from every category in the frozen held-out test split,
+train every Phase 2 and Phase 3 variant independently at each incremental view
+count, geometrically evaluate 2D Gaussian Splatting, and render 3D Gaussian
+Splatting for qualitative visualization:
 
 ```bash
-python3 scripts/evaluate_gaussian_splatting_variants.py \
-  --object-id 02691156/1628b65a9f3cd7c05e9e2656aff7dd5b \
-  --views 1 2 3 5 10 \
-  --backend both \
-  --iterations 1500
+mapfile -t test_objects < <(
+  python3 - <<'PY'
+import json
+from collections import defaultdict
+
+with open("data/splits/num_v1.json", encoding="utf-8") as handle:
+    test_objects = json.load(handle)["splits"]["test"]
+
+by_category = defaultdict(list)
+for object_id in test_objects:
+    by_category[object_id.split("/", 1)[0]].append(object_id)
+for category_id in sorted(by_category):
+    print(*sorted(by_category[category_id])[:2], sep="\n")
+PY
+)
+
+for object_id in "${test_objects[@]}"; do
+  python3 scripts/evaluate_gaussian_splatting_variants.py \
+    --object-id "$object_id" \
+    --views 1 2 3 5 10 \
+    --backend both \
+    --iterations 1500
+done
 ```
+
+Selection is deterministic: the command takes the first two sorted test object
+IDs in each category recorded by `data/splits/num_v1.json` (24 objects across
+the 12 categories in the checked-in manifest).
 
 The runner discovers the five Phase 2 policies (`random`, `farthest`, `pun`,
 `vggt`, and `oracle`) and the three distinct Phase 3 policies
@@ -357,8 +406,8 @@ Completed backend summaries are skipped on reruns unless `--force` is given.
 Use `--dry-run` to validate all histories and inspect the commands without
 starting CUDA training.
 
-Results are written below
-`outputs/gaussian_splatting_variant_comparison/<category>_<object>/`, where
+Results for each object are written below
+`outputs/gaussian_splatting_variant_comparison/<category>_<object>/`, where its
 `index.html` links the 2DGS ground-truth overlays and the 2DGS/3DGS render
 galleries for every variant and view count.
 

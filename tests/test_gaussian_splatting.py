@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
+import torch
 
 from nbv.eval.gaussian_splatting import (
     GaussianParameters,
@@ -35,16 +36,56 @@ class GaussianSplattingTests(unittest.TestCase):
 
         actual = _rasterize_2dgs_training(
             rasterizer,
-            (),
-            object(),
-            object(),
+            (
+                torch.zeros((2, 3)),
+                torch.zeros((2, 4)),
+                torch.zeros((2, 3)),
+                torch.zeros(2),
+                torch.tensor(
+                    [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]], requires_grad=True
+                ),
+            ),
+            torch.zeros((3, 4, 4)),
+            torch.zeros((3, 3, 3)),
             16,
-            object(),
+            torch.ones((3, 3)),
         )
 
         self.assertIs(actual, expected)
         self.assertEqual(captured["render_mode"], "RGB+ED")
         self.assertIs(captured["distloss"], True)
+
+    def test_2dgs_training_broadcasts_colors_across_cameras(self) -> None:
+        captured: dict[str, object] = {}
+        colors = torch.tensor(
+            [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]], requires_grad=True
+        )
+
+        def rasterizer(*args: object, **kwargs: object) -> tuple[object, ...]:
+            captured["colors"] = args[4]
+            return (object(),) * 7
+
+        _rasterize_2dgs_training(
+            rasterizer,
+            (
+                torch.zeros((2, 3)),
+                torch.zeros((2, 4)),
+                torch.zeros((2, 3)),
+                torch.zeros(2),
+                colors,
+            ),
+            torch.zeros((3, 4, 4)),
+            torch.zeros((3, 3, 3)),
+            16,
+            torch.ones((3, 3)),
+        )
+
+        expanded = captured["colors"]
+        self.assertIsInstance(expanded, torch.Tensor)
+        self.assertEqual(expanded.shape, (3, 2, 3))
+        torch.testing.assert_close(expanded[0], colors)
+        expanded.sum().backward()
+        torch.testing.assert_close(colors.grad, torch.full_like(colors, 3.0))
 
     def test_num_camera_conversion_flips_opengl_axes(self) -> None:
         pose = np.eye(4)[None]
