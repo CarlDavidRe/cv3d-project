@@ -217,6 +217,28 @@ def require_gsplat(backend: SplatBackend):
         ) from exc
 
 
+def _rasterize_2dgs_training(
+    rasterizer: Any,
+    values: tuple[torch.Tensor, ...],
+    view: torch.Tensor,
+    intrinsic: torch.Tensor,
+    resolution: int,
+    background: torch.Tensor,
+) -> tuple[torch.Tensor, ...]:
+    """Render RGB and depth required by gsplat's 2DGS distortion loss."""
+
+    return rasterizer(
+        *values,
+        view,
+        intrinsic,
+        resolution,
+        resolution,
+        backgrounds=background,
+        render_mode="RGB+ED",
+        distloss=True,
+    )
+
+
 def train_gaussian_splats(
     initial_points: np.ndarray,
     image_paths: Sequence[str | Path],
@@ -250,10 +272,15 @@ def train_gaussian_splats(
         index = step % len(images)
         values = model.values()
         if settings.backend == "2dgs":
-            rendered, alpha, normals, surface_normals, distortion, _, _ = rasterizer(
-                *values, views[index : index + 1], intrinsics[index : index + 1],
-                settings.resolution, settings.resolution,
-                backgrounds=white, render_mode="RGB", distloss=True,
+            rendered, alpha, normals, surface_normals, distortion, _, _ = (
+                _rasterize_2dgs_training(
+                    rasterizer,
+                    values,
+                    views[index : index + 1],
+                    intrinsics[index : index + 1],
+                    settings.resolution,
+                    white,
+                )
             )
             normal_valid = alpha[..., 0] > 0.05
             cosine = F.cosine_similarity(normals, surface_normals, dim=-1).abs()

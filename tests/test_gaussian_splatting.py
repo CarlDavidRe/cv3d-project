@@ -11,6 +11,7 @@ from nbv.eval.gaussian_splatting import (
     GaussianParameters,
     GaussianSplatSettings,
     SplatCameras,
+    _rasterize_2dgs_training,
     evaluate_2dgs_geometry,
     fuse_depth_surfaces,
     initialize_point_colors,
@@ -24,6 +25,27 @@ from nbv.geometry.visibility import PerspectiveCamera
 
 
 class GaussianSplattingTests(unittest.TestCase):
+    def test_2dgs_distortion_loss_requests_depth_rendering(self) -> None:
+        captured: dict[str, object] = {}
+        expected = (object(),) * 7
+
+        def rasterizer(*args: object, **kwargs: object) -> tuple[object, ...]:
+            captured.update(kwargs)
+            return expected
+
+        actual = _rasterize_2dgs_training(
+            rasterizer,
+            (),
+            object(),
+            object(),
+            16,
+            object(),
+        )
+
+        self.assertIs(actual, expected)
+        self.assertEqual(captured["render_mode"], "RGB+ED")
+        self.assertIs(captured["distloss"], True)
+
     def test_num_camera_conversion_flips_opengl_axes(self) -> None:
         pose = np.eye(4)[None]
         cameras = known_num_splat_cameras(
