@@ -1,0 +1,75 @@
+experiment:
+  deterministic: true
+  name: controlled_token_attention
+  phase: phase3
+  seed: 0
+paths:
+  data_root: data/NUM
+  mesh_root: data/ShapeNetCore.v2
+  model_cache_root: data/cache/models
+  output_root: outputs
+  reconstruction_cache_root: data/cache/reconstruction
+  visibility_cache_root: data/cache/visibility
+phase3:
+  controlled:
+    closed_loop:
+      initial_anchor_ids:
+      - 0
+      limit: null
+      max_acquired_views: 10
+      object_ids: []
+      reconstruction:
+        backend: vggt
+        chamfer_chunk_size: 1024
+        confidence_percentile: 50.0
+        device: auto
+        enabled: true
+        foreground_threshold: 0.9607843137254902
+        fscore_thresholds:
+        - 0.01
+        - 0.02
+        - 0.1
+        ground_truth_point_count: 10000
+        image_size: 518
+        mesh_centering: bounding_box
+        mesh_relative_path: models/model_normalized.ply
+        mesh_scale: 2.0
+        model_id: facebook/VGGT-1B
+        point_source: point_map
+        policies:
+        - vggt_independent_history
+        - vggt_joint_history
+        predicted_point_count: 10000
+        view_counts:
+        - 1
+        - 2
+        - 3
+        - 5
+        - 10
+      skip_missing_caches: false
+      split: test
+    comparison_mode: expressive_joint_variant
+    coverage_target: vis_a
+    device: auto
+    external_references:
+      phase2_summary: outputs/phase2/phase2_closed_loop_reconstruction/seed_0/metrics/summary.json
+    history_manifest: data/processed/histories/random_unique_v1/manifest.json
+    independent:
+      checkpoint: outputs/phase3/independent_history_control/seed_0/checkpoints/best.pt
+      checkpoint_sha256: fc6246064c9d76562af9b59ccecdcc1fe1751c9bb067b1e8ff67f5d0a335be96
+      test_feature_cache: data/cache/features/vggt/vggt_max_pooled_patch/test_3334dd9c7e19faf6.pt
+    joint:
+      checkpoint: /content/cv3d-project/outputs/phase3/joint_history_token_attention/seed_0/checkpoints/best.pt
+      checkpoint_sha256: 8e257d0d09ff3a91a609911b91acd4ee240a0f15c487eaa5628854923202a48b
+      test_feature_cache:
+        batch_size: 4
+        cache_every_batches: 64
+        num_workers: 4
+        pin_memory: true
+    one_step:
+      batch_size: 256
+      huber_delta: 0.01
+      ndcg_k: 5
+      ranking_margin: 0.0
+      ranking_weight: 0.1
+schema_version: 1

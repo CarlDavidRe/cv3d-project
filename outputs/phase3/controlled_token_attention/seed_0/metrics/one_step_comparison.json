@@ -1,0 +1,117 @@
+{
+  "by_history_length": [
+    {
+      "history_length": 1,
+      "huber_loss": 0.012779865587751071,
+      "ndcg_at_5_mean": 0.9398734104404524,
+      "normalized_regret_mean": 0.07352336859675303,
+      "policy": "vggt_independent_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.8365110911964231
+    },
+    {
+      "history_length": 1,
+      "huber_loss": 0.010199939526113061,
+      "ndcg_at_5_mean": 0.9479200107397867,
+      "normalized_regret_mean": 0.06843214057571725,
+      "policy": "vggt_joint_token_attention",
+      "sample_count": 2400,
+      "spearman_mean": 0.858231623882208
+    },
+    {
+      "history_length": 2,
+      "huber_loss": 0.009595456875831587,
+      "ndcg_at_5_mean": 0.929656103969888,
+      "normalized_regret_mean": 0.08045234602425441,
+      "policy": "vggt_independent_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.8186765854661322
+    },
+    {
+      "history_length": 2,
+      "huber_loss": 0.010586149587179534,
+      "ndcg_at_5_mean": 0.9363031043299415,
+      "normalized_regret_mean": 0.07479309653348139,
+      "policy": "vggt_joint_token_attention",
+      "sample_count": 2400,
+      "spearman_mean": 0.8492645184499948
+    },
+    {
+      "history_length": 4,
+      "huber_loss": 0.007058351344797605,
+      "ndcg_at_5_mean": 0.8645734324384631,
+      "normalized_regret_mean": 0.15312494687382908,
+      "policy": "vggt_independent_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.7245305943632836
+    },
+    {
+      "history_length": 4,
+      "huber_loss": 0.009508404941201054,
+      "ndcg_at_5_mean": 0.8955644745347722,
+      "normalized_regret_mean": 0.12251617113931187,
+      "policy": "vggt_joint_token_attention",
+      "sample_count": 2400,
+      "spearman_mean": 0.7813449712106927
+    },
+    {
+      "history_length": 6,
+      "huber_loss": 0.005893686896257956,
+      "ndcg_at_5_mean": 0.7874191803958173,
+      "normalized_regret_mean": 0.24476499987749206,
+      "policy": "vggt_independent_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.6229876040328539
+    },
+    {
+      "history_length": 6,
+      "huber_loss": 0.007805463372496888,
+      "ndcg_at_5_mean": 0.8218561925817272,
+      "normalized_regret_mean": 0.21232866582812926,
+      "policy": "vggt_joint_token_attention",
+      "sample_count": 2400,
+      "spearman_mean": 0.6649804657579793
+    },
+    {
+      "history_length": 8,
+      "huber_loss": 0.005224169184657512,
+      "ndcg_at_5_mean": 0.7228750418201028,
+      "normalized_regret_mean": 0.32696594081886277,
+      "policy": "vggt_independent_history",
+      "sample_count": 2400,
+      "spearman_mean": 0.530155837041078
+    },
+    {
+      "history_length": 8,
+      "huber_loss": 0.0065879498995491306,
+      "ndcg_at_5_mean": 0.7640045923457277,
+      "normalized_regret_mean": 0.27846750450491725,
+      "policy": "vggt_joint_token_attention",
+      "sample_count": 2400,
+      "spearman_mean": 0.5668371703310402
+    }
+  ],
+  "models": [
+    {
+      "huber_loss": 0.008110306225717068,
+      "ndcg_at_5_mean": 0.8488794338129447,
+      "ndcg_at_5_valid_count": 12000,
+      "normalized_regret_mean": 0.17576632043823825,
+      "policy": "vggt_independent_history",
+      "sample_count": 12000,
+      "spearman_mean": 0.7065723424199541,
+      "spearman_valid_count": 12000
+    },
+    {
+      "huber_loss": 0.008937581442296505,
+      "ndcg_at_5_mean": 0.873129674906391,
+      "ndcg_at_5_valid_count": 12000,
+      "normalized_regret_mean": 0.1513075157163114,
+      "policy": "vggt_joint_token_attention",
+      "sample_count": 12000,
+      "spearman_mean": 0.744131749926383,
+      "spearman_valid_count": 12000
+    }
+  ],
+  "schema_version": 1
+}
