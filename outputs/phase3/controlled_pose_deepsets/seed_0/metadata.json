@@ -1,8 +1,0 @@
-{
-  "created_at_utc": "2026-09-12T00:12:11.689146+00:00",
-  "git_commit": "5c70c74ea038d621baabd27f15063c151f3bc596",
-  "numpy_version": "1.26.4",
-  "platform": "Linux-6.6.122+-x86_64-with-glibc2.35",
-  "python_version": "3.12.13",
-  "seed": 0
-}
