@@ -382,6 +382,7 @@ variants = (
     "phase2_random", "phase2_farthest", "phase2_pun", "phase2_vggt",
     "phase2_oracle", "phase3_vggt_independent_history",
     "phase3_vggt_joint_history", "phase3_vggt_joint_pose_deepsets",
+    "phase3_vggt_joint_token_attention",
 )
 backends = ("2dgs", "3dgs")
 output_root = Path("outputs/gaussian_splatting_variant_comparison")
@@ -415,11 +416,12 @@ Selection is deterministic: the command processes every object ID in
 requested view, variant, and backend summaries exist.
 
 The runner discovers the five Phase 2 policies (`random`, `farthest`, `pun`,
-`vggt`, and `oracle`) and the three distinct Phase 3 policies
-(`vggt_independent_history`, `vggt_joint_history`, and
-`vggt_joint_pose_deepsets`) from their reconstruction CSV files. A duplicated
-independent-history control is run only once. Each policy/view-count pair gets
-a fresh model; view counts do not continue training from the preceding model.
+`vggt`, and `oracle`) and the four distinct Phase 3 policies
+(`vggt_independent_history`, `vggt_joint_history`,
+`vggt_joint_pose_deepsets`, and `vggt_joint_token_attention`) from their
+reconstruction CSV files. A duplicated independent-history control is run only
+once. Each policy/view-count pair gets a fresh model; view counts do not
+continue training from the preceding model.
 Completed backend summaries are skipped individually on reruns unless `--force`
 is given, so a failed `both` run resumes only its missing backend.
 Use `--dry-run` to validate all histories and inspect the commands without

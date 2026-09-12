@@ -44,7 +44,7 @@ class GaussianSplattingVariantTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "positive"):
             normalize_views((1, 0))
 
-    def test_discovers_eight_variants_and_deduplicates_independent_policy(self) -> None:
+    def test_discovers_nine_variants_and_deduplicates_independent_policy(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             phase2 = root / "phase2"
@@ -59,13 +59,17 @@ class GaussianSplattingVariantTests(unittest.TestCase):
             )
             write_rows(
                 deeper,
-                ("vggt_independent_history", "vggt_joint_pose_deepsets"),
+                (
+                    "vggt_independent_history",
+                    "vggt_joint_pose_deepsets",
+                    "vggt_joint_token_attention",
+                ),
             )
 
             variants = discover_variants(phase2, phase3)
 
-            self.assertEqual(len(variants), 8)
-            self.assertEqual(len({variant.key for variant in variants}), 8)
+            self.assertEqual(len(variants), 9)
+            self.assertEqual(len({variant.key for variant in variants}), 9)
             independent = next(
                 variant for variant in variants
                 if variant.policy == "vggt_independent_history"
@@ -121,7 +125,11 @@ class GaussianSplattingVariantTests(unittest.TestCase):
             )
             write_rows(
                 phase3 / "pose/deeper/metrics/reconstruction_per_object.csv",
-                ("vggt_independent_history", "vggt_joint_pose_deepsets"),
+                (
+                    "vggt_independent_history",
+                    "vggt_joint_pose_deepsets",
+                    "vggt_joint_token_attention",
+                ),
                 views=(1, 3),
             )
             arguments = [
@@ -141,8 +149,8 @@ class GaussianSplattingVariantTests(unittest.TestCase):
             payload = json.loads(
                 (object_root / "manifest.json").read_text(encoding="utf-8")
             )
-            self.assertEqual(len(payload["variants"]), 8)
-            self.assertEqual(len(payload["runs"]), 16)
+            self.assertEqual(len(payload["variants"]), 9)
+            self.assertEqual(len(payload["runs"]), 18)
             self.assertEqual({run["status"] for run in payload["runs"]}, {"dry_run"})
             self.assertTrue((object_root / "index.html").is_file())
 
@@ -164,7 +172,7 @@ class GaussianSplattingVariantTests(unittest.TestCase):
             )
             write_rows(
                 phase3 / "pose/metrics/reconstruction_per_object.csv",
-                ("vggt_joint_pose_deepsets",),
+                ("vggt_joint_pose_deepsets", "vggt_joint_token_attention"),
                 views=(1,),
             )
             variant_names = (

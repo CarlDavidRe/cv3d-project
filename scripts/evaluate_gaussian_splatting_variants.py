@@ -21,6 +21,7 @@ PHASE3_POLICIES = (
     "vggt_independent_history",
     "vggt_joint_history",
     "vggt_joint_pose_deepsets",
+    "vggt_joint_token_attention",
 )
 
 
