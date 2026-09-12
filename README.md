@@ -13,9 +13,9 @@ dependencies on first launch.
 
 ### Run the dashboard without cloning the full repository
 
-The dashboard does not require the project source code, datasets, model
-checkpoints, or ML dependencies. A shallow sparse clone can download only the
-dashboard and the Phase 1 summary files it displays:
+The dashboard does not require model checkpoints or ML dependencies. A shallow
+sparse clone can download only the dashboard, its dataset metadata, and the
+Phase 1 summary files it displays:
 
 ```bash
 git clone --depth 1 --filter=blob:none --sparse \
@@ -26,6 +26,8 @@ cd cv3d-dashboard
 git sparse-checkout set --no-cone \
   '/dashboard/' \
   '/requirements-dashboard.txt' \
+  '/data/splits/num_v1.json' \
+  '/src/nbv/geometry/anchors_v1.csv' \
   '/outputs/phase1/backbone_sweep/**/summary.json'
 
 python3 -m venv .venv
@@ -35,7 +37,11 @@ streamlit run dashboard/app.py
 ```
 
 This keeps the directory layout expected by the app while avoiding the full
-repository history and large experiment artifacts.
+repository history and large experiment artifacts. The dataset explorer still
+shows every category, split assignment, object ID, and camera anchor. Clone or
+place the NUM dataset at `data/NUM` to also show the selected RGB observation,
+and ShapeNet meshes at `data/ShapeNetCore.v2` to place the selected object inside
+the anchor sphere.
 
 Select a GPU runtime and mount Google Drive with Colab's left-sidebar folder
 icon. Drive authorization is the only UI prerequisite. Every command below is

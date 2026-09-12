@@ -20,6 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 dashboard = [
     "streamlit>=1.63,<2",
+    "plotly>=6,<7",
 ]
 gaussian-splatting = [
     "gsplat>=1.5,<2",
