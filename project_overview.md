@@ -342,7 +342,7 @@ Phase 1 was marked complete on 2026-09-07. The frozen primary result is the
 complete seed-1 sweep under `outputs/phase1/backbone_sweep/seed_1`, with all 12
 configured entries evaluated through the common validation/test pipeline.
 
-Repository audit as of 2026-09-11:
+Repository audit as of 2026-09-12:
 
 | Area | Status | Current evidence / remaining work |
 |---|---|---|
@@ -359,9 +359,9 @@ Repository audit as of 2026-09-11:
 | Runtime/memory profiling | Deferred to Phase 2 | Trainable parameter counts are reported. A common inference-time and peak-memory protocol remains useful for the closed-loop system but does not block the frozen Phase 1 feature-probe result. |
 | PUN comparison | Complete | The official released PSNR UPNet checkpoint was checksum-verified, evaluated last with official timm preprocessing, and recorded with both official unmasked MSE and common masked metrics. The full row covers all 5,232 validation and 14,400 test samples. |
 | Prediction demo | Implemented and tested | `visualize_phase1.py <experiment>` discovers every complete saved variant by default and writes one self-contained prediction-versus-target SVG per variant. Repeatable `--variant` filters select a subset. The checked-in raw-RGB validation example includes shared-scale target/prediction maps, absolute error, top candidates, regret, Spearman, NDCG@5, and MAE. |
-| Phase 2 visibility and reconstruction simulator | Implemented; reconstruction rerun required | Canonical face rasterization, `Vis`/`VisA`, and the five-policy simulator remain implemented. PUN and VGGT additionally use the same cached frozen-VGGT point-map backend for Chamfer/completeness/F-score evaluation. The retained 300-object artifact predates reconstruction metrics and must be regenerated before making the combined claim. |
-| Phase 3 direct-gain comparison | Implemented; reconstruction rerun required | The deterministic history dataset and capacity-matched independent/joint controls remain complete. Step 18 now applies the same cached reconstruction evaluator as Phase 2 alongside visibility and includes reconstruction outcomes in its conclusion. The retained artifact predates this addition and is no longer a complete current-schema result. |
-| Phase 3 joint follow-ups | Implemented; full GPU runs pending | Pose-conditioned DeepSets and spatial-token candidate-attention variants reuse the frozen joint feature/cache/resume pipeline. Step 18 accepts their checkpoints as separately labeled expressive comparisons and reports unequal capacities explicitly. Rationale and commands are documented in `docs/phase3_joint_variants.md`. |
+| Phase 2 visibility and reconstruction simulator | Complete | Canonical face rasterization, `Vis`/`VisA`, and the five-policy simulator are implemented. The completion-gated `phase2_closed_loop_reconstruction` artifact evaluates all five policies on all 300 fixed test objects, replays every rollout, and reports shared frozen-VGGT Chamfer/completeness/accuracy/F-score results. |
+| Phase 3 direct-gain comparison | Complete | The deterministic history dataset and capacity-matched independent/joint controls are complete. The reconstruction-inclusive `controlled_history_comparison_reconstruction` artifact covers all 12,000 fixed test histories and 300 closed-loop rollouts per policy, and its completion gate passes every check. |
+| Phase 3 joint follow-ups | Implemented and run | Pose-conditioned DeepSets and spatial-token candidate-attention variants reuse the frozen joint feature/cache/resume pipeline. Both have completion-gated full-test artifacts with reconstruction results; they remain separately labeled expressive comparisons with unequal capacities. Rationale and commands are documented in `docs/phase3_joint_variants.md`. |
 
 The Phase 1 audit recorded 104 passing tests. This historical count does not
 validate the planned Phase 2/3 changes or replace real-data, real-checkpoint,
@@ -599,7 +599,7 @@ The same cache supports closed-loop coverage, oracle selection, one-step
 regret, ranking against true geometric gain, and later Phase 3 history labels.
 The same visibility definition must be reused everywhere.
 
-#### Existing implementation and remaining validation
+#### Existing implementation and validation status
 
 Reuse `src/nbv/geometry/visibility.py`, `src/nbv/geometry/coverage.py`,
 `src/nbv/data/visibility_cache.py`, `scripts/precompute_visibility.py`, and
@@ -609,8 +609,9 @@ representation, schema-2 metadata validation, and `Vis`/`VisA` helpers.
 Keep mesh checksum/scale, anchor ordering, camera geometry, triangle-ID render
 resolution, clipping, culling, and visibility definition in cache provenance.
 Do not change the geometry definition between experiments or introduce a
-surface-point sampler. The remaining Step 9 work is real-object validation
-and complete split precomputation using this existing implementation.
+surface-point sampler. Real-object validation and complete fixed-test-split
+precomputation are complete; the final visibility manifest records all 300
+requested objects with no missing objects or failures.
 
 Coverage is normalized by the full face count or full mesh area, including
 faces unreachable from the candidate set; maximum achievable coverage can be
@@ -785,25 +786,25 @@ The demo must use saved checkpoints and the same evaluator as the quantitative e
 
 ### Phase 2 definition of done
 
-* [ ] Surface visibility cache is reproducible.
-* [ ] Oracle surface gain matches explicit coverage differences.
-* [ ] Closed-loop simulator is deterministic.
+* [x] Surface visibility cache is reproducible.
+* [x] Oracle surface gain matches explicit coverage differences.
+* [x] Closed-loop simulator is deterministic.
 * [x] Official PUN runs without retraining.
 * [x] PUN's original history aggregation is reproduced or any deviation is documented.
 * [x] VGGT predicts the original NUM/PUN target from each image independently.
 * [x] Per-image VGGT features/predictions can be cached.
 * [x] VGGT and PUN receive every image in the supplied history under the same observation protocol; paired fixed-history checks use identical histories. Each closed-loop policy then follows its own selected trajectory from the same initial views.
-* [ ] Already-seen candidates are masked consistently.
+* [x] Already-seen candidates are masked consistently.
 * [x] Random, Farthest, PUN, VGGT, and Oracle use one evaluator.
 * [x] True surface gain is used only as evaluation/oracle information and is never exposed to learned Phase 2 policies.
 * [x] PUN and VGGT selected histories use one shared frozen VGGT reconstruction backend.
 * [x] Reconstruction and metric caches are identity-checked and reusable by Phase 3.
-* [ ] Chamfer, completeness, accuracy, and F-score curves are generated for the complete test split.
-* [ ] Coverage curves are generated for the complete test split.
-* [ ] Per-step geometric ranking metrics and closed-loop metrics are stored together.
-* [ ] Runtime, memory, and parameter counts are reported.
-* [ ] At least one saved rollout can be replayed.
-* [ ] Main results can be reproduced from fixed configs.
+* [x] Chamfer, completeness, accuracy, and F-score curves are generated for the complete test split.
+* [x] Coverage curves are generated for the complete test split.
+* [x] Per-step geometric ranking metrics and closed-loop metrics are stored together.
+* [x] Runtime, memory, and parameter counts are reported.
+* [x] At least one saved rollout can be replayed.
+* [x] Main results can be reproduced from fixed configs.
 
 ---
 
@@ -1394,18 +1395,17 @@ policy, and its completion gate passes every check.
 Extend the existing `src/nbv` package without reorganizing completed Phase 1
 modules.
 
-## Remaining planned additions for Phases 2 and 3
+## Optional remaining additions for Phases 2 and 3
 
-These are proposed module/config names, not implemented commands:
+The core Phase 2/3 paths are implemented. These names remain possible homes
+for optional ablations or refactoring, not required or implemented commands:
 
 ```text
 project_root/
 ├── configs/experiments/
-│   ├── phase2_aggregation_ablation.yaml  # optional mean/max rules
-│   └── phase3_controlled.yaml            # matched independent/joint runs
+│   └── phase2_aggregation_ablation.yaml  # optional mean/max rules
 ├── data/
-│   ├── cache/predictions/                # optional per-image NUM maps
-│   └── processed/histories/              # Phase 3 only
+│   └── cache/predictions/                # optional per-image NUM maps
 ├── src/nbv/
 │   ├── data/prediction_cache.py
 │   ├── policies/
@@ -2186,7 +2186,7 @@ and evaluator-only true gains. Any retraining retains original NUM targets.
 
 ### Step 14 — complete and freeze the core Phase 2 result
 
-**Implementation status:** implementation complete; current-schema GPU rerun pending. The shared runner now exports geometric
+**Implementation status:** complete. The shared runner exports geometric
 ranking and coverage metrics, per-step/per-object records, profiling modes and
 latency/memory fields, parameter counts, comparison figures, an automatically
 generated replay-verified rollout SVG, and a machine-readable completion gate.
@@ -2195,9 +2195,9 @@ VGGT point-map backend and exports normalized Chamfer, accuracy, completeness,
 and F-score curves from identity-checked reusable caches.
 The gate reports `complete` only for an error-free five-policy run on the entire
 fixed test split with the configured reconstruction results. The retained
-quantitative run covers all 300 fixed test objects but predates reconstruction
-metrics. Regenerate it before treating the updated gate as satisfied; do not
-use the partial-cache option for the replacement final run.
+`outputs/phase2/phase2_closed_loop_reconstruction/seed_0` artifact evaluates
+all five policies on all 300 fixed test objects with reconstruction enabled,
+and its completion gate passes every check.
 
 Add geometric regret, Spearman, NDCG@5, coverage AUC/final coverage, complete
 per-object/per-step exports, live/cached runtime profiling, peak memory, and
@@ -2303,7 +2303,7 @@ before longer runs; do not substitute independent caches for joint features.
 
 ### Step 17A — pose-conditioned DeepSets follow-up
 
-**Implementation status:** complete; full GPU training pending. The
+**Implementation status:** complete and run. The
 `pose_deepsets` architecture reuses joint max-pooled VGGT vectors but applies a
 shared `LayerNorm → Linear → GELU → Dropout` element encoder to each
 `[feature, acquired_direction]` pair before padding-aware mean pooling. This
@@ -2320,7 +2320,7 @@ count.
 
 ### Step 17B — spatial-token candidate-attention follow-up
 
-**Implementation status:** complete; full GPU training pending. The
+**Implementation status:** complete and run. The
 `token_candidate_attention` architecture adaptively reduces VGGT's square
 final-layer patch grid to 2x2 by default, preserving four spatial tokens per
 view. It projects tokens and acquired poses into a shared attention space; 48
@@ -2347,8 +2347,8 @@ retained capacity-matched completion artifact or its H4 conclusion.
 
 ### Step 18 — controlled Phase 3 experiment and reporting
 
-**Implementation status:** rollout implementation complete and previously
-real-data validated; updated reconstruction-inclusive rerun pending.
+**Implementation status:** complete, real-data validated, and rerun with
+reconstruction enabled.
 `scripts/evaluate_phase3.py` checksum-pins
 both validation-selected checkpoints and the independent test feature cache,
 accepts only the fixed object-disjoint test split, verifies repository-relocated
@@ -2357,11 +2357,11 @@ joint test histories without padding, and runs both learned policies through
 `nbv.eval.closed_loop.run_rollout`. It writes paired sample/aggregate/history-
 length tables, replayable rollouts, coverage figures, profiling, external
 Phase 2 references, a Markdown report, and a machine-readable completion gate.
-The retained seed-0 artifact evaluates both models on all 12,000 fixed test
-histories and all 300 test objects with 10 total acquired views. Both policies
-have 300 replayable rollouts, and every check in the prior
-`phase3_completion.json` passed. That artifact is historical evidence, not a
-complete result under the current reconstruction-inclusive gate.
+The retained `controlled_history_comparison_reconstruction/seed_0` artifact
+evaluates both models on all 12,000 fixed test histories and all 300 test
+objects with 10 total acquired views. Both policies have 300 replayable
+rollouts, reconstruction results are present, and every check in
+`phase3_completion.json` passes.
 
 On fixed histories, joint has lower Huber error (0.007683 versus 0.008110), but
 independent has lower regret (0.175766 versus 0.198544), higher Spearman
@@ -2541,22 +2541,22 @@ Mitigation:
 
 For every final table/figure:
 
-- [ ] Exact config saved.
-- [ ] Seed saved.
-- [ ] Dataset split version saved.
-- [ ] Backbone version saved.
+- [x] Exact config saved.
+- [x] Seed saved.
+- [x] Dataset split version saved.
+- [x] Backbone version saved.
 - [x] PUN version/commit and checkpoint SHA-256 documented.
-- [ ] Feature/token layer documented.
-- [ ] Input resolution documented.
-- [ ] Loss weights documented.
-- [ ] Candidate masking behavior documented.
-- [ ] View budget documented.
-- [ ] Triangle-ID render resolution documented.
-- [ ] Visibility rasterization and culling policy documented.
-- [ ] `Vis`/`VisA` coverage target and face-cache provenance documented.
-- [ ] Training-target semantics and policy-score direction documented.
-- [ ] PUN map alignment, aggregation rule, and deviations documented.
-- [ ] Initial views, tie-breaking, and stopping behavior documented.
+- [x] Feature/token layer documented.
+- [x] Input resolution documented.
+- [x] Loss weights documented.
+- [x] Candidate masking behavior documented.
+- [x] View budget documented.
+- [x] Triangle-ID render resolution documented.
+- [x] Visibility rasterization and culling policy documented.
+- [x] `Vis`/`VisA` coverage target and face-cache provenance documented.
+- [x] Training-target semantics and policy-score direction documented.
+- [x] PUN map alignment, aggregation rule, and deviations documented.
+- [x] Initial views, tie-breaking, and stopping behavior documented.
 - [x] Phase 3 history sampling, cache IDs, and padding/rotation conventions saved.
 - [x] Phase 3 matched histories, targets, capacity, optimizer, loss, and budget recorded.
 - [x] Cached versus live inference timing and precomputation cost distinguished.
@@ -2663,8 +2663,8 @@ The implemented per-variant `summary.json` shape is:
 }
 ```
 
-Runtime, memory, coverage, and per-step fields belong to the future Phase 2
-result schema and are not currently emitted by the Phase 1 runner.
+Runtime, memory, coverage, and per-step fields are emitted by the Phase 2/3
+runners; they are intentionally not part of the Phase 1 runner's schema.
 
 For Phases 2/3, extend the existing semantic run-directory convention:
 
@@ -2687,7 +2687,7 @@ outputs/<phase>/<experiment>/seed_<n>/
     └── rollouts/
 ```
 
-The planned common summary separates training and evaluation semantics:
+The implemented common summary separates training and evaluation semantics:
 
 ```json
 {
@@ -2725,7 +2725,7 @@ The planned common summary separates training and evaluation semantics:
 }
 ```
 
-These future fields are a planned schema, not currently emitted Phase 1 data.
+These fields are emitted by the Phase 2/3 result schema, not by Phase 1.
 For Phase 3, set training/policy semantics to direct history-dependent surface
 gain, record the history dataset ID and matched-control settings, and add
 masked surface-gain Huber/regression error. Official PUN retains original NUM
@@ -2787,8 +2787,8 @@ notebook-only training or geometry logic.
 
 The complete seed-1 Phase 1 result satisfies this gate. Keep its artifacts
 frozen, pin the validation-selected VGGT variant, and proceed with original NUM
-supervision and official pretrained PUN. Complete the missing closed-loop
-aggregation/evaluator work in Steps 9–14.
+supervision and official pretrained PUN. The closed-loop aggregation/evaluator
+work in Steps 9–14 and the reconstruction-inclusive rerun are now complete.
 
 If VGGT does not outperform generic features:
 
@@ -2845,10 +2845,9 @@ This structure ensures that every completed phase produces a self-contained rese
 
 # 26. Immediate implementation backlog
 
-Milestones 1–4 are complete. Resume at Milestone 5 / Step 9 using the existing
-face-visibility implementation. Milestone 6 is the required final-quality
-project checkpoint; Milestones 7–8 change the learning problem and follow only
-after Phase 2 is frozen.
+Milestones 1–8 and the required reconstruction reruns are complete. The
+remaining unchecked entries below are optional ablations, runtime-provenance
+documentation, and stretch evaluators; the core Phase 2 checkpoint is frozen.
 
 ### Milestone 1 — infrastructure
 
@@ -2894,7 +2893,7 @@ after Phase 2 is frozen.
 - [x] Split/subset precompute CLI and debug visibility visualization.
 - [x] Check camera calibration and reference poses; retain explicit NUM pole-roll convention.
 - [x] Apply bounding-box centering and validate on six independent validation objects; record transforms in caches.
-- [ ] Complete fixed-test-split cache precomputation and completeness manifest.
+- [x] Complete fixed-test-split cache precomputation and completeness manifest.
 - [x] Verify explicit coverage differences and pin one `Vis`/`VisA` definition (`vis_a` in the evaluator).
 - [x] Add acquired-RGB observation store and evaluator-private geometry access.
 - [x] Implement deterministic shared closed-loop simulator and result schema.
@@ -2913,11 +2912,11 @@ after Phase 2 is frozen.
 - [x] Implement the shared frozen-VGGT point-map reconstruction evaluator.
 - [x] Cache mesh samples, ordered-history point maps, and reconstruction metrics separately.
 - [x] Export normalized Chamfer/accuracy/completeness/F-score tables and curves.
-- [ ] Run Random, Farthest, PUN, VGGT, and Oracle on the complete test split.
-- [ ] Save per-step geometric metrics and coverage metrics together; retain NUM metrics separately.
-- [ ] Report coverage curves/AUC/final coverage, live/cached runtime, memory, and parameter counts.
-- [ ] Save and replay a full rollout using checkpoints and the common evaluator.
-- [ ] Freeze reproducible Phase 2 configs and final-quality results.
+- [x] Run Random, Farthest, PUN, VGGT, and Oracle on the complete test split.
+- [x] Save per-step geometric metrics and coverage metrics together; retain NUM metrics separately.
+- [x] Report coverage curves/AUC/final coverage, live/cached runtime, memory, and parameter counts.
+- [x] Save and replay a full rollout using checkpoints and the common evaluator.
+- [x] Freeze reproducible Phase 2 configs and final-quality results.
 - [ ] Optional after the core is stable: VGGT-depth/GT-depth geometry and mean/max aggregation ablations.
 
 ### Milestone 7 — Phase 3 history dataset (Step 15)
@@ -2940,14 +2939,14 @@ after Phase 2 is frozen.
 - [x] Run both models through the unchanged Phase 2 evaluator and compare coverage.
 - [x] Apply the Phase 2 reconstruction evaluator to both downstream policies.
 - [x] Report runtime, peak memory, parameter counts, and remaining control differences.
-- [ ] Add history-length/token ablations only if useful and feasible.
+- [x] Add history-length/token ablations only if useful and feasible.
 - [x] Freeze Phase 3 results and document the negative result for H4.
 
 ### Milestone 9 — reconstruction rerun and stretch backends
 
 - [x] Implement Chamfer/reconstruction metrics.
 - [x] Implement fixed-budget reconstruction comparison and cache reuse.
-- [ ] Run the complete Phase 2 and Phase 3 cohorts with reconstruction enabled.
+- [x] Run the complete Phase 2 and Phase 3 cohorts with reconstruction enabled.
 - [ ] 3DGS evaluator if feasible.
 - [ ] MipNeRF360 transfer if feasible.
 
