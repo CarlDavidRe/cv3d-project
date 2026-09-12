@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 import sys
@@ -67,6 +68,14 @@ def main() -> int:
             ):
                 previous_pun = previous["predictions"][
                     previous_names.index("pun_upnet")
+                ].astype(np.float32)
+            elif (
+                "pun_upnet" in previous_names
+                and previous["predictions"].ndim == 4
+                and previous["predictions"].shape[1:] == (len(object_keys), 48, 48)
+            ):
+                previous_pun = previous["predictions"][
+                    previous_names.index("pun_upnet"), :, 0, :
                 ].astype(np.float32)
 
     variant_dirs = sorted(
@@ -143,6 +152,28 @@ def main() -> int:
         len(variant_names), len(object_keys), 48, 48
     )
     available_source_anchors = np.isfinite(stacked_predictions).all(axis=(1, 3))
+    reshaped_targets = targets.reshape(len(object_keys), 48, 48)
+    target_best_ids = np.full((len(object_keys), 48), -1, dtype=np.int8)
+    predicted_best_ids = np.full(
+        (len(variant_names), len(object_keys), 48), -1, dtype=np.int8
+    )
+    for variant_index, name in enumerate(variant_names):
+        metrics_path = experiment / "variants" / name / "test_per_sample.csv"
+        with metrics_path.open(encoding="utf-8", newline="") as handle:
+            metrics_by_sample = {
+                row["sample_id"]: row for row in csv.DictReader(handle)
+            }
+        for object_index, object_key in enumerate(object_keys):
+            for source_anchor_id in np.flatnonzero(
+                available_source_anchors[variant_index]
+            ):
+                row = metrics_by_sample[f"{object_key}/{source_anchor_id}"]
+                target_best_ids[object_index, source_anchor_id] = int(
+                    row["target_local_anchor_id"]
+                )
+                predicted_best_ids[
+                    variant_index, object_index, source_anchor_id
+                ] = int(row["predicted_local_anchor_id"])
     args.output.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
         args.output,
@@ -150,7 +181,9 @@ def main() -> int:
         object_keys=np.asarray(object_keys),
         variant_names=np.asarray(variant_names),
         available_source_anchors=available_source_anchors,
-        targets=targets.reshape(len(object_keys), 48, 48).astype(np.float16),
+        target_best_ids=target_best_ids,
+        predicted_best_ids=predicted_best_ids,
+        targets=reshaped_targets.astype(np.float16),
         predictions=stacked_predictions.astype(np.float16),
     )
     print(

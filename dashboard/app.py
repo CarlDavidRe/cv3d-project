@@ -135,6 +135,12 @@ def pretty_variant(value: str) -> str:
     return aliases.get(value, value.replace("_", " ").title())
 
 
+def pretty_anchor(value: int | str) -> str:
+    """Format an anchor ID while remaining stable across widget reruns."""
+    label = str(value)
+    return label if label.startswith("Anchor ") else f"Anchor {label}"
+
+
 @st.cache_data(show_spinner=False)
 def load_dataset_index(path: str) -> pd.DataFrame:
     """Load the frozen object-level split manifest with readable categories."""
@@ -186,6 +192,10 @@ def load_prediction_maps(path: str) -> dict[str, np.ndarray]:
         )
     if payload["available_source_anchors"].shape != (variant_count, 48):
         raise ValueError("Dashboard source-anchor availability has an invalid shape.")
+    if payload["target_best_ids"].shape != (object_count, 48):
+        raise ValueError("Dashboard ground-truth best-anchor IDs have an invalid shape.")
+    if payload["predicted_best_ids"].shape != (variant_count, object_count, 48):
+        raise ValueError("Dashboard predicted best-anchor IDs have an invalid shape.")
     return payload
 
 
@@ -372,6 +382,8 @@ def build_prediction_map_chart(
     target: np.ndarray,
     prediction: np.ndarray,
     variant_label: str,
+    target_best_id: int,
+    predicted_best_id: int,
 ) -> go.Figure:
     """Compare ground-truth and predicted NUM maps on a shared polar scale."""
     target_values = np.asarray(target, dtype=np.float32)
@@ -419,9 +431,23 @@ def build_prediction_map_chart(
         subplot_titles=("Ground truth", f"Prediction · {variant_label}"),
         horizontal_spacing=0.08,
     )
-    for column, values, raw_values, highlight_color, highlight_label in (
-        (1, target_uncertainty, target_values, "#34d399", "Ground truth"),
-        (2, predicted_uncertainty, prediction_values, "#f59e0b", "Predicted"),
+    for column, values, raw_values, highlight_color, highlight_label, best_id in (
+        (
+            1,
+            target_uncertainty,
+            target_values,
+            "#34d399",
+            "Ground truth",
+            target_best_id,
+        ),
+        (
+            2,
+            predicted_uncertainty,
+            prediction_values,
+            "#f59e0b",
+            "Predicted",
+            predicted_best_id,
+        ),
     ):
         figure.add_trace(
             go.Heatmap(
@@ -443,7 +469,6 @@ def build_prediction_map_chart(
         )
         anchor_x = polar_radius * np.cos(anchors["azimuth_rad"].to_numpy())
         anchor_y = polar_radius * np.sin(anchors["azimuth_rad"].to_numpy())
-        best_id = int(np.argmax(np.where(valid, values, -np.inf)))
         ids = anchors["anchor_id"].to_numpy(dtype=int)
         figure.add_trace(
             go.Scatter(
@@ -766,7 +791,7 @@ def render_dataset_page() -> None:
         selected_anchor = st.selectbox(
             "Camera anchor",
             anchors["anchor_id"].astype(int).tolist(),
-            format_func=lambda value: f"Anchor {value}",
+            format_func=pretty_anchor,
         )
 
     category_id = str(category_rows.iloc[0]["category_id"])
@@ -979,7 +1004,7 @@ def render_representation_page() -> None:
         source_anchor = st.selectbox(
             "Input anchor",
             available_source_anchors,
-            format_func=lambda value: f"Anchor {value}",
+            format_func=pretty_anchor,
         )
     if len(available_source_anchors) == 1:
         st.caption(
@@ -994,7 +1019,16 @@ def render_representation_page() -> None:
     map_anchors = load_anchor_directions(str(ANCHOR_PATH))
     st.plotly_chart(
         build_prediction_map_chart(
-            map_anchors, target_map, predicted_map, pretty_variant(map_variant)
+            map_anchors,
+            target_map,
+            predicted_map,
+            pretty_variant(map_variant),
+            int(prediction_data["target_best_ids"][object_index, source_anchor]),
+            int(
+                prediction_data["predicted_best_ids"][
+                    variant_index, object_index, source_anchor
+                ]
+            ),
         ),
         width="stretch",
         config={"displayModeBar": False},
