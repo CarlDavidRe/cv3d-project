@@ -886,7 +886,7 @@ def load_3dgs_render_catalog(root: str) -> pd.DataFrame:
 def load_vggt_render_catalog(
     phase2_root: str, phase3_root: str
 ) -> pd.DataFrame:
-    """Index interactive VGGT/ground-truth point-cloud comparisons."""
+    """Index oracle-ICP-aligned VGGT/ground-truth point-cloud comparisons."""
     records: list[dict[str, object]] = []
     sources = (
         ("Phase 2", Path(phase2_root), None),
@@ -897,7 +897,9 @@ def load_vggt_render_catalog(
     for phase, root, included_policies in sources:
         visualization_root = root / "metrics" / "reconstruction_visualizations"
         for metadata_path in sorted(visualization_root.glob("*/metadata.json")):
-            comparison_path = metadata_path.with_name("comparison_interactive.html")
+            comparison_path = metadata_path.with_name(
+                "comparison_oracle_icp_interactive.html"
+            )
             if not comparison_path.is_file():
                 continue
             metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
@@ -1928,33 +1930,61 @@ def render_rollout_inspection_page() -> None:
         'reconstructed 2DGS surface against ground truth.</div>',
         unsafe_allow_html=True,
     )
-    policy_3dgs_renders = (
-        render_catalog[render_catalog["policy"] == rollout_policy]
-        if not render_catalog.empty
-        else pd.DataFrame()
-    )
-    policy_vggt_renders = (
-        vggt_render_catalog[vggt_render_catalog["policy"] == rollout_policy]
-        if not vggt_render_catalog.empty
-        else pd.DataFrame()
-    )
     available_catalogs = [
         frame
-        for frame in (policy_3dgs_renders, policy_vggt_renders)
+        for frame in (render_catalog, vggt_render_catalog)
         if not frame.empty
     ]
     if not available_catalogs:
         st.info(
-            "No completed reconstruction viewer is available for this policy yet."
+            "No completed reconstruction viewer is available yet."
         )
     else:
-        policy_renders = (
+        all_renders = (
             pd.concat(available_catalogs, ignore_index=True)
             .drop_duplicates(
                 ["policy", "category_id", "object_id", "acquired_view_count"]
             )
         )
-        render_category_control, render_object_control = st.columns([1, 2])
+        reconstruction_policies = sorted(
+            all_renders["policy"].unique(), key=pretty_policy
+        )
+        default_reconstruction_policy = (
+            reconstruction_policies.index(rollout_policy)
+            if rollout_policy in reconstruction_policies
+            else 0
+        )
+        (
+            render_policy_control,
+            render_category_control,
+            render_object_control,
+        ) = st.columns([1.25, 1, 2])
+        with render_policy_control:
+            reconstruction_policy = st.selectbox(
+                "Reconstruction policy",
+                reconstruction_policies,
+                index=default_reconstruction_policy,
+                format_func=pretty_policy,
+                help=(
+                    "Reconstruction artifacts are generated per policy and may not "
+                    "exist for the rollout policy selected above."
+                ),
+            )
+        policy_3dgs_renders = (
+            render_catalog[render_catalog["policy"] == reconstruction_policy]
+            if not render_catalog.empty
+            else pd.DataFrame()
+        )
+        policy_vggt_renders = (
+            vggt_render_catalog[
+                vggt_render_catalog["policy"] == reconstruction_policy
+            ]
+            if not vggt_render_catalog.empty
+            else pd.DataFrame()
+        )
+        policy_renders = all_renders[
+            all_renders["policy"] == reconstruction_policy
+        ]
         render_categories = sorted(
             policy_renders["category_id"].unique(),
             key=lambda value: CATEGORY_NAMES.get(value, value),
@@ -2024,7 +2054,7 @@ def render_rollout_inspection_page() -> None:
             [
                 "3DGS render vs. RGB",
                 "2DGS surface vs. ground truth",
-                "VGGT point cloud vs. ground truth",
+                "VGGT oracle-ICP vs. ground truth",
             ]
         )
         with render_3dgs_tab:
@@ -2080,7 +2110,7 @@ def render_rollout_inspection_page() -> None:
                 )
         with vggt_tab:
             comparison_vggt_image_path = (
-                comparison_vggt_path.with_name("comparison.png")
+                comparison_vggt_path.with_name("comparison_oracle_icp.png")
                 if comparison_vggt_path is not None
                 else None
             )
@@ -2091,8 +2121,8 @@ def render_rollout_inspection_page() -> None:
                 st.image(
                     str(comparison_vggt_image_path),
                     caption=(
-                        "VGGT prediction (orange) vs. ground truth (blue) · "
-                        "XY, XZ, and YZ projections"
+                        "Oracle-ICP-aligned VGGT prediction (orange) vs. ground truth "
+                        "(blue) · XY, XZ, and YZ projections"
                     ),
                     width="stretch",
                 )
@@ -2107,15 +2137,41 @@ def render_rollout_inspection_page() -> None:
                 )
                 st.caption(
                     "Drag to rotate and use the controls to toggle the VGGT prediction "
-                    "and ground truth or switch between overlay and side-by-side views."
+                    "and ground truth or switch between overlay and side-by-side views. "
+                    "This oracle ICP alignment uses ground truth and is a structural "
+                    "diagnostic, not an official evaluation result."
                 )
             else:
+                available_vggt_policies = []
+                if not vggt_render_catalog.empty:
+                    available_vggt_policies = sorted(
+                        vggt_render_catalog.loc[
+                            (vggt_render_catalog["category_id"] == render_category)
+                            & (vggt_render_catalog["object_id"] == render_object)
+                            & (
+                                vggt_render_catalog["acquired_view_count"]
+                                == render_view_count
+                            ),
+                            "policy",
+                        ].unique(),
+                        key=pretty_policy,
+                    )
+                availability_hint = (
+                    " Choose "
+                    + ", ".join(
+                        f"'{pretty_policy(policy)}'"
+                        for policy in available_vggt_policies
+                    )
+                    + " under Reconstruction policy above."
+                    if available_vggt_policies
+                    else ""
+                )
                 st.info(
-                    "No interactive VGGT point-cloud comparison is available for this "
-                    "selection yet."
+                    "No interactive oracle-ICP VGGT point-cloud comparison is available "
+                    f"for this selection yet.{availability_hint}"
                 )
         st.caption(
-            f"{pretty_policy(rollout_policy)} · "
+            f"{pretty_policy(reconstruction_policy)} · "
             f"{CATEGORY_NAMES.get(render_category, render_category)} / {render_object} · "
             f"{render_view_count} acquired views"
         )
