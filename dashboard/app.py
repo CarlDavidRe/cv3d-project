@@ -36,6 +36,9 @@ PHASE3_TOKEN_ATTENTION_ROOT = (
 GAUSSIAN_SPLATTING_ROOT = (
     REPO_ROOT / "outputs" / "gaussian_splatting_variant_comparison"
 )
+GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT = (
+    REPO_ROOT / "outputs" / "gaussian_splatting_cpu_recovery"
+)
 NUM_ROOT = REPO_ROOT / "data" / "NUM"
 SHAPENET_ROOT = REPO_ROOT / "data" / "ShapeNetCore.v2"
 SPLIT_MANIFEST = REPO_ROOT / "data" / "splits" / "num_v1.json"
@@ -797,9 +800,15 @@ def load_closed_loop_tables(
 
 @st.cache_data(show_spinner=False)
 def load_gaussian_splatting_metrics(root: str) -> pd.DataFrame:
-    """Aggregate completed 2DGS geometry evaluations by policy and view count."""
+    """Aggregate verified CPU-recovered 2DGS evaluations by policy and view count."""
     frames: list[pd.DataFrame] = []
     for path in sorted(Path(root).glob("*/*/*views/phase*/2dgs/metrics.csv")):
+        summary_path = path.with_name("summary.json")
+        if not summary_path.is_file():
+            continue
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        if "cpu_recovery" not in summary:
+            continue
         frame = pd.read_csv(path)
         if frame.empty:
             continue
@@ -1511,11 +1520,11 @@ def render_closed_loop_page() -> None:
     )
     st.markdown(
         '<div class="section-title">Does observing more surface produce a better '
-        '2DGS reconstruction?</div>',
+        'CPU-recovered 2DGS reconstruction?</div>',
         unsafe_allow_html=True,
     )
     gaussian_splatting = load_gaussian_splatting_metrics(
-        str(GAUSSIAN_SPLATTING_ROOT)
+        str(GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT)
     )
     gs_metrics = {
         "chamfer_l1_normalized": "Normalized Chamfer-L1 ↓",
@@ -1555,7 +1564,7 @@ def render_closed_loop_page() -> None:
         )
     with gs_metric_control:
         gs_metric = st.selectbox(
-            "2DGS evaluation metric",
+            "CPU-recovered 2DGS metric",
             available_gs_metrics,
             format_func=lambda value: gs_metrics[value],
             disabled=not available_gs_metrics,
@@ -1595,9 +1604,9 @@ def render_closed_loop_page() -> None:
                 width="stretch",
             )
         with comparison_right:
-            st.markdown("#### 2D Gaussian Splatting")
+            st.markdown("#### CPU-recovered 2D Gaussian Splatting")
             if gaussian_splatting.empty or not gs_metric:
-                st.info("No completed 2DGS geometry evaluations were found.")
+                st.info("No completed CPU-recovered 2DGS evaluations were found.")
             else:
                 st.altair_chart(
                     build_closed_loop_curve(
@@ -1614,8 +1623,8 @@ def render_closed_loop_page() -> None:
         "Use the shared policy filter to compare the same variants in both graphs. "
         "Click a legend entry to isolate a curve and hover over a point for its value "
         "and cohort size. Both charts use the same zero-based y-axis. Coverage uses "
-        "the full 300-object test cohort; 2DGS means include the completed runs "
-        "currently available."
+        "the full 300-object test cohort; 2DGS means use only the completed CPU-recovery "
+        "runs currently available."
     )
 
     st.markdown(
@@ -1821,7 +1830,7 @@ def render_rollout_inspection_page() -> None:
     )
     st.markdown(
         '<div class="section-title">Inspect 3DGS renders and the reconstructed 2DGS '
-        'surface against ground truth.</div>',
+        'CPU-recovery surface against ground truth.</div>',
         unsafe_allow_html=True,
     )
     policy_renders = (
@@ -1871,12 +1880,15 @@ def render_rollout_inspection_page() -> None:
             ].iloc[0]
         )
         comparison_2dgs_path = (
-            comparison_3dgs_path.parent.parent
+            GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT
+            / comparison_3dgs_path.parent.parent.relative_to(
+                GAUSSIAN_SPLATTING_ROOT
+            )
             / "2dgs"
             / "comparison_interactive.html"
         )
         render_3dgs_tab, surface_2dgs_tab = st.tabs(
-            ["3DGS render vs. RGB", "2DGS surface vs. ground truth"]
+            ["3DGS render vs. RGB", "CPU-recovered 2DGS vs. ground truth"]
         )
         with render_3dgs_tab:
             components.html(
@@ -1898,13 +1910,14 @@ def render_rollout_inspection_page() -> None:
                     scrolling=False,
                 )
                 st.caption(
-                    "Drag to rotate the 2DGS surface comparison. Toggle ground truth "
-                    "and prediction, or switch between overlay and side-by-side layouts."
+                    "Drag to rotate the CPU-recovered 2DGS surface comparison. Toggle "
+                    "ground truth and prediction, or switch between overlay and "
+                    "side-by-side layouts."
                 )
             else:
                 st.info(
-                    "No interactive 2DGS surface comparison is available for this "
-                    "selection yet."
+                    "No CPU-recovered interactive 2DGS surface comparison is available "
+                    "for this selection yet."
                 )
         st.caption(
             f"{pretty_policy(rollout_policy)} · "
