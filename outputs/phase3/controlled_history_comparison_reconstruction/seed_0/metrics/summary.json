@@ -527,14 +527,14 @@
       "cached_shards_before_invocation": 47,
       "invocation_kind": "resumed_cache_restore_or_live_completion",
       "note": "Do not interpret a resumed cache-restore duration as live VGGT precompute time.",
-      "seconds_this_invocation": 5.8047168329999295,
+      "seconds_this_invocation": 5.632118714000171,
       "shard_count": 47,
       "storage_bytes": 412876800
     },
     "one_step": {
-      "independent_cached_seconds": 9.861329208999905,
+      "independent_cached_seconds": 9.870733501999894,
       "independent_peak_cuda_allocated_bytes": 3716350464,
-      "joint_cached_seconds": 6.1618502149999586,
+      "joint_cached_seconds": 5.647451807999914,
       "joint_peak_cuda_allocated_bytes": 3716350464,
       "sample_count": 12000
     },
@@ -862,10 +862,10 @@
       "04530566/20d1090d07a49fe927ac692756be9e24": "/content/cv3d-project/data/cache/reconstruction/ground_truth/04530566/20d1090d07a49fe927ac692756be9e24/35a4e0ce51dc958ca65e.npz"
     },
     "interpretation": "view_selection_quality_under_a_common_frozen_vggt_reconstructor",
-    "metric_cache_hits": 2002,
-    "metric_cache_misses": 998,
-    "prediction_cache_hits": 2080,
-    "prediction_cache_misses": 920,
+    "metric_cache_hits": 3000,
+    "metric_cache_misses": 0,
+    "prediction_cache_hits": 3000,
+    "prediction_cache_misses": 0,
     "schema_version": 1,
     "settings": {
       "backend": "vggt",
