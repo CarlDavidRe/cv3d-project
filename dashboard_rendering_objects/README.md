@@ -3,6 +3,9 @@
 Gaussian-splatting evaluation summaries are available for 23 objects across
 10 ShapeNet categories.
 
+See [the two 2DGS CPU fixes](../docs/2dgs_cpu_fixes.md) for the difference between
+depth reevaluation and placement repair, their inputs/outputs, and execution order.
+
 ## Airplane (`02691156`)
 
 - `1628b65a9f3cd7c05e9e2656aff7dd5b`
