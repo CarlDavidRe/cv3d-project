@@ -638,7 +638,13 @@ cd /content/cv3d-project
 
 DRIVE_OUTPUTS=/content/drive/MyDrive/cv3d-project/outputs
 
-for RESULT_DIR in phase1 phase2 phase3 all_policy_comparison; do
+for RESULT_DIR in \
+  phase1 \
+  phase2 \
+  phase3 \
+  all_policy_comparison \
+  gaussian_splatting_variant_comparison
+do
   if [ -d "outputs/$RESULT_DIR" ]; then
     mkdir -p "$DRIVE_OUTPUTS/$RESULT_DIR"
     rsync -av "outputs/$RESULT_DIR/" "$DRIVE_OUTPUTS/$RESULT_DIR/"
@@ -666,8 +672,9 @@ done
 
 ## 7. Back up long runs automatically
 
-Start this once per runtime. It syncs results and reusable data to Drive every
-five minutes:
+Start this once per runtime. It syncs all results—including Gaussian-splatting
+results in `outputs/gaussian_splatting_variant_comparison`—and reusable data to
+Drive every five minutes:
 
 ```bash
 REPO=/content/cv3d-project
@@ -681,6 +688,7 @@ then
 else
   (
     while true; do
+      # Syncing outputs also includes gaussian_splatting_variant_comparison.
       for PATH_TO_SYNC in \
         outputs \
         data/cache/features \
@@ -707,6 +715,7 @@ Before disconnecting, interrupt the active experiment and force a final sync:
 REPO=/content/cv3d-project
 BACKUP=/content/drive/MyDrive/cv3d-project
 
+# Syncing outputs also includes gaussian_splatting_variant_comparison.
 for PATH_TO_SYNC in \
   outputs \
   data/cache/features \

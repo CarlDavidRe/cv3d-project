@@ -334,9 +334,10 @@ def train_gaussian_splats(
             )
             normal_valid = alpha[..., 0] > 0.05
             cosine = F.cosine_similarity(normals, surface_normals, dim=-1).abs()
-            normal_loss = (
-                (1 - cosine)[normal_valid].mean()
-                if normal_valid.any() else torch.zeros((), device=device)
+            # Keep the reduction on the GPU, including when no pixels are valid.
+            # Boolean indexing and a Python condition would synchronize with the CPU.
+            normal_loss = (1 - cosine).masked_fill(~normal_valid, 0).sum() / (
+                normal_valid.sum().clamp_min(1)
             )
             regularization = (
                 settings.distortion_loss_weight * distortion.mean()
