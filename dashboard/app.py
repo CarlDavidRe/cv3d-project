@@ -12,6 +12,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
+import streamlit.components.v1 as components
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -25,6 +26,15 @@ PHASE3_CLOSED_LOOP_ROOT = (
     / "phase3"
     / "controlled_history_comparison_reconstruction"
     / "seed_0"
+)
+PHASE3_POSE_DEEPSETS_ROOT = (
+    REPO_ROOT / "outputs" / "phase3" / "controlled_pose_deepsets" / "seed_0"
+)
+PHASE3_TOKEN_ATTENTION_ROOT = (
+    REPO_ROOT / "outputs" / "phase3" / "controlled_token_attention" / "seed_0"
+)
+GAUSSIAN_SPLATTING_ROOT = (
+    REPO_ROOT / "outputs" / "gaussian_splatting_variant_comparison"
 )
 NUM_ROOT = REPO_ROOT / "data" / "NUM"
 SHAPENET_ROOT = REPO_ROOT / "data" / "ShapeNetCore.v2"
@@ -116,6 +126,8 @@ CLOSED_LOOP_POLICY_LABELS = {
     "oracle": "Oracle",
     "vggt_independent_history": "VGGT · independent history",
     "vggt_joint_history": "VGGT · joint history",
+    "vggt_joint_pose_deepsets": "VGGT · pose DeepSets",
+    "vggt_joint_token_attention": "VGGT · token attention",
 }
 
 CLOSED_LOOP_POLICY_COLORS = {
@@ -126,6 +138,8 @@ CLOSED_LOOP_POLICY_COLORS = {
     "Oracle": "#34d399",
     "VGGT · independent history": "#06b6d4",
     "VGGT · joint history": "#ec4899",
+    "VGGT · pose DeepSets": "#ef4444",
+    "VGGT · token attention": "#84cc16",
 }
 
 VARIANT_DESCRIPTIONS = {
@@ -740,26 +754,38 @@ def load_closed_loop_tables(
 ) -> dict[str, pd.DataFrame]:
     """Load the canonical Phase 2 and Phase 3 evaluation tables."""
     specifications = (
-        ("Phase 2", Path(phase2_root), "comparison.csv"),
-        ("Phase 3", Path(phase3_root), "closed_loop_comparison.csv"),
+        ("Phase 2", Path(phase2_root), "comparison.csv", None),
+        ("Phase 3", Path(phase3_root), "closed_loop_comparison.csv", None),
+        (
+            "Phase 3",
+            PHASE3_POSE_DEEPSETS_ROOT,
+            "closed_loop_comparison.csv",
+            {"vggt_joint_pose_deepsets"},
+        ),
+        (
+            "Phase 3",
+            PHASE3_TOKEN_ATTENTION_ROOT,
+            "closed_loop_comparison.csv",
+            {"vggt_joint_token_attention"},
+        ),
     )
     grouped: dict[str, list[pd.DataFrame]] = {
         "comparison": [],
         "coverage": [],
         "per_step": [],
-        "reconstruction": [],
     }
-    for phase, root, comparison_name in specifications:
+    for phase, root, comparison_name, included_policies in specifications:
         paths = {
             "comparison": root / "metrics" / comparison_name,
             "coverage": root / "metrics" / "coverage.csv",
             "per_step": root / "metrics" / "per_step.csv",
-            "reconstruction": root / "metrics" / "reconstruction_curves.csv",
         }
         for table_name, path in paths.items():
             if not path.is_file():
                 continue
             frame = pd.read_csv(path)
+            if included_policies is not None:
+                frame = frame[frame["policy"].isin(included_policies)].copy()
             frame["phase"] = phase
             frame["policy_label"] = frame["policy"].map(pretty_policy)
             grouped[table_name].append(frame)
@@ -770,14 +796,124 @@ def load_closed_loop_tables(
 
 
 @st.cache_data(show_spinner=False)
+def load_gaussian_splatting_metrics(root: str) -> pd.DataFrame:
+    """Aggregate completed 2DGS geometry evaluations by policy and view count."""
+    frames: list[pd.DataFrame] = []
+    for path in sorted(Path(root).glob("*/*/*views/phase*/2dgs/metrics.csv")):
+        frame = pd.read_csv(path)
+        if frame.empty:
+            continue
+        variant = path.parents[1].name
+        frame["phase"] = "Phase 2" if variant.startswith("phase2_") else "Phase 3"
+        frame["policy_label"] = frame["policy"].map(pretty_policy)
+        frames.append(frame)
+
+    if not frames:
+        return pd.DataFrame()
+
+    combined = pd.concat(frames, ignore_index=True)
+    metric_columns = [
+        column
+        for column in combined.columns
+        if column.endswith("_normalized")
+        or column.startswith(("precision_", "recall_", "fscore_"))
+    ]
+    aggregations = {column: "mean" for column in metric_columns}
+    aggregations["object_id"] = "nunique"
+    return (
+        combined.groupby(
+            ["phase", "policy", "policy_label", "acquired_view_count"],
+            as_index=False,
+        )
+        .agg(aggregations)
+        .rename(columns={"object_id": "object_count"})
+    )
+
+
+@st.cache_data(show_spinner=False)
+def load_3dgs_render_catalog(root: str) -> pd.DataFrame:
+    """Index 48-anchor 3DGS/ground-truth viewers by policy and view count."""
+    records: list[dict[str, object]] = []
+    root_path = Path(root)
+    for path in sorted(
+        root_path.glob("*/*/*views/phase*/3dgs/ground_truth_comparison.html")
+    ):
+        relative = path.relative_to(root_path)
+        category_id, object_id, view_directory, variant, _, _ = relative.parts
+        phase_token, policy = variant.split("_", maxsplit=1)
+        records.append(
+            {
+                "phase": "Phase 2" if phase_token == "phase2" else "Phase 3",
+                "policy": policy,
+                "policy_label": pretty_policy(policy),
+                "category_id": category_id,
+                "object_id": object_id,
+                "object_key": f"{category_id}/{object_id}",
+                "acquired_view_count": int(view_directory.removesuffix("views")),
+                "path": str(path),
+            }
+        )
+    return pd.DataFrame.from_records(records)
+
+
+def make_manual_3dgs_comparison(document: str) -> str:
+    """Lock side-by-side mode and add manual drag across all 48 anchors."""
+    document = document.replace(
+        "<button id='play'>Pause</button>",
+        "<span>Drag the 3DGS rendering or use the anchor slider</span>",
+    )
+    document = document.replace(
+        "<label>Layout <select id='layout'><option value='side'>Side by side</option>"
+        "<option value='overlay'>Overlay</option></select></label>",
+        "<select id='layout' hidden><option value='side' selected>Side by side</option>"
+        "</select>",
+    )
+    document = document.replace(
+        "<label>Overlay opacity <input id='opacity' type='range' min='0' max='1' "
+        "step='.05' value='.5'></label>",
+        "<input id='opacity' type='range' value='.5' hidden>",
+    )
+    document = document.replace("let index=0,playing=true;", "let index=0;")
+    automatic_controls = (
+        "document.getElementById('play').onclick=e=>{playing=!playing;"
+        "e.target.textContent=playing?'Pause':'Play'};\n"
+        "setInterval(()=>{if(playing){index=(index+1)%data.references.length;show()}},350);"
+    )
+    manual_controls = (
+        "function installDragRotation(surface){let dragging=false;"
+        "surface.draggable=false;surface.style.cursor='grab';"
+        "surface.style.touchAction='none';"
+        "function selectAnchor(e){const bounds=surface.getBoundingClientRect();"
+        "const fraction=Math.max(0,Math.min(1,(e.clientX-bounds.left)/bounds.width));"
+        "index=Math.round(fraction*(data.references.length-1));show()}"
+        "surface.onpointerdown=e=>{dragging=true;surface.setPointerCapture(e.pointerId);"
+        "surface.style.cursor='grabbing';selectAnchor(e)};"
+        "surface.onpointermove=e=>{if(dragging)selectAnchor(e)};"
+        "surface.onpointerup=surface.onpointercancel=e=>{dragging=false;"
+        "surface.style.cursor='grab'}}"
+        "installDragRotation(document.getElementById('predictionSide'));"
+        "installDragRotation(document.getElementById('prediction'));"
+    )
+    return document.replace(automatic_controls, manual_controls)
+
+
+@st.cache_data(show_spinner=False)
 def load_rollout_catalog(phase2_root: str, phase3_root: str) -> pd.DataFrame:
     """Index replay files without loading their large score arrays."""
     records: list[dict[str, str]] = []
-    for phase, root in (("Phase 2", Path(phase2_root)), ("Phase 3", Path(phase3_root))):
+    sources = (
+        ("Phase 2", Path(phase2_root), None),
+        ("Phase 3", Path(phase3_root), None),
+        ("Phase 3", PHASE3_POSE_DEEPSETS_ROOT, {"vggt_joint_pose_deepsets"}),
+        ("Phase 3", PHASE3_TOKEN_ATTENTION_ROOT, {"vggt_joint_token_attention"}),
+    )
+    for phase, root, included_policies in sources:
         rollout_root = root / "rollouts"
         for path in sorted(rollout_root.glob("*/*/*.npz")):
             relative = path.relative_to(rollout_root)
             policy, category_id, filename = relative.parts
+            if included_policies is not None and policy not in included_policies:
+                continue
             records.append(
                 {
                     "phase": phase,
@@ -814,13 +950,21 @@ def build_closed_loop_curve(
     y: str,
     x_title: str,
     y_title: str,
+    y_domain: tuple[float, float] | None = None,
 ) -> alt.LayerChart:
     """Build a consistent multi-policy closed-loop trajectory chart."""
-    domain = [label for label in CLOSED_LOOP_POLICY_COLORS if label in set(data["policy_label"])]
+    domain = [
+        label
+        for label in CLOSED_LOOP_POLICY_COLORS
+        if label in set(data["policy_label"])
+    ]
     color = alt.Color(
         "policy_label:N",
         title=None,
-        scale=alt.Scale(domain=domain, range=[CLOSED_LOOP_POLICY_COLORS[label] for label in domain]),
+        scale=alt.Scale(
+            domain=domain,
+            range=[CLOSED_LOOP_POLICY_COLORS[label] for label in domain],
+        ),
         legend=alt.Legend(orient="top", direction="horizontal", columns=4),
     )
     phase_dash = alt.StrokeDash(
@@ -830,18 +974,26 @@ def build_closed_loop_curve(
     )
     selection = alt.selection_point(fields=["policy_label"], bind="legend")
     opacity = alt.condition(selection, alt.value(1.0), alt.value(0.14))
+    tooltips = [
+        alt.Tooltip("phase:N", title="Evaluation"),
+        alt.Tooltip("policy_label:N", title="Policy"),
+        alt.Tooltip(f"{x}:Q", title=x_title),
+        alt.Tooltip(f"{y}:Q", title=y_title, format=".4f"),
+    ]
+    if "object_count" in data.columns:
+        tooltips.append(alt.Tooltip("object_count:Q", title="Objects"))
+    y_scale = (
+        alt.Scale(domain=list(y_domain), nice=False)
+        if y_domain is not None
+        else alt.Scale(zero=False)
+    )
     encoding = {
         "x": alt.X(f"{x}:Q", title=x_title, axis=alt.Axis(tickMinStep=1)),
-        "y": alt.Y(f"{y}:Q", title=y_title, scale=alt.Scale(zero=False)),
+        "y": alt.Y(f"{y}:Q", title=y_title, scale=y_scale),
         "color": color,
         "strokeDash": phase_dash,
         "opacity": opacity,
-        "tooltip": [
-            alt.Tooltip("phase:N", title="Evaluation"),
-            alt.Tooltip("policy_label:N", title="Policy"),
-            alt.Tooltip(f"{x}:Q", title=x_title),
-            alt.Tooltip(f"{y}:Q", title=y_title, format=".4f"),
-        ],
+        "tooltip": tooltips,
     }
     line = alt.Chart(data).mark_line(point=False, strokeWidth=3).encode(**encoding)
     points = alt.Chart(data).mark_circle(size=48).encode(**encoding)
@@ -854,44 +1006,6 @@ def build_closed_loop_curve(
             labelColor="#cbd5e1", titleColor="#e2e8f0", gridColor="#263247"
         )
         .configure_legend(labelColor="#cbd5e1", titleColor="#e2e8f0")
-    )
-
-
-def build_policy_summary_chart(
-    data: pd.DataFrame, metric: str, label: str
-) -> alt.Chart:
-    """Build a compact phase-aware policy summary chart."""
-    order = data.sort_values(metric, ascending=False)["policy_label"].tolist()
-    domain = [name for name in CLOSED_LOOP_POLICY_COLORS if name in set(data["policy_label"])]
-    return (
-        alt.Chart(data)
-        .mark_bar(cornerRadiusEnd=5, height=20)
-        .encode(
-            x=alt.X(f"{metric}:Q", title=label, scale=alt.Scale(zero=False)),
-            y=alt.Y("policy_label:N", title=None, sort=order),
-            color=alt.Color(
-                "policy_label:N",
-                title=None,
-                scale=alt.Scale(
-                    domain=domain, range=[CLOSED_LOOP_POLICY_COLORS[name] for name in domain]
-                ),
-                legend=None,
-            ),
-            opacity=alt.condition(
-                alt.datum.phase == "Phase 2", alt.value(0.72), alt.value(1.0)
-            ),
-            tooltip=[
-                alt.Tooltip("phase:N", title="Evaluation"),
-                alt.Tooltip("policy_label:N", title="Policy"),
-                alt.Tooltip(f"{metric}:Q", title=label, format=".4f"),
-                alt.Tooltip("object_count:Q", title="Objects"),
-            ],
-        )
-        .properties(height=340)
-        .configure_view(strokeWidth=0)
-        .configure_axis(
-            labelColor="#cbd5e1", titleColor="#e2e8f0", gridColor="#263247"
-        )
     )
 
 
@@ -1391,23 +1505,118 @@ def render_closed_loop_page() -> None:
         unsafe_allow_html=True,
     )
 
-    overview_left, overview_right = st.columns([1, 1.55])
-    with overview_left:
-        st.altair_chart(
-            build_policy_summary_chart(comparison, summary_metric, metric_label),
-            width="stretch",
+    st.markdown(
+        '<div class="section-kicker">Coverage × Gaussian splatting</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="section-title">Does observing more surface produce a better '
+        '2DGS reconstruction?</div>',
+        unsafe_allow_html=True,
+    )
+    gaussian_splatting = load_gaussian_splatting_metrics(
+        str(GAUSSIAN_SPLATTING_ROOT)
+    )
+    gs_metrics = {
+        "chamfer_l1_normalized": "Normalized Chamfer-L1 ↓",
+        "accuracy_normalized": "Normalized accuracy ↓",
+        "completeness_normalized": "Normalized completeness ↓",
+        "fscore_1pct": "F-score @ 1% ↑",
+        "fscore_2pct": "F-score @ 2% ↑",
+        "fscore_10pct": "F-score @ 10% ↑",
+        "precision_1pct": "Precision @ 1% ↑",
+        "precision_2pct": "Precision @ 2% ↑",
+        "precision_10pct": "Precision @ 10% ↑",
+        "recall_1pct": "Recall @ 1% ↑",
+        "recall_2pct": "Recall @ 2% ↑",
+        "recall_10pct": "Recall @ 10% ↑",
+    }
+    available_gs_metrics = [
+        metric for metric in gs_metrics if metric in gaussian_splatting.columns
+    ]
+    coverage_policy_labels = set(tables["coverage"]["policy_label"])
+    gs_policy_labels = (
+        set(gaussian_splatting["policy_label"])
+        if not gaussian_splatting.empty
+        else set()
+    )
+    comparable_policies = [
+        label
+        for label in CLOSED_LOOP_POLICY_COLORS
+        if label in coverage_policy_labels and label in gs_policy_labels
+    ]
+
+    policy_control, gs_metric_control = st.columns(2)
+    with policy_control:
+        selected_policies = st.multiselect(
+            "Policies to compare",
+            comparable_policies,
+            default=comparable_policies,
         )
-    with overview_right:
-        st.altair_chart(
-            build_closed_loop_curve(
-                tables["coverage"].dropna(subset=["coverage_mean"]),
-                x="acquired_view_count",
-                y="coverage_mean",
-                x_title="Acquired views",
-                y_title="Absolute surface coverage",
-            ),
-            width="stretch",
+    with gs_metric_control:
+        gs_metric = st.selectbox(
+            "2DGS evaluation metric",
+            available_gs_metrics,
+            format_func=lambda value: gs_metrics[value],
+            disabled=not available_gs_metrics,
         )
+
+    comparison_left, comparison_right = st.columns(2)
+    if not selected_policies:
+        st.info("Select at least one policy to draw the comparison graphs.")
+    else:
+        coverage_for_chart = tables["coverage"][
+            tables["coverage"]["policy_label"].isin(selected_policies)
+        ].dropna(subset=["coverage_mean"])
+        gs_for_chart = pd.DataFrame()
+        if not gaussian_splatting.empty and gs_metric:
+            gs_for_chart = gaussian_splatting[
+                gaussian_splatting["policy_label"].isin(selected_policies)
+            ].dropna(subset=[gs_metric])
+        plotted_values = [coverage_for_chart["coverage_mean"].to_numpy(dtype=float)]
+        if not gs_for_chart.empty:
+            plotted_values.append(gs_for_chart[gs_metric].to_numpy(dtype=float))
+        finite_values = np.concatenate(plotted_values)
+        finite_values = finite_values[np.isfinite(finite_values)]
+        observed_max = float(finite_values.max()) if finite_values.size else 1.0
+        shared_y_domain = (0.0, max(1.0, observed_max * 1.05))
+
+        with comparison_left:
+            st.markdown("#### Absolute surface coverage")
+            st.altair_chart(
+                build_closed_loop_curve(
+                    coverage_for_chart,
+                    x="acquired_view_count",
+                    y="coverage_mean",
+                    x_title="Acquired views",
+                    y_title="Absolute surface coverage",
+                    y_domain=shared_y_domain,
+                ),
+                width="stretch",
+            )
+        with comparison_right:
+            st.markdown("#### 2D Gaussian Splatting")
+            if gaussian_splatting.empty or not gs_metric:
+                st.info("No completed 2DGS geometry evaluations were found.")
+            else:
+                st.altair_chart(
+                    build_closed_loop_curve(
+                        gs_for_chart,
+                        x="acquired_view_count",
+                        y=gs_metric,
+                        x_title="Acquired views",
+                        y_title=gs_metrics[gs_metric],
+                        y_domain=shared_y_domain,
+                    ),
+                    width="stretch",
+                )
+    st.caption(
+        "Use the shared policy filter to compare the same variants in both graphs. "
+        "Click a legend entry to isolate a curve and hover over a point for its value "
+        "and cohort size. Both charts use the same zero-based y-axis. Coverage uses "
+        "the full 300-object test cohort; 2DGS means include the completed runs "
+        "currently available."
+    )
 
     st.markdown(
         '<div class="section-kicker">Decision quality</div>', unsafe_allow_html=True
@@ -1446,41 +1655,6 @@ def render_closed_loop_page() -> None:
         width="stretch",
     )
 
-    reconstruction = tables["reconstruction"]
-    if not reconstruction.empty:
-        st.markdown(
-            '<div class="section-kicker">Shared reconstruction backend</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<div class="section-title">Does the selected history reconstruct well?</div>',
-            unsafe_allow_html=True,
-        )
-        reconstruction_metrics = {
-            "chamfer_l1_normalized_mean": "Normalized Chamfer-L1 ↓",
-            "completeness_normalized_mean": "Normalized completeness ↓",
-            "fscore_1pct_mean": "F-score @ 1% ↑",
-            "fscore_2pct_mean": "F-score @ 2% ↑",
-        }
-        available_reconstruction_metrics = [
-            metric for metric in reconstruction_metrics if metric in reconstruction.columns
-        ]
-        reconstruction_metric = st.selectbox(
-            "Reconstruction metric",
-            available_reconstruction_metrics,
-            format_func=lambda value: reconstruction_metrics[value],
-        )
-        st.altair_chart(
-            build_closed_loop_curve(
-                reconstruction.dropna(subset=[reconstruction_metric]),
-                x="acquired_view_count",
-                y=reconstruction_metric,
-                x_title="Acquired views",
-                y_title=reconstruction_metrics[reconstruction_metric],
-            ),
-            width="stretch",
-        )
-
     with st.expander("Inspect aggregate closed-loop metrics"):
         display_columns = [
             "phase",
@@ -1517,9 +1691,9 @@ def render_rollout_inspection_page() -> None:
             unsafe_allow_html=True,
         )
         st.markdown(
-            '<div class="hero-copy">Choose a phase, object, and policy to follow its '
-            'camera trajectory and absolute surface coverage through the acquisition '
-            'sequence.</div>',
+            '<div class="hero-copy">Choose a policy and object to follow its camera '
+            'trajectory, absolute surface coverage, and Gaussian reconstruction through '
+            'the acquisition sequence.</div>',
             unsafe_allow_html=True,
         )
     with header_right:
@@ -1533,12 +1707,17 @@ def render_rollout_inspection_page() -> None:
         st.info("No replayable rollout files are available for object-level inspection.")
         return
 
-    rollout_a, rollout_b, rollout_c, rollout_d = st.columns([1, 1.25, 2.1, 1.8])
+    render_catalog = load_3dgs_render_catalog(str(GAUSSIAN_SPLATTING_ROOT))
+    rollout_a, rollout_b, rollout_c = st.columns([1.8, 1.25, 2.1])
     with rollout_a:
-        rollout_phase = st.selectbox("Evaluation phase", ["Phase 2", "Phase 3"])
-    phase_catalog = catalog[catalog["phase"] == rollout_phase]
+        rollout_policy = st.selectbox(
+            "Rollout policy",
+            sorted(catalog["policy"].unique(), key=pretty_policy),
+            format_func=pretty_policy,
+        )
+    policy_catalog = catalog[catalog["policy"] == rollout_policy]
     category_options = sorted(
-        phase_catalog["category_id"].unique(),
+        policy_catalog["category_id"].unique(),
         key=lambda value: CATEGORY_NAMES.get(value, value),
     )
     with rollout_b:
@@ -1547,33 +1726,38 @@ def render_rollout_inspection_page() -> None:
             category_options,
             format_func=lambda value: CATEGORY_NAMES.get(value, value),
         )
-    category_catalog = phase_catalog[phase_catalog["category_id"] == rollout_category]
+    category_catalog = policy_catalog[policy_catalog["category_id"] == rollout_category]
+    rendered_objects = (
+        set(
+            render_catalog.loc[
+                (render_catalog["policy"] == rollout_policy)
+                & (render_catalog["category_id"] == rollout_category),
+                "object_id",
+            ]
+        )
+        if not render_catalog.empty
+        else set()
+    )
+    object_options = sorted(
+        category_catalog["object_id"].unique(),
+        key=lambda value: (value not in rendered_objects, value),
+    )
     with rollout_c:
-        rollout_object = st.selectbox(
-            "Rollout object", sorted(category_catalog["object_id"].unique())
-        )
+        rollout_object = st.selectbox("Rollout object", object_options)
     object_catalog = category_catalog[category_catalog["object_id"] == rollout_object]
-    with rollout_d:
-        rollout_policy = st.selectbox(
-            "Rollout policy",
-            sorted(object_catalog["policy"].unique(), key=pretty_policy),
-            format_func=pretty_policy,
-        )
-    rollout_path = object_catalog.loc[
-        object_catalog["policy"] == rollout_policy, "path"
-    ].iloc[0]
+    rollout_path = object_catalog["path"].iloc[0]
     rollout = load_dashboard_rollout(str(rollout_path))
     acquired = np.asarray(rollout["acquired_anchor_ids"], dtype=int)
     counts = np.asarray(rollout["acquired_view_counts"], dtype=int)
     coverage = np.asarray(rollout["coverage"], dtype=float)
     steps = rollout["steps"]
 
-    acquired_count = st.slider(
+    acquired_count = st.segmented_control(
         "Views acquired",
-        min_value=int(counts[0]),
-        max_value=int(counts[-1]),
-        value=int(counts[-1]),
-        step=1,
+        options=counts.astype(int).tolist(),
+        default=int(counts[-1]),
+        required=True,
+        width="stretch",
     )
     current_index = int(np.flatnonzero(counts == acquired_count)[0])
     current_anchor = int(acquired[current_index])
@@ -1630,6 +1814,103 @@ def render_rollout_inspection_page() -> None:
             }
         ).set_index("Acquired views")
         st.line_chart(trajectory, height=210)
+
+    st.markdown(
+        '<div class="section-kicker">Gaussian Splatting comparisons</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="section-title">Inspect 3DGS renders and the reconstructed 2DGS '
+        'surface against ground truth.</div>',
+        unsafe_allow_html=True,
+    )
+    policy_renders = (
+        render_catalog[render_catalog["policy"] == rollout_policy]
+        if not render_catalog.empty
+        else pd.DataFrame()
+    )
+    if policy_renders.empty:
+        st.info(
+            "No completed 3DGS turntable is available for this policy yet."
+        )
+    else:
+        render_category_control, render_object_control = st.columns([1, 2])
+        render_categories = sorted(
+            policy_renders["category_id"].unique(),
+            key=lambda value: CATEGORY_NAMES.get(value, value),
+        )
+        with render_category_control:
+            render_category = st.selectbox(
+                "3DGS category",
+                render_categories,
+                format_func=lambda value: CATEGORY_NAMES.get(value, value),
+            )
+        category_renders = policy_renders[
+            policy_renders["category_id"] == render_category
+        ]
+        with render_object_control:
+            render_object = st.selectbox(
+                "3DGS object",
+                sorted(category_renders["object_id"].unique()),
+            )
+        selected_renders = category_renders[
+            category_renders["object_id"] == render_object
+        ].sort_values("acquired_view_count")
+        render_view_counts = selected_renders["acquired_view_count"].astype(int).tolist()
+        render_view_count = st.segmented_control(
+            "3DGS training views",
+            options=render_view_counts,
+            default=render_view_counts[-1],
+            required=True,
+            width="stretch",
+        )
+        comparison_3dgs_path = Path(
+            selected_renders.loc[
+                selected_renders["acquired_view_count"] == render_view_count,
+                "path",
+            ].iloc[0]
+        )
+        comparison_2dgs_path = (
+            comparison_3dgs_path.parent.parent
+            / "2dgs"
+            / "comparison_interactive.html"
+        )
+        render_3dgs_tab, surface_2dgs_tab = st.tabs(
+            ["3DGS render vs. RGB", "2DGS surface vs. ground truth"]
+        )
+        with render_3dgs_tab:
+            components.html(
+                make_manual_3dgs_comparison(
+                    comparison_3dgs_path.read_text(encoding="utf-8")
+                ),
+                height=680,
+                scrolling=False,
+            )
+            st.caption(
+                "Drag the 3DGS panel from edge to edge to inspect anchors 0–47; "
+                "the matching ground-truth NUM image stays beside it."
+            )
+        with surface_2dgs_tab:
+            if comparison_2dgs_path.is_file():
+                components.html(
+                    comparison_2dgs_path.read_text(encoding="utf-8"),
+                    height=720,
+                    scrolling=False,
+                )
+                st.caption(
+                    "Drag to rotate the 2DGS surface comparison. Toggle ground truth "
+                    "and prediction, or switch between overlay and side-by-side layouts."
+                )
+            else:
+                st.info(
+                    "No interactive 2DGS surface comparison is available for this "
+                    "selection yet."
+                )
+        st.caption(
+            f"{pretty_policy(rollout_policy)} · "
+            f"{CATEGORY_NAMES.get(render_category, render_category)} / {render_object} · "
+            f"{render_view_count} acquired views"
+        )
 
 
 navigation = st.navigation(

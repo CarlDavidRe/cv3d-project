@@ -23,6 +23,7 @@ from nbv.eval.gaussian_splatting import (
     initialize_point_colors,
     known_num_splat_cameras,
     orbit_camera_poses,
+    render_splats,
     require_gsplat,
     write_image_comparison_gallery,
     write_render_gallery,
@@ -182,6 +183,43 @@ class GaussianSplattingTests(unittest.TestCase):
             depth, alpha, cameras, alpha_threshold=0.5, point_count=10, seed=0
         )
         np.testing.assert_allclose(points, [[-0.5, -0.5, 2.0]])
+
+    def test_2dgs_surface_render_uses_depth_feature_not_blue(self) -> None:
+        model = GaussianParameters(
+            np.asarray([[0.0, 0.0, 2.5], [0.1, 0.0, 2.5]]),
+            np.full((2, 3), 0.25), "2dgs",
+        )
+        cameras = SplatCameras(
+            np.repeat(np.eye(4)[None], 3, axis=0),
+            np.repeat(np.eye(4)[None], 3, axis=0),
+            np.repeat(np.eye(3)[None], 3, axis=0),
+        )
+        settings = GaussianSplatSettings("2dgs", resolution=1, render_batch_size=2)
+
+        def rasterizer(*args: object, **kwargs: object) -> tuple[object, ...]:
+            count = len(args[5])
+            rgb = torch.full((count, 1, 1, 3), 0.25)
+            alpha = torch.ones((count, 1, 1, 1))
+            features = (
+                torch.cat((rgb, torch.full_like(alpha, 2.5)), dim=-1)
+                if kwargs["render_mode"] == "RGB+ED" else rgb
+            )
+            # Reproduce the upstream kernel's last-feature median contract.
+            return features, alpha, None, None, None, features[..., -1:], {}
+
+        with patch("nbv.eval.gaussian_splatting.require_gsplat", return_value=rasterizer):
+            rgb, alpha, depth = render_splats(model, cameras, settings, include_depth=True)
+            gallery, _, gallery_depth = render_splats(model, cameras, settings)
+
+        self.assertEqual(rgb.shape, (3, 1, 1, 3))
+        np.testing.assert_allclose(rgb, 0.25)
+        np.testing.assert_allclose(gallery, rgb)
+        self.assertIsNone(gallery_depth)
+        np.testing.assert_allclose(depth, 2.5)
+        surface = fuse_depth_surfaces(
+            depth, alpha, cameras, alpha_threshold=0.5, point_count=10, seed=0,
+        )
+        np.testing.assert_allclose(surface, [[1.25, 1.25, 2.5]])
 
     def test_geometry_metrics_reject_3dgs_by_contract(self) -> None:
         model = GaussianParameters(

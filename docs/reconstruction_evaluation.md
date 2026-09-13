@@ -114,3 +114,59 @@ The common evaluation reports F-scores at 1%, 2%, and 10% of the ground-truth
 bounding-box diameter. The 10% threshold is the less strict diagnostic for
 coarse reconstruction overlap; it complements rather than replaces the stricter
 geometric-fidelity thresholds.
+
+## Recovering saved 2DGS evaluation on CPU
+
+The original 2DGS surface extraction requested RGB-only rendering and interpreted
+its `render_median` output as depth. In the affected gsplat implementation, the
+median output reads the last feature channel, so this back-projected blue
+intensities. The corrected CUDA path requests `RGB+ED`. Training already used
+`RGB+ED`; checkpoints do not need retraining for this fix.
+
+For machines without CUDA, recover geometry from the existing artifacts:
+
+```bash
+.venv/bin/python scripts/reevaluate_gaussian_splatting_cpu.py --dry-run
+.venv/bin/python scripts/reevaluate_gaussian_splatting_cpu.py
+```
+
+The default input is `outputs/gaussian_splatting_variant_comparison`; corrected
+results go to `outputs/gaussian_splatting_cpu_recovery` with the same
+category/object/views/variant/2dgs hierarchy. The original artifacts are retained.
+No gsplat, extra dependencies, source RGB images, VGGT model, or reconstruction
+prediction caches are required. Each input needs `checkpoint.pt`, `summary.json`,
+`ground_truth.ply`, and the corresponding local `data/cache/visibility` entry.
+Old `/content/...` paths in summaries are not used to locate inputs.
+
+To recover a single history first:
+
+```bash
+.venv/bin/python scripts/reevaluate_gaussian_splatting_cpu.py \
+  --object-id 02691156/165c4491d10067b3bd46d022fd7d80aa \
+  --variant phase2_vggt --views 5
+```
+
+`--limit`, `--views`, and `--variant` restrict the batch. `--input-root`,
+`--output-root`, and `--visibility-cache-root` override locations. Repeating a
+command skips completed recoveries whose input hashes and renderer version match;
+`--force` recomputes them. Incomplete outputs are recomputed. Each failure is
+reported and the batch continues, returning a nonzero exit status if any failed.
+
+The command regenerates surface and comparison PLYs, static and interactive
+comparisons, per-history metrics, and summaries. `recovered_metrics.csv` at the
+output root combines recovered per-history metrics, including variant labels;
+policy averages should be calculated from these corrected rows. Original RGB
+turntables and trained checkpoints remain in the source tree. Saved summaries
+record that source and the CPU renderer identity. The dashboard still reads its
+`GAUSSIAN_SPLATTING_ROOT` constant in `dashboard/app.py`; that path must point at
+the recovery directory to display corrected metrics. Recovery does not change
+the dashboard or combine corrected rows with the original zero-valued files.
+
+CPU rendering follows gsplat v1.5.3's projection, screen-space filter, median
+**Gaussian-center camera-z** depth, tile coverage, and alpha compositing rules.
+It is a separate NumPy inference implementation, not a CPU build of gsplat.
+Analytic tests cover projection and compositing, but CPU/CUDA parity is not
+verified: floating-point differences and equal-depth ordering can differ.
+The summary explicitly records `cuda_parity_verified: false`. Compare a sample
+against the corrected CUDA path before mixing CPU and CUDA numbers in a report.
+CPU recovery can take several minutes per checkpoint; a full batch may take hours.

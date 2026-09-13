@@ -391,11 +391,16 @@ def render_splats(
             batch_values = _expand_2dgs_colors_for_cameras(
                 values, len(batch_views)
             )
-            rgb, alpha, _, _, _, median_depth, _ = rasterizer(
+            # gsplat's median output reads the last feature channel. RGB-only
+            # rendering therefore returns blue values as "depth" (gsplat #714).
+            # depth_mode alone does not append a depth feature.
+            mode = "RGB+ED" if include_depth else "RGB"
+            rendered, alpha, _, _, _, median_depth, _ = rasterizer(
                 *batch_values, batch_views, batch_intrinsics,
                 settings.resolution, settings.resolution,
-                backgrounds=white, render_mode="RGB", depth_mode="median",
+                backgrounds=white, render_mode=mode, depth_mode="median",
             )
+            rgb = rendered[..., :3]
             depth = median_depth[..., 0] if include_depth else None
         else:
             mode = "RGB+ED" if include_depth else "RGB"
