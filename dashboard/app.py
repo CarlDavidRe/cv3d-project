@@ -44,6 +44,9 @@ SHAPENET_ROOT = REPO_ROOT / "data" / "ShapeNetCore.v2"
 SPLIT_MANIFEST = REPO_ROOT / "data" / "splits" / "num_v1.json"
 ANCHOR_PATH = REPO_ROOT / "src" / "nbv" / "geometry" / "anchors_v1.csv"
 PREDICTION_DATA = REPO_ROOT / "dashboard" / "data" / "phase1_test_predictions.npz"
+DASHBOARD_RENDERING_OBJECTS_README = (
+    REPO_ROOT / "dashboard_rendering_objects" / "README.md"
+)
 
 CATEGORY_NAMES = {
     "02691156": "Airplane",
@@ -174,6 +177,29 @@ VARIANT_DESCRIPTIONS = {
     "vggt_pooled_register": "Probe trained on the mean of VGGT's learned register tokens.",
     "vggt_camera_patch": "Probe combining VGGT's camera representation with mean-pooled patch tokens.",
 }
+
+
+def load_dashboard_rendering_object_keys(path: str | Path) -> frozenset[str]:
+    """Read the rendering-object allowlist maintained in its Markdown README."""
+    category_id: str | None = None
+    object_keys: set[str] = set()
+    for raw_line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if line.startswith("## "):
+            parts = line.split("`")
+            category_id = parts[1] if len(parts) >= 3 else None
+        elif category_id is not None and line.startswith("- `") and line.endswith("`"):
+            object_id = line[3:-1]
+            object_keys.add(f"{category_id}/{object_id}")
+
+    if not object_keys:
+        raise ValueError(f"No rendering objects are defined in {path}.")
+    return frozenset(object_keys)
+
+
+DASHBOARD_RENDERING_OBJECT_KEYS = load_dashboard_rendering_object_keys(
+    DASHBOARD_RENDERING_OBJECTS_README
+)
 
 
 def pretty_variant(value: str) -> str:
@@ -866,6 +892,9 @@ def load_3dgs_render_catalog(root: str) -> pd.DataFrame:
     ):
         relative = path.relative_to(root_path)
         category_id, object_id, view_directory, variant, _, _ = relative.parts
+        object_key = f"{category_id}/{object_id}"
+        if object_key not in DASHBOARD_RENDERING_OBJECT_KEYS:
+            continue
         phase_token, policy = variant.split("_", maxsplit=1)
         records.append(
             {
@@ -874,7 +903,7 @@ def load_3dgs_render_catalog(root: str) -> pd.DataFrame:
                 "policy_label": pretty_policy(policy),
                 "category_id": category_id,
                 "object_id": object_id,
-                "object_key": f"{category_id}/{object_id}",
+                "object_key": object_key,
                 "acquired_view_count": int(view_directory.removesuffix("views")),
                 "path": str(path),
             }
@@ -907,6 +936,8 @@ def load_vggt_render_catalog(
             if included_policies is not None and policy not in included_policies:
                 continue
             object_key = str(metadata["object_id"])
+            if object_key not in DASHBOARD_RENDERING_OBJECT_KEYS:
+                continue
             category_id, object_id = object_key.split("/", maxsplit=1)
             records.append(
                 {
