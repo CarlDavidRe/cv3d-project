@@ -145,6 +145,21 @@ CLOSED_LOOP_POLICY_COLORS = {
     "VGGT · token attention": "#84cc16",
 }
 
+RECONSTRUCTION_METRICS = {
+    "chamfer_l1_normalized": "Normalized Chamfer-L1 ↓",
+    "accuracy_normalized": "Normalized accuracy ↓",
+    "completeness_normalized": "Normalized completeness ↓",
+    "fscore_1pct": "F-score @ 1% ↑",
+    "fscore_2pct": "F-score @ 2% ↑",
+    "fscore_10pct": "F-score @ 10% ↑",
+    "precision_1pct": "Precision @ 1% ↑",
+    "precision_2pct": "Precision @ 2% ↑",
+    "precision_10pct": "Precision @ 10% ↑",
+    "recall_1pct": "Recall @ 1% ↑",
+    "recall_2pct": "Recall @ 2% ↑",
+    "recall_10pct": "Recall @ 10% ↑",
+}
+
 VARIANT_DESCRIPTIONS = {
     "pun_upnet": "Official pretrained PUN model using a ViT-based UPNet to predict view uncertainty.",
     "train_mean_map": "Image-free baseline that predicts the training set's mean uncertainty for each view.",
@@ -776,12 +791,14 @@ def load_closed_loop_tables(
         "comparison": [],
         "coverage": [],
         "per_step": [],
+        "vggt_reconstruction": [],
     }
     for phase, root, comparison_name, included_policies in specifications:
         paths = {
             "comparison": root / "metrics" / comparison_name,
             "coverage": root / "metrics" / "coverage.csv",
             "per_step": root / "metrics" / "per_step.csv",
+            "vggt_reconstruction": root / "metrics" / "reconstruction_curves.csv",
         }
         for table_name, path in paths.items():
             if not path.is_file():
@@ -862,6 +879,45 @@ def load_3dgs_render_catalog(root: str) -> pd.DataFrame:
                 "path": str(path),
             }
         )
+    return pd.DataFrame.from_records(records)
+
+
+@st.cache_data(show_spinner=False)
+def load_vggt_render_catalog(
+    phase2_root: str, phase3_root: str
+) -> pd.DataFrame:
+    """Index interactive VGGT/ground-truth point-cloud comparisons."""
+    records: list[dict[str, object]] = []
+    sources = (
+        ("Phase 2", Path(phase2_root), None),
+        ("Phase 3", Path(phase3_root), None),
+        ("Phase 3", PHASE3_POSE_DEEPSETS_ROOT, {"vggt_joint_pose_deepsets"}),
+        ("Phase 3", PHASE3_TOKEN_ATTENTION_ROOT, {"vggt_joint_token_attention"}),
+    )
+    for phase, root, included_policies in sources:
+        visualization_root = root / "metrics" / "reconstruction_visualizations"
+        for metadata_path in sorted(visualization_root.glob("*/metadata.json")):
+            comparison_path = metadata_path.with_name("comparison_interactive.html")
+            if not comparison_path.is_file():
+                continue
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            policy = str(metadata["policy"])
+            if included_policies is not None and policy not in included_policies:
+                continue
+            object_key = str(metadata["object_id"])
+            category_id, object_id = object_key.split("/", maxsplit=1)
+            records.append(
+                {
+                    "phase": phase,
+                    "policy": policy,
+                    "policy_label": pretty_policy(policy),
+                    "category_id": category_id,
+                    "object_id": object_id,
+                    "object_key": object_key,
+                    "acquired_view_count": int(metadata["acquired_view_count"]),
+                    "path": str(comparison_path),
+                }
+            )
     return pd.DataFrame.from_records(records)
 
 
@@ -1515,35 +1571,30 @@ def render_closed_loop_page() -> None:
     )
 
     st.markdown(
-        '<div class="section-kicker">Coverage × Gaussian splatting</div>',
+        '<div class="section-kicker">Coverage × reconstruction</div>',
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<div class="section-title">Does observing more surface produce a better '
-        '2DGS reconstruction?</div>',
+        '<div class="section-title">Does observing more surface produce better '
+        'VGGT and 2DGS reconstructions?</div>',
         unsafe_allow_html=True,
     )
+    vggt_reconstruction = tables["vggt_reconstruction"]
     gaussian_splatting = load_gaussian_splatting_metrics(
         str(GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT)
     )
-    gs_metrics = {
-        "chamfer_l1_normalized": "Normalized Chamfer-L1 ↓",
-        "accuracy_normalized": "Normalized accuracy ↓",
-        "completeness_normalized": "Normalized completeness ↓",
-        "fscore_1pct": "F-score @ 1% ↑",
-        "fscore_2pct": "F-score @ 2% ↑",
-        "fscore_10pct": "F-score @ 10% ↑",
-        "precision_1pct": "Precision @ 1% ↑",
-        "precision_2pct": "Precision @ 2% ↑",
-        "precision_10pct": "Precision @ 10% ↑",
-        "recall_1pct": "Recall @ 1% ↑",
-        "recall_2pct": "Recall @ 2% ↑",
-        "recall_10pct": "Recall @ 10% ↑",
-    }
-    available_gs_metrics = [
-        metric for metric in gs_metrics if metric in gaussian_splatting.columns
+    available_reconstruction_metrics = [
+        metric
+        for metric in RECONSTRUCTION_METRICS
+        if metric in gaussian_splatting.columns
+        or f"{metric}_mean" in vggt_reconstruction.columns
     ]
     coverage_policy_labels = set(tables["coverage"]["policy_label"])
+    vggt_reconstruction_policy_labels = (
+        set(vggt_reconstruction["policy_label"])
+        if not vggt_reconstruction.empty
+        else set()
+    )
     gs_policy_labels = (
         set(gaussian_splatting["policy_label"])
         if not gaussian_splatting.empty
@@ -1552,83 +1603,121 @@ def render_closed_loop_page() -> None:
     comparable_policies = [
         label
         for label in CLOSED_LOOP_POLICY_COLORS
-        if label in coverage_policy_labels and label in gs_policy_labels
+        if label in coverage_policy_labels
+        and label in vggt_reconstruction_policy_labels.union(gs_policy_labels)
     ]
 
-    policy_control, gs_metric_control = st.columns(2)
+    policy_control, reconstruction_metric_control = st.columns(2)
     with policy_control:
         selected_policies = st.multiselect(
             "Policies to compare",
             comparable_policies,
             default=comparable_policies,
         )
-    with gs_metric_control:
-        gs_metric = st.selectbox(
-            "2DGS evaluation metric",
-            available_gs_metrics,
-            format_func=lambda value: gs_metrics[value],
-            disabled=not available_gs_metrics,
+    with reconstruction_metric_control:
+        reconstruction_metric = st.selectbox(
+            "Reconstruction evaluation metric",
+            available_reconstruction_metrics,
+            format_func=lambda value: RECONSTRUCTION_METRICS[value],
+            disabled=not available_reconstruction_metrics,
         )
 
-    comparison_left, comparison_right = st.columns(2)
     if not selected_policies:
         st.info("Select at least one policy to draw the comparison graphs.")
     else:
         coverage_for_chart = tables["coverage"][
             tables["coverage"]["policy_label"].isin(selected_policies)
         ].dropna(subset=["coverage_mean"])
+        vggt_metric = f"{reconstruction_metric}_mean" if reconstruction_metric else ""
+        vggt_for_chart = pd.DataFrame()
+        if not vggt_reconstruction.empty and vggt_metric in vggt_reconstruction:
+            vggt_for_chart = vggt_reconstruction[
+                vggt_reconstruction["policy_label"].isin(selected_policies)
+            ].dropna(subset=[vggt_metric])
         gs_for_chart = pd.DataFrame()
-        if not gaussian_splatting.empty and gs_metric:
+        if not gaussian_splatting.empty and reconstruction_metric:
             gs_for_chart = gaussian_splatting[
                 gaussian_splatting["policy_label"].isin(selected_policies)
-            ].dropna(subset=[gs_metric])
+            ].dropna(subset=[reconstruction_metric])
         coverage_values = coverage_for_chart["coverage_mean"].to_numpy(dtype=float)
         coverage_values = coverage_values[np.isfinite(coverage_values)]
         coverage_max = float(coverage_values.max()) if coverage_values.size else 1.0
         coverage_y_domain = (0.0, coverage_max * 1.05 if coverage_max > 0 else 1.0)
 
-        gs_y_domain = (0.0, 1.0)
+        reconstruction_values: list[np.ndarray] = []
+        if not vggt_for_chart.empty:
+            vggt_values = vggt_for_chart[vggt_metric].to_numpy(dtype=float)
+            vggt_values = vggt_values[np.isfinite(vggt_values)]
+            if vggt_values.size:
+                reconstruction_values.append(vggt_values)
         if not gs_for_chart.empty:
-            gs_values = gs_for_chart[gs_metric].to_numpy(dtype=float)
+            gs_values = gs_for_chart[reconstruction_metric].to_numpy(dtype=float)
             gs_values = gs_values[np.isfinite(gs_values)]
-            gs_max = float(gs_values.max()) if gs_values.size else 1.0
-            gs_y_domain = (0.0, gs_max * 1.05 if gs_max > 0 else 1.0)
+            if gs_values.size:
+                reconstruction_values.append(gs_values)
+        reconstruction_max = (
+            float(np.concatenate(reconstruction_values).max())
+            if reconstruction_values
+            else 1.0
+        )
+        reconstruction_y_domain = (
+            0.0,
+            reconstruction_max * 1.05 if reconstruction_max > 0 else 1.0,
+        )
 
-        with comparison_left:
-            st.markdown("#### Absolute surface coverage")
-            st.altair_chart(
-                build_closed_loop_curve(
-                    coverage_for_chart,
-                    x="acquired_view_count",
-                    y="coverage_mean",
-                    x_title="Acquired views",
-                    y_title="Absolute surface coverage",
-                    y_domain=coverage_y_domain,
-                ),
-                width="stretch",
-            )
-        with comparison_right:
-            st.markdown("#### 2D Gaussian Splatting")
-            if gaussian_splatting.empty or not gs_metric:
+        st.markdown("#### Absolute surface coverage")
+        st.altair_chart(
+            build_closed_loop_curve(
+                coverage_for_chart,
+                x="acquired_view_count",
+                y="coverage_mean",
+                x_title="Acquired views",
+                y_title="Absolute surface coverage",
+                y_domain=coverage_y_domain,
+            ),
+            width="stretch",
+        )
+
+        vggt_column, gs_column = st.columns(2)
+        with vggt_column:
+            st.markdown("#### VGGT reconstruction")
+            if vggt_for_chart.empty or not reconstruction_metric:
+                st.info("No completed VGGT reconstruction evaluations were found.")
+            else:
+                st.altair_chart(
+                    build_closed_loop_curve(
+                        vggt_for_chart,
+                        x="acquired_view_count",
+                        y=vggt_metric,
+                        x_title="Acquired views",
+                        y_title=RECONSTRUCTION_METRICS[reconstruction_metric],
+                        y_domain=reconstruction_y_domain,
+                    ),
+                    width="stretch",
+                )
+        with gs_column:
+            st.markdown("#### 2D Gaussian Splatting reconstruction")
+            if gs_for_chart.empty or not reconstruction_metric:
                 st.info("No completed 2DGS evaluations were found.")
             else:
                 st.altair_chart(
                     build_closed_loop_curve(
                         gs_for_chart,
                         x="acquired_view_count",
-                        y=gs_metric,
+                        y=reconstruction_metric,
                         x_title="Acquired views",
-                        y_title=gs_metrics[gs_metric],
-                        y_domain=gs_y_domain,
+                        y_title=RECONSTRUCTION_METRICS[reconstruction_metric],
+                        y_domain=reconstruction_y_domain,
                     ),
                     width="stretch",
                 )
     st.caption(
-        "Use the shared policy filter to compare the same variants in both graphs. "
+        "Use the shared policy and metric controls to compare the same variants across "
+        "all three graphs. "
         "Click a legend entry to isolate a curve and hover over a point for its value "
-        "and cohort size. Each chart has an independent y-axis that always starts at "
-        "zero. Coverage uses the full 300-object test cohort; 2DGS means use only the "
-        "completed runs currently available."
+        "and cohort size. All y-axes start at zero, and the VGGT and 2DGS charts share "
+        "the same scale. Coverage and VGGT reconstruction use the full 300-object test "
+        "cohort; 2DGS means use only the completed runs currently available."
     )
 
     st.markdown(
@@ -1705,8 +1794,8 @@ def render_rollout_inspection_page() -> None:
         )
         st.markdown(
             '<div class="hero-copy">Choose a policy and object to follow its camera '
-            'trajectory, absolute surface coverage, and Gaussian reconstruction through '
-            'the acquisition sequence.</div>',
+            'trajectory, absolute surface coverage, and VGGT or Gaussian reconstruction '
+            'through the acquisition sequence.</div>',
             unsafe_allow_html=True,
         )
     with header_right:
@@ -1721,6 +1810,9 @@ def render_rollout_inspection_page() -> None:
         return
 
     render_catalog = load_3dgs_render_catalog(str(GAUSSIAN_SPLATTING_ROOT))
+    vggt_render_catalog = load_vggt_render_catalog(
+        str(PHASE2_CLOSED_LOOP_ROOT), str(PHASE3_CLOSED_LOOP_ROOT)
+    )
     rollout_a, rollout_b, rollout_c = st.columns([1.8, 1.25, 2.1])
     with rollout_a:
         rollout_policy = st.selectbox(
@@ -1740,17 +1832,16 @@ def render_rollout_inspection_page() -> None:
             format_func=lambda value: CATEGORY_NAMES.get(value, value),
         )
     category_catalog = policy_catalog[policy_catalog["category_id"] == rollout_category]
-    rendered_objects = (
-        set(
-            render_catalog.loc[
-                (render_catalog["policy"] == rollout_policy)
-                & (render_catalog["category_id"] == rollout_category),
-                "object_id",
-            ]
-        )
-        if not render_catalog.empty
-        else set()
-    )
+    rendered_objects: set[str] = set()
+    for available_renders in (render_catalog, vggt_render_catalog):
+        if not available_renders.empty:
+            rendered_objects.update(
+                available_renders.loc[
+                    (available_renders["policy"] == rollout_policy)
+                    & (available_renders["category_id"] == rollout_category),
+                    "object_id",
+                ]
+            )
     object_options = sorted(
         category_catalog["object_id"].unique(),
         key=lambda value: (value not in rendered_objects, value),
@@ -1829,24 +1920,40 @@ def render_rollout_inspection_page() -> None:
         st.line_chart(trajectory, height=210)
 
     st.markdown(
-        '<div class="section-kicker">Gaussian Splatting comparisons</div>',
+        '<div class="section-kicker">Reconstruction comparisons</div>',
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<div class="section-title">Inspect 3DGS renders and the reconstructed 2DGS '
-        'surface against ground truth.</div>',
+        '<div class="section-title">Inspect VGGT point clouds, 3DGS renders, and the '
+        'reconstructed 2DGS surface against ground truth.</div>',
         unsafe_allow_html=True,
     )
-    policy_renders = (
+    policy_3dgs_renders = (
         render_catalog[render_catalog["policy"] == rollout_policy]
         if not render_catalog.empty
         else pd.DataFrame()
     )
-    if policy_renders.empty:
+    policy_vggt_renders = (
+        vggt_render_catalog[vggt_render_catalog["policy"] == rollout_policy]
+        if not vggt_render_catalog.empty
+        else pd.DataFrame()
+    )
+    available_catalogs = [
+        frame
+        for frame in (policy_3dgs_renders, policy_vggt_renders)
+        if not frame.empty
+    ]
+    if not available_catalogs:
         st.info(
-            "No completed 3DGS turntable is available for this policy yet."
+            "No completed reconstruction viewer is available for this policy yet."
         )
     else:
+        policy_renders = (
+            pd.concat(available_catalogs, ignore_index=True)
+            .drop_duplicates(
+                ["policy", "category_id", "object_id", "acquired_view_count"]
+            )
+        )
         render_category_control, render_object_control = st.columns([1, 2])
         render_categories = sorted(
             policy_renders["category_id"].unique(),
@@ -1854,7 +1961,7 @@ def render_rollout_inspection_page() -> None:
         )
         with render_category_control:
             render_category = st.selectbox(
-                "3DGS category",
+                "Reconstruction category",
                 render_categories,
                 format_func=lambda value: CATEGORY_NAMES.get(value, value),
             )
@@ -1863,54 +1970,90 @@ def render_rollout_inspection_page() -> None:
         ]
         with render_object_control:
             render_object = st.selectbox(
-                "3DGS object",
+                "Reconstruction object",
                 sorted(category_renders["object_id"].unique()),
             )
         selected_renders = category_renders[
             category_renders["object_id"] == render_object
         ].sort_values("acquired_view_count")
-        render_view_counts = selected_renders["acquired_view_count"].astype(int).tolist()
+        render_view_counts = sorted(
+            selected_renders["acquired_view_count"].astype(int).unique().tolist()
+        )
         render_view_count = st.segmented_control(
-            "3DGS training views",
+            "Reconstruction input views",
             options=render_view_counts,
             default=render_view_counts[-1],
             required=True,
             width="stretch",
         )
-        comparison_3dgs_path = Path(
-            selected_renders.loc[
-                selected_renders["acquired_view_count"] == render_view_count,
-                "path",
-            ].iloc[0]
+        matching_3dgs = (
+            policy_3dgs_renders.loc[
+                (policy_3dgs_renders["category_id"] == render_category)
+                & (policy_3dgs_renders["object_id"] == render_object)
+                & (policy_3dgs_renders["acquired_view_count"] == render_view_count)
+            ]
+            if not policy_3dgs_renders.empty
+            else pd.DataFrame()
         )
-        comparison_2dgs_path = (
-            GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT
-            / comparison_3dgs_path.parent.parent.relative_to(
-                GAUSSIAN_SPLATTING_ROOT
+        matching_vggt = (
+            policy_vggt_renders.loc[
+                (policy_vggt_renders["category_id"] == render_category)
+                & (policy_vggt_renders["object_id"] == render_object)
+                & (policy_vggt_renders["acquired_view_count"] == render_view_count)
+            ]
+            if not policy_vggt_renders.empty
+            else pd.DataFrame()
+        )
+        comparison_3dgs_path = (
+            Path(matching_3dgs["path"].iloc[0]) if not matching_3dgs.empty else None
+        )
+        comparison_vggt_path = (
+            Path(matching_vggt["path"].iloc[0]) if not matching_vggt.empty else None
+        )
+        comparison_2dgs_path = None
+        if comparison_3dgs_path is not None:
+            comparison_2dgs_path = (
+                GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT
+                / comparison_3dgs_path.parent.parent.relative_to(
+                    GAUSSIAN_SPLATTING_ROOT
+                )
+                / "2dgs"
+                / "comparison_interactive.html"
             )
-            / "2dgs"
-            / "comparison_interactive.html"
-        )
-        render_3dgs_tab, surface_2dgs_tab = st.tabs(
-            ["3DGS render vs. RGB", "2DGS surface vs. ground truth"]
+        render_3dgs_tab, surface_2dgs_tab, vggt_tab = st.tabs(
+            [
+                "3DGS render vs. RGB",
+                "2DGS surface vs. ground truth",
+                "VGGT point cloud vs. ground truth",
+            ]
         )
         with render_3dgs_tab:
-            components.html(
-                make_manual_3dgs_comparison(
-                    comparison_3dgs_path.read_text(encoding="utf-8")
-                ),
-                height=680,
-                scrolling=False,
-            )
-            st.caption(
-                "Drag the 3DGS panel from edge to edge to inspect anchors 0–47; "
-                "the matching ground-truth NUM image stays beside it."
-            )
+            if comparison_3dgs_path is None:
+                st.info("No 3DGS render is available for this selection yet.")
+            else:
+                components.html(
+                    make_manual_3dgs_comparison(
+                        comparison_3dgs_path.read_text(encoding="utf-8")
+                    ),
+                    height=680,
+                    scrolling=False,
+                )
+                st.caption(
+                    "Drag the 3DGS panel from edge to edge to inspect anchors 0–47; "
+                    "the matching ground-truth NUM image stays beside it."
+                )
         with surface_2dgs_tab:
-            comparison_image_path = comparison_2dgs_path.with_name("comparison.png")
-            if comparison_image_path.is_file():
+            comparison_2dgs_image_path = (
+                comparison_2dgs_path.with_name("comparison.png")
+                if comparison_2dgs_path is not None
+                else None
+            )
+            if (
+                comparison_2dgs_image_path is not None
+                and comparison_2dgs_image_path.is_file()
+            ):
                 st.image(
-                    str(comparison_image_path),
+                    str(comparison_2dgs_image_path),
                     caption=(
                         "2DGS surface (orange) vs. ground truth (blue) · "
                         "XY, XZ, and YZ projections"
@@ -1920,7 +2063,7 @@ def render_rollout_inspection_page() -> None:
                 st.caption(
                     "Hover over the image and click the fullscreen icon to enlarge it."
                 )
-            if comparison_2dgs_path.is_file():
+            if comparison_2dgs_path is not None and comparison_2dgs_path.is_file():
                 components.html(
                     comparison_2dgs_path.read_text(encoding="utf-8"),
                     height=720,
@@ -1933,6 +2076,42 @@ def render_rollout_inspection_page() -> None:
             else:
                 st.info(
                     "No interactive 2DGS surface comparison is available for this "
+                    "selection yet."
+                )
+        with vggt_tab:
+            comparison_vggt_image_path = (
+                comparison_vggt_path.with_name("comparison.png")
+                if comparison_vggt_path is not None
+                else None
+            )
+            if (
+                comparison_vggt_image_path is not None
+                and comparison_vggt_image_path.is_file()
+            ):
+                st.image(
+                    str(comparison_vggt_image_path),
+                    caption=(
+                        "VGGT prediction (orange) vs. ground truth (blue) · "
+                        "XY, XZ, and YZ projections"
+                    ),
+                    width="stretch",
+                )
+                st.caption(
+                    "Hover over the image and click the fullscreen icon to enlarge it."
+                )
+            if comparison_vggt_path is not None:
+                components.html(
+                    comparison_vggt_path.read_text(encoding="utf-8"),
+                    height=720,
+                    scrolling=False,
+                )
+                st.caption(
+                    "Drag to rotate and use the controls to toggle the VGGT prediction "
+                    "and ground truth or switch between overlay and side-by-side views."
+                )
+            else:
+                st.info(
+                    "No interactive VGGT point-cloud comparison is available for this "
                     "selection yet."
                 )
         st.caption(
