@@ -1520,7 +1520,7 @@ def render_closed_loop_page() -> None:
     )
     st.markdown(
         '<div class="section-title">Does observing more surface produce a better '
-        'CPU-recovered 2DGS reconstruction?</div>',
+        '2DGS reconstruction?</div>',
         unsafe_allow_html=True,
     )
     gaussian_splatting = load_gaussian_splatting_metrics(
@@ -1564,7 +1564,7 @@ def render_closed_loop_page() -> None:
         )
     with gs_metric_control:
         gs_metric = st.selectbox(
-            "CPU-recovered 2DGS metric",
+            "2DGS evaluation metric",
             available_gs_metrics,
             format_func=lambda value: gs_metrics[value],
             disabled=not available_gs_metrics,
@@ -1582,13 +1582,17 @@ def render_closed_loop_page() -> None:
             gs_for_chart = gaussian_splatting[
                 gaussian_splatting["policy_label"].isin(selected_policies)
             ].dropna(subset=[gs_metric])
-        plotted_values = [coverage_for_chart["coverage_mean"].to_numpy(dtype=float)]
+        coverage_values = coverage_for_chart["coverage_mean"].to_numpy(dtype=float)
+        coverage_values = coverage_values[np.isfinite(coverage_values)]
+        coverage_max = float(coverage_values.max()) if coverage_values.size else 1.0
+        coverage_y_domain = (0.0, coverage_max * 1.05 if coverage_max > 0 else 1.0)
+
+        gs_y_domain = (0.0, 1.0)
         if not gs_for_chart.empty:
-            plotted_values.append(gs_for_chart[gs_metric].to_numpy(dtype=float))
-        finite_values = np.concatenate(plotted_values)
-        finite_values = finite_values[np.isfinite(finite_values)]
-        observed_max = float(finite_values.max()) if finite_values.size else 1.0
-        shared_y_domain = (0.0, max(1.0, observed_max * 1.05))
+            gs_values = gs_for_chart[gs_metric].to_numpy(dtype=float)
+            gs_values = gs_values[np.isfinite(gs_values)]
+            gs_max = float(gs_values.max()) if gs_values.size else 1.0
+            gs_y_domain = (0.0, gs_max * 1.05 if gs_max > 0 else 1.0)
 
         with comparison_left:
             st.markdown("#### Absolute surface coverage")
@@ -1599,14 +1603,14 @@ def render_closed_loop_page() -> None:
                     y="coverage_mean",
                     x_title="Acquired views",
                     y_title="Absolute surface coverage",
-                    y_domain=shared_y_domain,
+                    y_domain=coverage_y_domain,
                 ),
                 width="stretch",
             )
         with comparison_right:
-            st.markdown("#### CPU-recovered 2D Gaussian Splatting")
+            st.markdown("#### 2D Gaussian Splatting")
             if gaussian_splatting.empty or not gs_metric:
-                st.info("No completed CPU-recovered 2DGS evaluations were found.")
+                st.info("No completed 2DGS evaluations were found.")
             else:
                 st.altair_chart(
                     build_closed_loop_curve(
@@ -1615,16 +1619,16 @@ def render_closed_loop_page() -> None:
                         y=gs_metric,
                         x_title="Acquired views",
                         y_title=gs_metrics[gs_metric],
-                        y_domain=shared_y_domain,
+                        y_domain=gs_y_domain,
                     ),
                     width="stretch",
                 )
     st.caption(
         "Use the shared policy filter to compare the same variants in both graphs. "
         "Click a legend entry to isolate a curve and hover over a point for its value "
-        "and cohort size. Both charts use the same zero-based y-axis. Coverage uses "
-        "the full 300-object test cohort; 2DGS means use only the completed CPU-recovery "
-        "runs currently available."
+        "and cohort size. Each chart has an independent y-axis that always starts at "
+        "zero. Coverage uses the full 300-object test cohort; 2DGS means use only the "
+        "completed runs currently available."
     )
 
     st.markdown(
@@ -1830,7 +1834,7 @@ def render_rollout_inspection_page() -> None:
     )
     st.markdown(
         '<div class="section-title">Inspect 3DGS renders and the reconstructed 2DGS '
-        'CPU-recovery surface against ground truth.</div>',
+        'surface against ground truth.</div>',
         unsafe_allow_html=True,
     )
     policy_renders = (
@@ -1888,7 +1892,7 @@ def render_rollout_inspection_page() -> None:
             / "comparison_interactive.html"
         )
         render_3dgs_tab, surface_2dgs_tab = st.tabs(
-            ["3DGS render vs. RGB", "CPU-recovered 2DGS vs. ground truth"]
+            ["3DGS render vs. RGB", "2DGS surface vs. ground truth"]
         )
         with render_3dgs_tab:
             components.html(
@@ -1903,6 +1907,19 @@ def render_rollout_inspection_page() -> None:
                 "the matching ground-truth NUM image stays beside it."
             )
         with surface_2dgs_tab:
+            comparison_image_path = comparison_2dgs_path.with_name("comparison.png")
+            if comparison_image_path.is_file():
+                st.image(
+                    str(comparison_image_path),
+                    caption=(
+                        "2DGS surface (orange) vs. ground truth (blue) · "
+                        "XY, XZ, and YZ projections"
+                    ),
+                    width="stretch",
+                )
+                st.caption(
+                    "Hover over the image and click the fullscreen icon to enlarge it."
+                )
             if comparison_2dgs_path.is_file():
                 components.html(
                     comparison_2dgs_path.read_text(encoding="utf-8"),
@@ -1910,14 +1927,13 @@ def render_rollout_inspection_page() -> None:
                     scrolling=False,
                 )
                 st.caption(
-                    "Drag to rotate the CPU-recovered 2DGS surface comparison. Toggle "
-                    "ground truth and prediction, or switch between overlay and "
-                    "side-by-side layouts."
+                    "Drag to rotate the 2DGS surface comparison. Toggle ground truth "
+                    "and prediction, or switch between overlay and side-by-side layouts."
                 )
             else:
                 st.info(
-                    "No CPU-recovered interactive 2DGS surface comparison is available "
-                    "for this selection yet."
+                    "No interactive 2DGS surface comparison is available for this "
+                    "selection yet."
                 )
         st.caption(
             f"{pretty_policy(rollout_policy)} · "
