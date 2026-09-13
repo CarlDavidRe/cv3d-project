@@ -36,6 +36,9 @@ PHASE3_TOKEN_ATTENTION_ROOT = (
 GAUSSIAN_SPLATTING_ROOT = (
     REPO_ROOT / "outputs" / "gaussian_splatting_variant_comparison"
 )
+GAUSSIAN_SPLATTING_REPAIR_ROOT = (
+    REPO_ROOT / "outputs" / "gaussian_splatting_alignment_repair"
+)
 GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT = (
     REPO_ROOT / "outputs" / "gaussian_splatting_cpu_recovery"
 )
@@ -843,14 +846,14 @@ def load_closed_loop_tables(
 
 @st.cache_data(show_spinner=False)
 def load_gaussian_splatting_metrics(root: str) -> pd.DataFrame:
-    """Aggregate verified CPU-recovered 2DGS evaluations by policy and view count."""
+    """Aggregate completed silhouette-refined 2DGS evaluations by policy and view count."""
     frames: list[pd.DataFrame] = []
     for path in sorted(Path(root).glob("*/*/*views/phase*/2dgs/metrics.csv")):
         summary_path = path.with_name("summary.json")
         if not summary_path.is_file():
             continue
         summary = json.loads(summary_path.read_text(encoding="utf-8"))
-        if "cpu_recovery" not in summary:
+        if "cpu_recovery" not in summary or "alignment_repair" not in summary:
             continue
         frame = pd.read_csv(path)
         if frame.empty:
@@ -1098,26 +1101,40 @@ def render_reconstruction_comparison_row(
         Path(matching_vggt["path"].iloc[0]) if not matching_vggt.empty else None
     )
     comparison_2dgs_path = None
+    original_2dgs_path = None
     if comparison_3dgs_path is not None:
-        comparison_2dgs_path = (
-            GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT
+        relative_history = comparison_3dgs_path.parent.parent.relative_to(GAUSSIAN_SPLATTING_ROOT)
+        original_2dgs_path = (
+            GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT / relative_history
+            / "2dgs" / "comparison_interactive.html"
+        )
+        repaired_history = (
+            GAUSSIAN_SPLATTING_REPAIR_ROOT
             / comparison_3dgs_path.parent.parent.relative_to(GAUSSIAN_SPLATTING_ROOT)
+        )
+        comparison_2dgs_path = (
+            repaired_history
             / "2dgs"
             / "comparison_interactive.html"
         )
+        repaired_3dgs_path = repaired_history / "3dgs" / "ground_truth_comparison.html"
+        comparison_3dgs_path = repaired_3dgs_path if repaired_3dgs_path.is_file() else None
     ground_truth_cloud_path = comparison_vggt_path
     if ground_truth_cloud_path is None and (
         comparison_2dgs_path is not None and comparison_2dgs_path.is_file()
     ):
         ground_truth_cloud_path = comparison_2dgs_path
+    if ground_truth_cloud_path is None and original_2dgs_path is not None and original_2dgs_path.is_file():
+        ground_truth_cloud_path = original_2dgs_path
 
     (
         policy_column,
         render_3dgs_column,
+        original_2dgs_column,
         surface_2dgs_column,
         vggt_column,
         ground_truth_column,
-    ) = st.columns([0.9, 1, 1, 1, 1], gap="small", vertical_alignment="center")
+    ) = st.columns([0.9, 1, 1, 1, 1, 1], gap="small", vertical_alignment="center")
     with policy_column:
         st.markdown(
             f'<div class="matrix-row-label">{pretty_policy(policy)}</div>',
@@ -1125,7 +1142,7 @@ def render_reconstruction_comparison_row(
         )
     with render_3dgs_column:
         if comparison_3dgs_path is None:
-            st.info("Not available.")
+            st.info("Repaired 3DGS not available for this selection yet.")
         else:
             components.html(
                 make_compact_3dgs_view(
@@ -1134,9 +1151,18 @@ def render_reconstruction_comparison_row(
                 height=240,
                 scrolling=False,
             )
+    with original_2dgs_column:
+        if original_2dgs_path is None or not original_2dgs_path.is_file():
+            st.info("Unrepaired 2DGS not available for this selection yet.")
+        else:
+            components.html(
+                make_compact_point_cloud_view(
+                    original_2dgs_path.read_text(encoding="utf-8"), ground_truth=False,
+                ), height=240, scrolling=False,
+            )
     with surface_2dgs_column:
         if comparison_2dgs_path is None or not comparison_2dgs_path.is_file():
-            st.info("Not available.")
+            st.info("Repaired 2DGS not available for this selection yet.")
         else:
             components.html(
                 make_compact_point_cloud_view(
@@ -1303,7 +1329,7 @@ def build_reconstruction_comparison_chart(
     y_domain: tuple[float, float],
 ) -> alt.FacetChart:
     """Draw separate VGGT and 2DGS plots with one shared policy legend."""
-    method_order = ["VGGT reconstruction", "2D Gaussian Splatting"]
+    method_order = ["VGGT reconstruction", "2DGS (silhouette-refined)"]
     frames: list[pd.DataFrame] = []
     for data, metric, method in (
         (vggt_data, vggt_metric, method_order[0]),
@@ -1892,7 +1918,7 @@ def render_closed_loop_page() -> None:
     )
     vggt_reconstruction = tables["vggt_reconstruction"]
     gaussian_splatting = load_gaussian_splatting_metrics(
-        str(GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT)
+        str(GAUSSIAN_SPLATTING_REPAIR_ROOT)
     )
     available_reconstruction_metrics = [
         metric
@@ -1998,7 +2024,7 @@ def render_closed_loop_page() -> None:
         if vggt_for_chart.empty or not reconstruction_metric:
             st.info("No completed VGGT reconstruction evaluations were found.")
         elif gs_for_chart.empty:
-            st.info("No completed 2DGS evaluations were found.")
+            st.info("No completed repaired 2DGS evaluations were found.")
         else:
             st.altair_chart(
                 build_reconstruction_comparison_chart(
@@ -2019,7 +2045,9 @@ def render_closed_loop_page() -> None:
         "the same scale. The anomalous Phase 2 farthest-view VGGT point at two inputs "
         "is omitted from these plots and their y-axis range only; source metrics remain "
         "unchanged. Coverage and VGGT reconstruction use the full 300-object test cohort; "
-        "2DGS means use only the completed runs currently available."
+        "2DGS means use only completed silhouette-refined runs. Placement is fitted "
+        "to acquired RGB silhouettes before geometry evaluation; one-view histories "
+        "are skipped by the repair."
     )
 
     st.markdown(
@@ -2234,7 +2262,7 @@ def render_reconstruction_gallery_page() -> None:
         )
         st.markdown(
             '<div class="hero-copy">Inspect VGGT point clouds, 3DGS novel-view renders, '
-            'and reconstructed 2DGS surfaces alongside ground truth.</div>',
+            'and repaired 2DGS surfaces alongside ground truth.</div>',
             unsafe_allow_html=True,
         )
     with header_right:
@@ -2250,7 +2278,7 @@ def render_reconstruction_gallery_page() -> None:
     )
     st.markdown(
         '<div class="section-title">Inspect VGGT point clouds, 3DGS renders, and the '
-        'reconstructed 2DGS surface against ground truth.</div>',
+        'silhouette-refined 2DGS surface against ground truth.</div>',
         unsafe_allow_html=True,
     )
     if not available_catalogs:
@@ -2314,11 +2342,11 @@ def render_reconstruction_gallery_page() -> None:
                 width="stretch",
             )
             matrix_headers = st.columns(
-                [0.9, 1, 1, 1, 1], gap="small", vertical_alignment="bottom"
+                [0.9, 1, 1, 1, 1, 1], gap="small", vertical_alignment="bottom"
             )
             for column, label in zip(
                 matrix_headers,
-                ("Policy", "3DGS render", "2DGS surface", "VGGT cloud", "Ground truth"),
+                ("Policy", "Repaired 3DGS", "Unrepaired 2DGS", "Repaired 2DGS", "VGGT cloud", "Ground truth"),
             ):
                 with column:
                     st.markdown(
@@ -2334,6 +2362,10 @@ def render_reconstruction_gallery_page() -> None:
                     render_catalog,
                     vggt_render_catalog,
                 )
+            st.caption(
+                "Unrepaired 2DGS uses corrected CPU depth extraction at the original "
+                "placement. Repaired 2DGS and 3DGS use placement fitted to acquired RGB silhouettes."
+            )
             selection_label = (
                 f"{CATEGORY_NAMES.get(render_category, render_category)} / "
                 f"{render_object} · {render_view_count} acquired views"

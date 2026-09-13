@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refit saved 2DGS placement to acquired RGB silhouettes on CPU, then reevaluate.
+"""Refit saved 2DGS/3DGS placement to acquired RGB silhouettes on CPU.
 
 No VGGT inference, Gaussian retraining, cache writes, or ground-truth fitting.
 This is a separate silhouette-refined evaluation protocol, not a replacement
@@ -25,7 +25,10 @@ from PIL import Image
 import torch
 
 from nbv.data.visibility_cache import load_visibility_cache
-from nbv.eval.gaussian_splatting import known_num_splat_cameras
+from nbv.eval.gaussian_splatting import (
+    known_num_splat_cameras, GaussianParameters, load_splat_images,
+    write_image_comparison_gallery, write_render_gallery,
+)
 from nbv.geometry.anchors import canonical_anchors
 from nbv.geometry.num_camera import CAMERA_CONVENTION, anchor_camera_to_world
 from nbv.geometry.visibility import PerspectiveCamera
@@ -35,6 +38,78 @@ from scripts.reevaluate_gaussian_splatting_cpu import (
 from scripts.visualize_reconstruction import validate_object_id
 
 VERSION = "acquired_silhouette_sim3_v1"
+RGB_RENDERER_VERSION = "numpy_3dgs_antialiased_rgb_v1"
+RGB_OUTPUT_FILES = ("ground_truth_comparison.html", "turntable.html", "preview.png", "summary.json")
+
+
+def render_rgb_3dgs_cpu(model, cameras, resolution, *, progress=None):
+    """Antialiased pinhole EWA splatting with white background, constant RGB.
+
+    Follows gsplat v1.5.3 ProjectionEWA3DGSFused/ RasterizeToPixels3DGSFwd:
+    covariance projection, eps2d=.3, tile coverage, front-to-back alpha.
+    CPU/CUDA parity is not verified. No spherical harmonics are used by this
+    repository's GaussianParameters checkpoints.
+    """
+    if resolution <= 0:
+        raise ValueError("positive resolution is required")
+    means, quats, scales, opacity, colors = [x.detach().cpu().numpy() for x in model.values()]
+    if not all(np.isfinite(x).all() for x in (means, quats, scales, opacity, colors)):
+        raise ValueError("non-finite Gaussian parameters")
+    rotation = quaternion_rotation(torch.tensor(quats)).numpy()
+    axes = rotation * scales[:, None, :]
+    covariance = axes @ axes.transpose(0, 2, 1)
+    frames = []
+    yy, xx = np.mgrid[:resolution, :resolution].astype(np.float32) + .5
+    for camera_index, (view, intrinsic) in enumerate(zip(cameras.world_to_camera, cameras.intrinsics)):
+        r = view[:3, :3].astype(np.float32)
+        centers = means @ r.T + view[:3, 3].astype(np.float32)
+        valid = (centers[:, 2] > .01) & (centers[:, 2] < 1e10) & (opacity >= 1/255)
+        indices = np.flatnonzero(valid)
+        centers = centers[indices]
+        z = centers[:, 2]
+        fx, fy = intrinsic[0, 0], intrinsic[1, 1]
+        cx, cy = intrinsic[0, 2], intrinsic[1, 2]
+        uv = centers[:, :2] / z[:, None]
+        projected = uv * [fx, fy] + [cx, cy]
+        # Clamp only the Jacobian's off-axis terms, not projected centers.
+        clipped = np.clip(uv, [-cx/fx-.3*resolution/(2*fx), -cy/fy-.3*resolution/(2*fy)],
+                         [(resolution-cx)/fx+.3*resolution/(2*fx), (resolution-cy)/fy+.3*resolution/(2*fy)])
+        jacobian = np.zeros((len(indices), 2, 3), dtype=np.float32)
+        jacobian[:, 0, 0], jacobian[:, 1, 1] = fx/z, fy/z
+        jacobian[:, 0, 2], jacobian[:, 1, 2] = -fx*clipped[:, 0]/z, -fy*clipped[:, 1]/z
+        cov_camera = r @ covariance[indices] @ r.T
+        cov_unfiltered = jacobian @ cov_camera @ jacobian.transpose(0, 2, 1)
+        cov_screen = cov_unfiltered + np.eye(2)*.3
+        # Match the training/evaluation wrapper's rasterize_mode='antialiased'.
+        compensation = np.sqrt(np.maximum(0., np.linalg.det(cov_unfiltered)/np.linalg.det(cov_screen)))
+        effective_opacity = opacity[indices]*compensation
+        conic = np.linalg.inv(cov_screen)
+        extend = np.minimum(3.33, np.sqrt(np.maximum(0., 2*np.log(np.maximum(effective_opacity*255, 1e-30)))))
+        radii = np.ceil(extend[:, None] * np.sqrt(np.diagonal(cov_screen, axis1=1, axis2=2)))
+        transmission = np.ones((resolution, resolution), dtype=np.float32)
+        rgb = np.zeros((resolution, resolution, 3), dtype=np.float32)
+        done = np.zeros((resolution, resolution), dtype=bool)
+        for j in np.argsort(z, kind="stable"):
+            if effective_opacity[j] < 1/255:
+                continue
+            if (projected[j]+radii[j] <= 0).any() or (projected[j]-radii[j] >= resolution).any():
+                continue
+            lo = np.clip(np.floor((projected[j]-radii[j])/16)*16, 0, resolution).astype(int)
+            hi = np.clip(np.ceil((projected[j]+radii[j])/16)*16, 0, resolution).astype(int)
+            region = np.s_[lo[1]:hi[1], lo[0]:hi[0]]
+            dx, dy = xx[region]-projected[j, 0], yy[region]-projected[j, 1]
+            sigma = .5*(conic[j, 0, 0]*dx*dx + 2*conic[j, 0, 1]*dx*dy + conic[j, 1, 1]*dy*dy)
+            alpha = np.minimum(.999, effective_opacity[j]*np.exp(-sigma))
+            active = (~done[region]) & (sigma >= 0) & (alpha >= 1/255)
+            next_t = transmission[region]*(1-alpha)
+            done[region] |= active & (next_t <= 1e-4)
+            active &= ~done[region]
+            rgb[region] += (transmission[region]*alpha*active)[..., None]*colors[indices[j]]
+            transmission[region] = np.where(active, next_t, transmission[region])
+        frames.append(np.clip(rgb+transmission[..., None], 0, 1))
+        if progress:
+            progress(camera_index+1, len(cameras.world_to_camera))
+    return np.stack(frames)
 
 
 def quaternion_rotation(q: torch.Tensor) -> torch.Tensor:
@@ -208,8 +283,10 @@ def audit_cameras(summary: dict, prediction_root: Path, known: np.ndarray) -> di
 def repair(source: Path, destination: Path, args) -> str:
     summary = json.loads((source / "summary.json").read_text())
     object_id = validate_object_id(summary["object_id"])
-    if summary["backend"] != "2dgs" or "alignment_repair" in summary:
-        raise ValueError("input must be an original 2DGS training artifact")
+    backend = summary["backend"]
+    if backend not in ("2dgs", "3dgs") or "alignment_repair" in summary:
+        raise ValueError("input must be an original Gaussian training artifact")
+    output_files = OUTPUT_FILES if backend == "2dgs" else RGB_OUTPUT_FILES
     history = summary["history_anchor_ids"]
     if len(history) != summary["acquired_view_count"] or len(set(history)) != len(history):
         raise ValueError("inconsistent acquired history")
@@ -223,7 +300,7 @@ def repair(source: Path, destination: Path, args) -> str:
         convention=metadata.get("camera_convention", CAMERA_CONVENTION)) for i in history])
     audit = audit_cameras(summary, args.prediction_cache_root, poses)
     checkpoint = torch.load(source / "checkpoint.pt", map_location="cpu", weights_only=True)
-    if checkpoint.get("schema_version") != 1 or checkpoint["settings"]["backend"] != "2dgs":
+    if checkpoint.get("schema_version") != 1 or checkpoint["settings"]["backend"] != backend:
         raise ValueError("unsupported checkpoint")
     images = [args.data_root / object_id / "images" / f"viewpoint_{i}_offset_phi_0.png" for i in history]
     masks = []
@@ -234,12 +311,19 @@ def repair(source: Path, destination: Path, args) -> str:
     identity = {"version": VERSION, "steps": args.steps, "starts": args.starts, "seed": args.seed,
                 "inputs": {name: digest(path) for name, path in (
                     ("checkpoint", source / "checkpoint.pt"), ("summary", source / "summary.json"),
-                    ("ground_truth", source / "ground_truth.ply"), ("visibility", visibility_path))},
+                    ("visibility", visibility_path))},
                 "acquired_rgb_sha256": [digest(path) for path in images], "audit": audit}
+    if backend == "2dgs":
+        identity["inputs"]["ground_truth"] = digest(source / "ground_truth.ply")
+    else:
+        # Unacquired RGB is for the comparison gallery only, never placement fitting.
+        reference_paths = [args.data_root / object_id / "images" / f"viewpoint_{i.anchor_id}_offset_phi_0.png" for i in anchors]
+        identity["reference_rgb_sha256"] = [digest(path) for path in reference_paths]
+        identity["renderer"] = RGB_RENDERER_VERSION
     if args.dry_run:
         return f"ready: {len(history)} acquired images; camera audit: {json.dumps(audit)}"
     completed = destination / "summary.json"
-    if not args.force and all((destination / name).is_file() for name in (*OUTPUT_FILES, "checkpoint.pt")):
+    if not args.force and all((destination / name).is_file() for name in (*output_files, "checkpoint.pt")):
         previous = json.loads(completed.read_text())
         if previous.get("alignment_repair", {}).get("identity") == identity:
             return "skipped: matching completed repair"
@@ -254,25 +338,57 @@ def repair(source: Path, destination: Path, args) -> str:
     with tempfile.TemporaryDirectory(prefix=".alignment-repair-", dir=destination.parent) as temporary:
         stage = Path(temporary)
         torch.save(repaired, stage / "checkpoint.pt")
-        shutil.copyfile(source / "ground_truth.ply", stage / "ground_truth.ply")
-        (stage / "summary.json").write_text(json.dumps(summary))
-        # Fresh depth extraction from transformed splats is necessary: simply
-        # moving an old fused surface would retain its old visibility artifacts.
-        result = recover(stage, stage, args.visibility_cache_root, force=True)
-        recovered = json.loads((stage / "summary.json").read_text())
+        if backend == "2dgs":
+            shutil.copyfile(source / "ground_truth.ply", stage / "ground_truth.ply")
+            (stage / "summary.json").write_text(json.dumps(summary))
+            # Reextract surface visibility after placement changes.
+            result = recover(stage, stage, args.visibility_cache_root, force=True)
+            recovered = json.loads((stage / "summary.json").read_text())
+            recovered["metric_status"] = "silhouette_refined_saved_checkpoint_separate_protocol"
+            recovered["cpu_recovery"]["source"] = str(source.resolve())
+            recovered["cpu_recovery"]["checkpoint_used"] = str((destination / "checkpoint.pt").resolve())
+            recovered.pop("turntable", None)
+            for field, filename in (("static", "comparison.png"), ("interactive", "comparison_interactive.html"),
+                                    ("combined_point_cloud", "comparison.ply")):
+                recovered["ground_truth_comparison"][field] = str((destination / filename).resolve())
+        else:
+            resolution = checkpoint["settings"]["resolution"]
+            all_poses = np.stack([anchor_camera_to_world(i, float(metadata["camera_radius"]),
+                convention=metadata.get("camera_convention", CAMERA_CONVENTION)) for i in anchors])
+            all_cameras = known_num_splat_cameras(all_poses, PerspectiveCamera(height=resolution, width=resolution,
+                horizontal_fov_degrees=float(metadata["horizontal_fov_degrees"])))
+            model = GaussianParameters(repaired["state_dict"]["means"].numpy(),
+                np.full(repaired["state_dict"]["means"].shape, .5), "3dgs")
+            model.load_state_dict(repaired["state_dict"])
+            def report(done, total):
+                if done == 1 or done % 8 == 0 or done == total:
+                    print(f"  RGB cameras {done}/{total}", flush=True)
+            renders = render_rgb_3dgs_cpu(model, all_cameras, resolution, progress=report)
+            references, _ = load_splat_images(reference_paths, resolution, 245/255)
+            title = f"Silhouette-refined CPU 3DGS · {object_id} · {summary['policy']} · {len(history)} views"
+            write_image_comparison_gallery(stage / "ground_truth_comparison.html", references, renders,
+                                           title, training_view_ids=history)
+            write_render_gallery(stage / "turntable.html", renders, title + " · canonical anchors")
+            Image.fromarray(np.uint8(renders[history[0]]*255)).save(stage / "preview.png")
+            recovered = dict(summary)
+            recovered.pop("metrics", None)
+            recovered["metric_status"] = "disabled_by_contract_3dgs_is_qualitative_visualization_only"
+            recovered["cpu_rendering"] = {"renderer": RGB_RENDERER_VERSION, "cuda_parity_verified": False,
+                                         "anchor_ids": [i.anchor_id for i in anchors]}
+            recovered["turntable"] = str((destination / "turntable.html").resolve())
+            recovered["ground_truth_comparison"] = {
+                "type": "canonical_render_vs_corresponding_num_rgb",
+                "interactive": str((destination / "ground_truth_comparison.html").resolve()),
+                "training_view_ids": history,
+                "held_out_view_ids": [i.anchor_id for i in anchors if i.anchor_id not in history],
+            }
+            result = "complete: regenerated 48 repaired 3DGS RGB views"
         recovered["alignment_repair"] = {"identity": identity, "source": str(source.resolve()), **fitted}
-        recovered["metric_status"] = "silhouette_refined_saved_checkpoint_separate_protocol"
-        recovered["cpu_recovery"]["source"] = str(source.resolve())
-        recovered["cpu_recovery"]["checkpoint_used"] = str((destination / "checkpoint.pt").resolve())
-        recovered.pop("turntable", None)  # the old RGB gallery is not a repaired render
-        for field, filename in (("static", "comparison.png"), ("interactive", "comparison_interactive.html"),
-                                ("combined_point_cloud", "comparison.ply")):
-            recovered["ground_truth_comparison"][field] = str((destination / filename).resolve())
         (stage / "summary.json").write_text(json.dumps(recovered, indent=2, allow_nan=False)+"\n")
         destination.mkdir(parents=True, exist_ok=True)
         # Completion marker last; interrupted repairs are recomputed.
         completed.unlink(missing_ok=True)
-        for filename in ("checkpoint.pt", *OUTPUT_FILES):
+        for filename in ("checkpoint.pt", *output_files):
             os.replace(stage / filename, destination / filename)
     return f"{result}; placement {'refined' if fitted['accepted'] else 'retained'}; proxy {fitted['silhouette_proxy_before']:.6f} -> {fitted['silhouette_proxy_after']:.6f}"
 
@@ -288,6 +404,7 @@ def main(argv=None) -> int:
     parser.add_argument("--object-id")
     parser.add_argument("--variant", help="For example phase2_pun")
     parser.add_argument("--views", type=int, nargs="+")
+    parser.add_argument("--backend", choices=("2dgs", "3dgs", "both"), default="both")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--steps", type=int, default=200)
     parser.add_argument("--starts", type=int, default=32, help="Independent initial rotations for placement fitting")
@@ -307,8 +424,10 @@ def main(argv=None) -> int:
             parser.error("output root must not overlap RGB or cache directories")
     torch.set_num_threads(args.threads)
     sources = []
-    for path in sorted(source_root.glob("*/*/*views/phase*/2dgs/summary.json")):
+    for path in sorted(source_root.glob("*/*/*views/phase*/*/summary.json")):
         relative = path.relative_to(source_root)
+        if relative.parts[4] not in ("2dgs", "3dgs") or (args.backend != "both" and relative.parts[4] != args.backend):
+            continue
         if args.object_id and "/".join(relative.parts[:2]) != args.object_id:
             continue
         if args.variant and relative.parts[3] != args.variant:
@@ -318,7 +437,7 @@ def main(argv=None) -> int:
         sources.append(path.parent)
     sources = sources[:args.limit] if args.limit else sources
     if not sources:
-        print("No matching 2DGS artifacts found", file=sys.stderr)
+        print("No matching Gaussian artifacts found", file=sys.stderr)
         return 1
     failures = 0
     for index, source in enumerate(sources, 1):

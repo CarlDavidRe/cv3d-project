@@ -1,24 +1,110 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
+from PIL import Image
 
 import numpy as np
 import torch
 
-from nbv.eval.gaussian_splatting import known_num_splat_cameras
+from nbv.eval.gaussian_splatting import known_num_splat_cameras, GaussianParameters, SplatCameras
 from nbv.geometry.anchors import canonical_anchors
 from nbv.geometry.visibility import PerspectiveCamera
 from scripts.repair_gaussian_alignment_cpu import (
     apply_checkpoint_transform, audit_cameras, fit_similarity, main,
-    quaternion_rotation,
+    quaternion_rotation, render_rgb_3dgs_cpu, repair, digest,
 )
 
 
 class AlignmentRepairTests(unittest.TestCase):
+    def test_3d_repair_publishes_gallery_without_mesh_and_resumes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source, output = root / "source", root / "output"
+            source.mkdir()
+            model = GaussianParameters(np.array([[0., 0., 0.], [.1, 0., 0.]]), np.full((2, 3), .5), "3dgs")
+            torch.save({"schema_version": 1, "settings": {"backend": "3dgs", "resolution": 8},
+                        "state_dict": model.state_dict()}, source / "checkpoint.pt")
+            summary = {"backend": "3dgs", "object_id": "a/b", "history_anchor_ids": [0, 12],
+                       "acquired_view_count": 2, "policy": "pun"}
+            (source / "summary.json").write_text(json.dumps(summary))
+            images = root / "rgb/a/b/images"
+            images.mkdir(parents=True)
+            for i in range(48):
+                Image.new("RGB", (8, 8), (128, 128, 128)).save(images / f"viewpoint_{i}_offset_phi_0.png")
+            visibility = root / "visibility/a/b.npz"
+            visibility.parent.mkdir(parents=True)
+            visibility.write_bytes(b"fixture")
+            args = SimpleNamespace(data_root=root / "rgb", visibility_cache_root=root / "visibility",
+                prediction_cache_root=root / "predictions", steps=2, starts=2, seed=0, dry_run=False, force=False)
+            fit = {"scale": 1., "quaternion_wxyz": [1., 0., 0., 0.], "translation": [0., 0., 0.],
+                   "accepted": False, "silhouette_proxy_before": .1, "silhouette_proxy_after": .1}
+            before = digest(source / "checkpoint.pt")
+            with patch("scripts.repair_gaussian_alignment_cpu.load_visibility_cache", return_value=SimpleNamespace(
+                metadata={"camera_radius": 2.73, "horizontal_fov_degrees": 52.})), patch(
+                    "scripts.repair_gaussian_alignment_cpu.fit_similarity", return_value=fit) as fitting:
+                self.assertIn("48 repaired", repair(source, output, args))
+                self.assertEqual(len(fitting.call_args.args[2]), 2)
+                self.assertIn("skipped", repair(source, output, args))
+                self.assertEqual(fitting.call_count, 1)
+                (output / "preview.png").unlink()
+                self.assertIn("48 repaired", repair(source, output, args))
+                self.assertEqual(fitting.call_count, 2)
+            self.assertEqual(digest(source / "checkpoint.pt"), before)
+            self.assertFalse((output / "metrics.csv").exists())
+            result = json.loads((output / "summary.json").read_text())
+            self.assertFalse(result["cpu_rendering"]["cuda_parity_verified"])
+            self.assertEqual(len(result["ground_truth_comparison"]["held_out_view_ids"]), 46)
+            self.assertTrue(Path(result["ground_truth_comparison"]["interactive"]).is_file())
+            self.assertTrue(Path(result["turntable"]).is_file())
+            self.assertNotIn(".alignment-repair-", json.dumps(result))
+
+    def rgb_fixture(self, points, colors, opacity, *, view=None, resolution=1):
+        model = GaussianParameters(np.asarray(points), np.asarray(colors), "3dgs")
+        with torch.no_grad():
+            model.opacity_logits.copy_(torch.logit(torch.tensor(opacity)))
+            model.log_scales.fill_(math.log(.2))
+        pose = np.eye(4) if view is None else view
+        cameras = SplatCameras(np.linalg.inv(pose)[None], pose[None],
+            np.array([[[2., 0., resolution/2], [0., 2., resolution/2], [0., 0., 1.]]]))
+        return model, cameras
+
+    def test_rgb_renderer_alpha_order_and_white_background(self):
+        model, cameras = self.rgb_fixture([[0., 0., 4.], [0., 0., 2.]],
+            [[.1, .2, .9], [.9, .2, .1]], [.8, .2])
+        image = render_rgb_3dgs_cpu(model, cameras, 1)
+        near_alpha, far_alpha = .2*.04/.34, .8*.01/.31
+        expected = near_alpha*np.array([.9, .2, .1]) + (1-near_alpha)*far_alpha*np.array([.1, .2, .9]) + (1-near_alpha)*(1-far_alpha)
+        np.testing.assert_allclose(image[0, 0, 0], expected, atol=1e-6)
+
+    def test_rgb_renderer_camera_translation_and_clipping(self):
+        view = np.eye(4)
+        view[2, 3] = -1.
+        model, cameras = self.rgb_fixture([[0., 0., .5], [0., 0., 3.]],
+            [[.9, .1, .1], [.1, .9, .1]], [.9, .5], view=view)
+        image = render_rgb_3dgs_cpu(model, cameras, 1)
+        alpha = .5*.04/.34
+        np.testing.assert_allclose(image[0, 0, 0], alpha*np.array([.1, .9, .1])+1-alpha, atol=1e-6)
+        with torch.no_grad():
+            model.means[:, 2].fill_(-1)
+        np.testing.assert_allclose(render_rgb_3dgs_cpu(model, cameras, 1), 1.)
+
+    def test_rgb_renderer_projects_anisotropic_covariance(self):
+        model, cameras = self.rgb_fixture([[0., 0., 2.]], [[.1, .1, .1]], [.8], resolution=5)
+        with torch.no_grad():
+            model.log_scales.copy_(torch.log(torch.tensor([[1., .1, .1]])))
+        image = render_rgb_3dgs_cpu(model, cameras, 5)[0]
+        self.assertLess(image[2, 3, 0], image[3, 2, 0])
+        with torch.no_grad():
+            model.quaternions.copy_(torch.tensor([[2**-.5, 0., 0., 2**-.5]]))
+        rotated = render_rgb_3dgs_cpu(model, cameras, 5)[0]
+        np.testing.assert_allclose(rotated, image.transpose(1, 0, 2), atol=1e-6)
+
     def test_similarity_transforms_full_covariance_and_preserves_source(self):
         state = {
             "means": torch.tensor([[1., 2., 3.], [-1., .2, .5]]),

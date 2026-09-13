@@ -1,4 +1,4 @@
-# CPU placement repair for saved 2DGS checkpoints
+# CPU placement repair for saved 2DGS and 3DGS checkpoints
 
 Run from the repository using its existing Python environment:
 
@@ -7,6 +7,11 @@ python scripts/repair_gaussian_alignment_cpu.py \
   --object-id 02691156/1628b65a9f3cd7c05e9e2656aff7dd5b \
   --variant phase2_pun --views 3
 ```
+
+The default is now `--backend both`. Use `--backend 2dgs` for geometry repair
+only, or `--backend 3dgs` to transform saved 3DGS checkpoints and regenerate
+RGB comparisons on CPU. Each backend fits its own trained Gaussian centers;
+neither depends on the other backend having been repaired.
 
 Omit the three filters to process all available histories. `--views 3 5 10`,
 `--limit`, `--threads`, and `--dry-run` can restrict the work or inspect inputs.
@@ -19,8 +24,11 @@ renders all 48 canonical cameras for every history.
 
 The script uses the repository's existing NumPy, PyTorch, and Pillow dependencies.
 It does not import gsplat, run VGGT, retrain Gaussian parameters, or write caches.
-It needs the original `checkpoint.pt`, `summary.json`, and `ground_truth.ply`,
-the existing visibility cache, and **only the acquired** NUM RGB images.
+Both backends need the original `checkpoint.pt`, `summary.json`, the existing
+visibility cache, and acquired NUM RGB images for fitting. 2DGS additionally
+needs `ground_truth.ply` for evaluation. 3DGS needs all 48 canonical RGB images
+for its comparison gallery; unacquired images are loaded only as gallery
+references and never enter placement fitting or candidate selection.
 Existing VGGT prediction caches are optional and used only for camera diagnostics.
 Absolute `/content/...` paths in original summaries are resolved using local
 roots and artifact filenames. Override roots if the files are elsewhere:
@@ -109,7 +117,7 @@ truth, visibility cache, and prediction cache hashes were unchanged.
 ## Outputs and interpretation
 
 Results go to `outputs/gaussian_splatting_alignment_repair` using the existing
-`category/object/Nviews/variant/2dgs` hierarchy:
+`category/object/Nviews/variant/backend` hierarchy. The 2DGS outputs are:
 
 - transformed `checkpoint.pt`;
 - freshly extracted `surface.ply` and `metrics.csv`;
@@ -118,6 +126,26 @@ Results go to `outputs/gaussian_splatting_alignment_repair` using the existing
   transform, before/after image-placement proxy, and protocol limitations;
 - root-level `recovered_metrics.csv` aggregating completed outputs.
 
+3DGS writes a transformed `checkpoint.pt`, a fresh 48-anchor
+`ground_truth_comparison.html`, a canonical-anchor `turntable.html`, `preview.png`,
+and `summary.json`. It remains qualitative: no 3DGS geometry metrics are added
+to `recovered_metrics.csv`. Its CPU renderer projects full Gaussian covariances
+and uses front-to-back alpha compositing with the antialias opacity compensation
+used by the original gsplat wrapper. It supports this project's constant-RGB
+checkpoints, not arbitrary spherical-harmonic checkpoints. The implementation
+follows [gsplat's projection](https://github.com/nerfstudio-project/gsplat/blob/v1.5.3/gsplat/cuda/csrc/ProjectionEWA3DGSFused.cu)
+and [RGB compositing](https://github.com/nerfstudio-project/gsplat/blob/v1.5.3/gsplat/cuda/csrc/RasterizeToPixels3DGSFwd.cu);
+CPU/CUDA parity has not been verified. A better silhouette fit does not guarantee
+better RGB colors, which remain those learned at the original placement.
+
+The three-view PUN airplane was also run through the complete 3DGS path:
+48 comparison frames were generated, a repeated invocation skipped the completed
+repair, and the original checkpoint hash stayed unchanged. Its repaired RGB is
+still faint and incomplete; moving the Gaussians does not recover colors or
+opacity learned poorly during the original training. The renderer's analytic
+projection/compositing tests and the repair integration tests pass (29 tests
+across the repair, CPU extraction, and Gaussian modules).
+
 The original checkpoints, cached predictions, and original evaluations are
 preserved. Interrupted runs do not publish a completion marker. Old RGB
 turntables are not relabeled as repaired renders.
@@ -125,7 +153,10 @@ turntables are not relabeled as repaired renders.
 Treat these results as a **separate silhouette-refined evaluation protocol**.
 Apply it consistently across policies for comparisons; do not combine repaired
 and original scores in one policy curve. The existing CPU renderer still has
-`cuda_parity_verified: false`. To inspect this directory in the dashboard,
-set `GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT` in `dashboard/app.py` to
-`REPO_ROOT / "outputs" / "gaussian_splatting_alignment_repair"` and rerun the
-dashboard. Original 3DGS turntables remain original; only the 2DGS results change.
+`cuda_parity_verified: false`. The dashboard loads this directory by default
+through `GAUSSIAN_SPLATTING_REPAIR_ROOT` in `dashboard/app.py`. Its 2DGS curves
+include only completed repairs. The gallery shows repaired 3DGS RGB, unrepaired
+2DGS from `gaussian_splatting_cpu_recovery`, and repaired 2DGS side by side.
+Missing artifacts show an availability message. The unrepaired 2DGS column
+uses correct depth extraction at the original placement, not the older
+blue-channel-as-depth artifacts. Original files are preserved.

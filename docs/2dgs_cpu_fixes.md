@@ -1,4 +1,4 @@
-# The two 2DGS CPU fixes
+# Gaussian CPU fixes: depth extraction and placement
 
 Both scripts read the original trained artifacts from
 `outputs/gaussian_splatting_variant_comparison`. They preserve those artifacts
@@ -7,9 +7,9 @@ and existing caches; neither requires CUDA, VGGT inference, or Gaussian retraini
 | Script | Problem addressed | What changes |
 | --- | --- | --- |
 | `scripts/reevaluate_gaussian_splatting_cpu.py` | The affected original extraction interpreted the blue image channel as depth. | Extracts correct depth and surface geometry from the saved checkpoint, keeping Gaussian placement unchanged. |
-| `scripts/repair_gaussian_alignment_cpu.py` | Inconsistent VGGT camera predictions can leave the initial geometry misplaced. | Fits one rotation, translation, and scale using acquired RGB silhouettes and known cameras, then performs corrected CPU depth extraction and evaluation. |
+| `scripts/repair_gaussian_alignment_cpu.py` | Inconsistent VGGT camera predictions can leave the initial geometry misplaced. | Fits one rotation, translation, and scale using acquired RGB silhouettes and known cameras. For 2DGS it performs corrected depth extraction and evaluation; for 3DGS it regenerates RGB comparisons. |
 
-**Both recalculate all geometric metrics:** accuracy, completeness, Chamfer,
+**For 2DGS, both recalculate all geometric metrics:** accuracy, completeness, Chamfer,
 precision, recall, and F-score at the configured thresholds. Both regenerate
 surface point clouds and static/interactive ground-truth comparisons.
 
@@ -21,8 +21,11 @@ Run from the repository with its Python environment:
 # Correct evaluation of the original trained checkpoint
 python scripts/reevaluate_gaussian_splatting_cpu.py
 
-# Refine placement and evaluate the transformed checkpoint
+# Repair both backends: 2DGS geometry evaluation and 3DGS RGB comparisons
 python scripts/repair_gaussian_alignment_cpu.py
+
+# Or repair only 3DGS (use --backend 2dgs for geometry only)
+python scripts/repair_gaussian_alignment_cpu.py --backend 3dgs
 ```
 
 **There is no required order.** The repair script calls the corrected CPU
@@ -38,6 +41,9 @@ Both commands support `--object-id`, `--variant`, `--views`, `--limit`, and
 Both need the original `checkpoint.pt`, `summary.json`, `ground_truth.ply`, and
 existing visibility cache. The repair additionally needs the acquired NUM RGB
 images. Existing VGGT prediction caches are optional for its camera diagnostics.
+For 3DGS, `ground_truth.ply` is not required; all 48 RGB references are needed
+to build the comparison gallery, but only acquired views participate in fitting.
+3DGS remains qualitative and does not receive geometry metrics.
 
 Default output directories are separate:
 
