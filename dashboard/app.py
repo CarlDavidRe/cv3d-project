@@ -954,45 +954,231 @@ def load_vggt_render_catalog(
     return pd.DataFrame.from_records(records)
 
 
-def make_manual_3dgs_comparison(document: str) -> str:
-    """Lock side-by-side mode and add manual drag across all 48 anchors."""
-    document = document.replace(
-        "<button id='play'>Pause</button>",
-        "<span>Drag the 3DGS rendering or use the anchor slider</span>",
-    )
-    document = document.replace(
-        "<label>Layout <select id='layout'><option value='side'>Side by side</option>"
-        "<option value='overlay'>Overlay</option></select></label>",
-        "<select id='layout' hidden><option value='side' selected>Side by side</option>"
-        "</select>",
-    )
-    document = document.replace(
-        "<label>Overlay opacity <input id='opacity' type='range' min='0' max='1' "
-        "step='.05' value='.5'></label>",
-        "<input id='opacity' type='range' value='.5' hidden>",
-    )
+def make_compact_3dgs_view(document: str, *, ground_truth: bool = False) -> str:
+    """Show the 3DGS frame nearest to the synchronized point-cloud viewpoint."""
+    hidden_panel = ":last-child" if ground_truth else ":first-child"
+    compact_styles = f"""
+<style>
+h1 {{ display: none; }}
+.stage {{ height: 100vh; padding: 0; gap: 0; align-items: center; }}
+.panel {{ width: 100%; height: auto; max-height: 100%; aspect-ratio: 1; }}
+#side .panel{hidden_panel} {{ display: none; }}
+footer {{ display: none; }}
+.panel img {{ pointer-events: none; }}
+</style>
+"""
+    document = document.replace("</head>", f"{compact_styles}</head>")
     document = document.replace("let index=0,playing=true;", "let index=0;")
     automatic_controls = (
         "document.getElementById('play').onclick=e=>{playing=!playing;"
         "e.target.textContent=playing?'Pause':'Play'};\n"
         "setInterval(()=>{if(playing){index=(index+1)%data.references.length;show()}},350);"
     )
-    manual_controls = (
-        "function installDragRotation(surface){let dragging=false;"
-        "surface.draggable=false;surface.style.cursor='grab';"
-        "surface.style.touchAction='none';"
-        "function selectAnchor(e){const bounds=surface.getBoundingClientRect();"
-        "const fraction=Math.max(0,Math.min(1,(e.clientX-bounds.left)/bounds.width));"
-        "index=Math.round(fraction*(data.references.length-1));show()}"
-        "surface.onpointerdown=e=>{dragging=true;surface.setPointerCapture(e.pointerId);"
-        "surface.style.cursor='grabbing';selectAnchor(e)};"
-        "surface.onpointermove=e=>{if(dragging)selectAnchor(e)};"
-        "surface.onpointerup=surface.onpointercancel=e=>{dragging=false;"
-        "surface.style.cursor='grab'}}"
-        "installDragRotation(document.getElementById('predictionSide'));"
-        "installDragRotation(document.getElementById('prediction'));"
+    anchor_directions = json.dumps(
+        load_anchor_directions(str(ANCHOR_PATH))
+        .sort_values("anchor_id")[["direction_x", "direction_y", "direction_z"]]
+        .to_numpy(dtype=float)
+        .tolist(),
+        separators=(",", ":"),
     )
-    return document.replace(automatic_controls, manual_controls)
+    synchronized_controls = (
+        f"const anchorDirections={anchor_directions};"
+        "const rotationChannel=('BroadcastChannel' in window)?"
+        "new BroadcastChannel('cv3d-reconstruction-rotation'):null;"
+        "function closestAnchor(yaw,pitch){const cp=Math.cos(pitch);"
+        "const direction=[-cp*Math.sin(yaw),Math.sin(pitch),cp*Math.cos(yaw)];"
+        "let best=0,bestDot=-Infinity;"
+        "const count=Math.min(anchorDirections.length,data.references.length);"
+        "for(let candidate=0;candidate<count;candidate++){const anchor=anchorDirections[candidate];"
+        "const dot=direction[0]*anchor[0]+direction[1]*anchor[1]+direction[2]*anchor[2];"
+        "if(dot>bestDot){bestDot=dot;best=candidate}}return best}"
+        "index=closestAnchor(-.55,-.35);"
+        "if(rotationChannel){rotationChannel.onmessage=e=>{"
+        "if(typeof e.data?.yaw!=='number'||typeof e.data?.pitch!=='number')return;"
+        "index=closestAnchor(e.data.yaw,e.data.pitch);show()}}"
+    )
+    return document.replace(automatic_controls, synchronized_controls)
+
+
+def make_compact_point_cloud_view(document: str, *, ground_truth: bool) -> str:
+    """Reduce a point-cloud comparison to one compact interactive cloud."""
+    compact_styles = """
+<style>
+header, #readout, #dimensions { display: none !important; }
+#viewer { height: 100vh !important; }
+</style>
+"""
+    document = document.replace("</head>", f"{compact_styles}</head>")
+    initial_state = (
+        f'showGt.checked = {str(ground_truth).lower()}; '
+        f'showPrediction.checked = {str(not ground_truth).lower()}; '
+        'showBox.checked = false; layout.value = "overlay";\n'
+    )
+    document = document.replace(
+        'const pointSize = document.getElementById("pointSize");',
+        'const pointSize = document.getElementById("pointSize");\n' + initial_state,
+    )
+    synchronized_state = """
+const rotationChannel = ("BroadcastChannel" in window)
+  ? new BroadcastChannel("cv3d-reconstruction-rotation") : null;
+function broadcastRotation() {
+  rotationChannel?.postMessage({yaw, pitch, zoom});
+}
+if (rotationChannel) rotationChannel.onmessage = event => {
+  if (typeof event.data?.yaw !== "number" || typeof event.data?.pitch !== "number") return;
+  yaw = event.data.yaw;
+  pitch = event.data.pitch;
+  if (typeof event.data.zoom === "number") zoom = event.data.zoom;
+  dirty = true;
+};
+"""
+    document = document.replace(
+        "let dragging = false, pointerX = 0, pointerY = 0, autoRotate = false, dirty = true;",
+        "let dragging = false, pointerX = 0, pointerY = 0, autoRotate = false, dirty = true;\n"
+        + synchronized_state,
+    )
+    document = document.replace(
+        "pointerX = event.clientX; pointerY = event.clientY; dirty = true; });",
+        "pointerX = event.clientX; pointerY = event.clientY; dirty = true; "
+        "broadcastRotation(); });",
+    )
+    document = document.replace(
+        "zoom = Math.max(.25, Math.min(4, zoom * Math.exp(-event.deltaY * .001))); "
+        "dirty = true; }, {passive:false});",
+        "zoom = Math.max(.25, Math.min(4, zoom * Math.exp(-event.deltaY * .001))); "
+        "dirty = true; broadcastRotation(); }, {passive:false});",
+    )
+    document = document.replace(
+        "function reset() { yaw = -0.55; pitch = -0.35; zoom = 1; dirty = true; }",
+        "function reset() { yaw = -0.55; pitch = -0.35; zoom = 1; dirty = true; "
+        "broadcastRotation(); }",
+    )
+    document = document.replace(
+        "function setView(nextYaw, nextPitch) { yaw = nextYaw; pitch = nextPitch; dirty = true; }",
+        "function setView(nextYaw, nextPitch) { yaw = nextYaw; pitch = nextPitch; "
+        "dirty = true; broadcastRotation(); }",
+    )
+    document = document.replace(
+        "event.preventDefault(); dirty=true; });",
+        "event.preventDefault(); dirty=true; broadcastRotation(); });",
+    )
+    return document
+
+
+def render_reconstruction_comparison_row(
+    policy: str,
+    category_id: str,
+    object_id: str,
+    acquired_view_count: int,
+    render_catalog: pd.DataFrame,
+    vggt_render_catalog: pd.DataFrame,
+) -> None:
+    """Render one compact policy row beneath the gallery's shared header."""
+    filters = (
+        ("policy", policy),
+        ("category_id", category_id),
+        ("object_id", object_id),
+        ("acquired_view_count", acquired_view_count),
+    )
+
+    def matching_rows(catalog: pd.DataFrame) -> pd.DataFrame:
+        if catalog.empty:
+            return pd.DataFrame()
+        selected = catalog
+        for column, value in filters:
+            selected = selected[selected[column] == value]
+        return selected
+
+    matching_3dgs = matching_rows(render_catalog)
+    matching_vggt = matching_rows(vggt_render_catalog)
+    comparison_3dgs_path = (
+        Path(matching_3dgs["path"].iloc[0]) if not matching_3dgs.empty else None
+    )
+    comparison_vggt_path = (
+        Path(matching_vggt["path"].iloc[0]) if not matching_vggt.empty else None
+    )
+    comparison_2dgs_path = None
+    if comparison_3dgs_path is not None:
+        comparison_2dgs_path = (
+            GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT
+            / comparison_3dgs_path.parent.parent.relative_to(GAUSSIAN_SPLATTING_ROOT)
+            / "2dgs"
+            / "comparison_interactive.html"
+        )
+    ground_truth_cloud_path = comparison_vggt_path
+    if ground_truth_cloud_path is None and (
+        comparison_2dgs_path is not None and comparison_2dgs_path.is_file()
+    ):
+        ground_truth_cloud_path = comparison_2dgs_path
+
+    (
+        policy_column,
+        render_3dgs_column,
+        surface_2dgs_column,
+        vggt_column,
+        ground_truth_column,
+    ) = st.columns([0.9, 1, 1, 1, 1], gap="small", vertical_alignment="center")
+    with policy_column:
+        st.markdown(
+            f'<div class="matrix-row-label">{pretty_policy(policy)}</div>',
+            unsafe_allow_html=True,
+        )
+    with render_3dgs_column:
+        if comparison_3dgs_path is None:
+            st.info("Not available.")
+        else:
+            components.html(
+                make_compact_3dgs_view(
+                    comparison_3dgs_path.read_text(encoding="utf-8")
+                ),
+                height=240,
+                scrolling=False,
+            )
+    with surface_2dgs_column:
+        if comparison_2dgs_path is None or not comparison_2dgs_path.is_file():
+            st.info("Not available.")
+        else:
+            components.html(
+                make_compact_point_cloud_view(
+                    comparison_2dgs_path.read_text(encoding="utf-8"),
+                    ground_truth=False,
+                ),
+                height=240,
+                scrolling=False,
+            )
+    with vggt_column:
+        if comparison_vggt_path is None:
+            st.info("Not available.")
+        else:
+            components.html(
+                make_compact_point_cloud_view(
+                    comparison_vggt_path.read_text(encoding="utf-8"),
+                    ground_truth=False,
+                ),
+                height=240,
+                scrolling=False,
+            )
+    with ground_truth_column:
+        if ground_truth_cloud_path is not None:
+            components.html(
+                make_compact_point_cloud_view(
+                    ground_truth_cloud_path.read_text(encoding="utf-8"),
+                    ground_truth=True,
+                ),
+                height=240,
+                scrolling=False,
+            )
+        elif comparison_3dgs_path is not None:
+            components.html(
+                make_compact_3dgs_view(
+                    comparison_3dgs_path.read_text(encoding="utf-8"),
+                    ground_truth=True,
+                ),
+                height=240,
+                scrolling=False,
+            )
+        else:
+            st.info("Not available.")
 
 
 @st.cache_data(show_spinner=False)
@@ -1067,8 +1253,8 @@ def build_closed_loop_curve(
     )
     phase_dash = alt.StrokeDash(
         "phase:N",
-        title="Evaluation",
         scale=alt.Scale(domain=["Phase 2", "Phase 3"], range=[[1, 0], [7, 4]]),
+        legend=None,
     )
     selection = alt.selection_point(fields=["policy_label"], bind="legend")
     opacity = alt.condition(selection, alt.value(1.0), alt.value(0.14))
@@ -1099,6 +1285,95 @@ def build_closed_loop_curve(
         alt.layer(line, points)
         .add_params(selection)
         .properties(height=430)
+        .configure_view(strokeWidth=0)
+        .configure_axis(
+            labelColor="#cbd5e1", titleColor="#e2e8f0", gridColor="#263247"
+        )
+        .configure_legend(labelColor="#cbd5e1", titleColor="#e2e8f0")
+    )
+
+
+def build_reconstruction_comparison_chart(
+    vggt_data: pd.DataFrame,
+    gaussian_data: pd.DataFrame,
+    *,
+    vggt_metric: str,
+    gaussian_metric: str,
+    y_title: str,
+    y_domain: tuple[float, float],
+) -> alt.FacetChart:
+    """Draw separate VGGT and 2DGS plots with one shared policy legend."""
+    method_order = ["VGGT reconstruction", "2D Gaussian Splatting"]
+    frames: list[pd.DataFrame] = []
+    for data, metric, method in (
+        (vggt_data, vggt_metric, method_order[0]),
+        (gaussian_data, gaussian_metric, method_order[1]),
+    ):
+        frame = data.copy()
+        frame["metric_value"] = frame[metric]
+        frame["reconstruction_method"] = method
+        frames.append(frame)
+    combined = pd.concat(frames, ignore_index=True)
+
+    domain = [
+        label
+        for label in CLOSED_LOOP_POLICY_COLORS
+        if label in set(combined["policy_label"])
+    ]
+    selection = alt.selection_point(fields=["policy_label"], bind="legend")
+    opacity = alt.condition(selection, alt.value(1.0), alt.value(0.14))
+    encoding = {
+        "x": alt.X(
+            "acquired_view_count:Q",
+            title="Acquired views",
+            axis=alt.Axis(tickMinStep=1),
+        ),
+        "y": alt.Y(
+            "metric_value:Q",
+            title=y_title,
+            scale=alt.Scale(domain=list(y_domain), nice=False),
+        ),
+        "color": alt.Color(
+            "policy_label:N",
+            title=None,
+            scale=alt.Scale(
+                domain=domain,
+                range=[CLOSED_LOOP_POLICY_COLORS[label] for label in domain],
+            ),
+            legend=alt.Legend(orient="top", direction="horizontal", columns=4),
+        ),
+        "strokeDash": alt.StrokeDash(
+            "phase:N",
+            scale=alt.Scale(domain=["Phase 2", "Phase 3"], range=[[1, 0], [7, 4]]),
+            legend=None,
+        ),
+        "opacity": opacity,
+        "tooltip": [
+            alt.Tooltip("reconstruction_method:N", title="Reconstruction"),
+            alt.Tooltip("phase:N", title="Evaluation"),
+            alt.Tooltip("policy_label:N", title="Policy"),
+            alt.Tooltip("acquired_view_count:Q", title="Acquired views"),
+            alt.Tooltip("metric_value:Q", title=y_title, format=".4f"),
+            alt.Tooltip("object_count:Q", title="Objects"),
+        ],
+    }
+    line = alt.Chart(combined).mark_line(point=False, strokeWidth=3).encode(**encoding)
+    points = alt.Chart(combined).mark_circle(size=48).encode(**encoding)
+    return (
+        alt.layer(line, points)
+        .add_params(selection)
+        .properties(width=500, height=430)
+        .facet(
+            column=alt.Column(
+                "reconstruction_method:N",
+                title=None,
+                sort=method_order,
+                header=alt.Header(
+                    labelColor="#e2e8f0", labelFontSize=16, labelFontWeight=600
+                ),
+            )
+        )
+        .resolve_scale(color="shared", strokeDash="shared", y="shared")
         .configure_view(strokeWidth=0)
         .configure_axis(
             labelColor="#cbd5e1", titleColor="#e2e8f0", gridColor="#263247"
@@ -1161,6 +1436,9 @@ st.markdown(
       .run-dot { width: 7px; height: 7px; border-radius: 50%; background: #34d399; box-shadow: 0 0 12px #34d399; }
       .section-kicker { color: #64748b; font-size: .72rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; margin-top: 2rem; }
       .section-title { color: #f8fafc; font-size: 1.65rem; font-weight: 650; letter-spacing: -.025em; margin: .25rem 0 0; }
+      .matrix-header { color: #94a3b8; border-bottom: 1px solid #334155; padding: .7rem .25rem .55rem; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-align: center; text-transform: uppercase; }
+      .matrix-row-label { color: #f8fafc; font-size: .9rem; font-weight: 650; line-height: 1.35; padding-right: .65rem; }
+      .matrix-footer { color: #94a3b8; border-top: 1px solid #334155; margin-top: .15rem; padding: .7rem .25rem 0; font-size: .78rem; line-height: 1.55; }
       .metric-note { color: #94a3b8; font-size: .84rem; padding-top: .25rem; }
       .split-badge { display: inline-flex; align-items: center; gap: .45rem; border: 1px solid currentColor; border-radius: 999px; padding: .28rem .62rem; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
       .split-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
@@ -1667,6 +1945,12 @@ def render_closed_loop_page() -> None:
             vggt_for_chart = vggt_reconstruction[
                 vggt_reconstruction["policy_label"].isin(selected_policies)
             ].dropna(subset=[vggt_metric])
+            vggt_for_chart = vggt_for_chart.loc[
+                ~(
+                    (vggt_for_chart["policy"] == "farthest")
+                    & (vggt_for_chart["acquired_view_count"] == 2)
+                )
+            ].copy()
         gs_for_chart = pd.DataFrame()
         if not gaussian_splatting.empty and reconstruction_metric:
             gs_for_chart = gaussian_splatting[
@@ -1711,46 +1995,31 @@ def render_closed_loop_page() -> None:
             width="stretch",
         )
 
-        vggt_column, gs_column = st.columns(2)
-        with vggt_column:
-            st.markdown("#### VGGT reconstruction")
-            if vggt_for_chart.empty or not reconstruction_metric:
-                st.info("No completed VGGT reconstruction evaluations were found.")
-            else:
-                st.altair_chart(
-                    build_closed_loop_curve(
-                        vggt_for_chart,
-                        x="acquired_view_count",
-                        y=vggt_metric,
-                        x_title="Acquired views",
-                        y_title=RECONSTRUCTION_METRICS[reconstruction_metric],
-                        y_domain=reconstruction_y_domain,
-                    ),
-                    width="stretch",
-                )
-        with gs_column:
-            st.markdown("#### 2D Gaussian Splatting reconstruction")
-            if gs_for_chart.empty or not reconstruction_metric:
-                st.info("No completed 2DGS evaluations were found.")
-            else:
-                st.altair_chart(
-                    build_closed_loop_curve(
-                        gs_for_chart,
-                        x="acquired_view_count",
-                        y=reconstruction_metric,
-                        x_title="Acquired views",
-                        y_title=RECONSTRUCTION_METRICS[reconstruction_metric],
-                        y_domain=reconstruction_y_domain,
-                    ),
-                    width="stretch",
-                )
+        if vggt_for_chart.empty or not reconstruction_metric:
+            st.info("No completed VGGT reconstruction evaluations were found.")
+        elif gs_for_chart.empty:
+            st.info("No completed 2DGS evaluations were found.")
+        else:
+            st.altair_chart(
+                build_reconstruction_comparison_chart(
+                    vggt_for_chart,
+                    gs_for_chart,
+                    vggt_metric=vggt_metric,
+                    gaussian_metric=reconstruction_metric,
+                    y_title=RECONSTRUCTION_METRICS[reconstruction_metric],
+                    y_domain=reconstruction_y_domain,
+                ),
+                width="stretch",
+            )
     st.caption(
         "Use the shared policy and metric controls to compare the same variants across "
         "all three graphs. "
         "Click a legend entry to isolate a curve and hover over a point for its value "
         "and cohort size. All y-axes start at zero, and the VGGT and 2DGS charts share "
-        "the same scale. Coverage and VGGT reconstruction use the full 300-object test "
-        "cohort; 2DGS means use only the completed runs currently available."
+        "the same scale. The anomalous Phase 2 farthest-view VGGT point at two inputs "
+        "is omitted from these plots and their y-axis range only; source metrics remain "
+        "unchanged. Coverage and VGGT reconstruction use the full 300-object test cohort; "
+        "2DGS means use only the completed runs currently available."
     )
 
     st.markdown(
@@ -1827,8 +2096,8 @@ def render_rollout_inspection_page() -> None:
         )
         st.markdown(
             '<div class="hero-copy">Choose a policy and object to follow its camera '
-            'trajectory, absolute surface coverage, and VGGT or Gaussian reconstruction '
-            'through the acquisition sequence.</div>',
+            'trajectory, acquired observations, and absolute surface coverage through '
+            'the acquisition sequence.</div>',
             unsafe_allow_html=True,
         )
     with header_right:
@@ -1842,10 +2111,6 @@ def render_rollout_inspection_page() -> None:
         st.info("No replayable rollout files are available for object-level inspection.")
         return
 
-    render_catalog = load_3dgs_render_catalog(str(GAUSSIAN_SPLATTING_ROOT))
-    vggt_render_catalog = load_vggt_render_catalog(
-        str(PHASE2_CLOSED_LOOP_ROOT), str(PHASE3_CLOSED_LOOP_ROOT)
-    )
     rollout_a, rollout_b, rollout_c = st.columns([1.8, 1.25, 2.1])
     with rollout_a:
         rollout_policy = st.selectbox(
@@ -1865,20 +2130,7 @@ def render_rollout_inspection_page() -> None:
             format_func=lambda value: CATEGORY_NAMES.get(value, value),
         )
     category_catalog = policy_catalog[policy_catalog["category_id"] == rollout_category]
-    rendered_objects: set[str] = set()
-    for available_renders in (render_catalog, vggt_render_catalog):
-        if not available_renders.empty:
-            rendered_objects.update(
-                available_renders.loc[
-                    (available_renders["policy"] == rollout_policy)
-                    & (available_renders["category_id"] == rollout_category),
-                    "object_id",
-                ]
-            )
-    object_options = sorted(
-        category_catalog["object_id"].unique(),
-        key=lambda value: (value not in rendered_objects, value),
-    )
+    object_options = sorted(category_catalog["object_id"].unique())
     with rollout_c:
         rollout_object = st.selectbox("Rollout object", object_options)
     object_catalog = category_catalog[category_catalog["object_id"] == rollout_object]
@@ -1952,6 +2204,46 @@ def render_rollout_inspection_page() -> None:
         ).set_index("Acquired views")
         st.line_chart(trajectory, height=210)
 
+
+def render_reconstruction_gallery_page() -> None:
+    """Render object-level comparisons across reconstruction methods."""
+    render_catalog = load_3dgs_render_catalog(str(GAUSSIAN_SPLATTING_ROOT))
+    vggt_render_catalog = load_vggt_render_catalog(
+        str(PHASE2_CLOSED_LOOP_ROOT), str(PHASE3_CLOSED_LOOP_ROOT)
+    )
+    available_catalogs = [
+        frame for frame in (render_catalog, vggt_render_catalog) if not frame.empty
+    ]
+    all_renders = (
+        pd.concat(available_catalogs, ignore_index=True).drop_duplicates(
+            ["policy", "category_id", "object_id", "acquired_view_count"]
+        )
+        if available_catalogs
+        else pd.DataFrame()
+    )
+
+    header_left, header_right = st.columns([4, 1], vertical_alignment="center")
+    with header_left:
+        st.markdown(
+            '<div class="eyebrow">CV3D / reconstruction gallery</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="hero-title">Compare reconstructions<br>from every angle.</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="hero-copy">Inspect VGGT point clouds, 3DGS novel-view renders, '
+            'and reconstructed 2DGS surfaces alongside ground truth.</div>',
+            unsafe_allow_html=True,
+        )
+    with header_right:
+        st.markdown(
+            f'<div class="run-pill"><span class="run-dot"></span>{len(all_renders):,} '
+            'comparisons loaded</div>',
+            unsafe_allow_html=True,
+        )
+
     st.markdown(
         '<div class="section-kicker">Reconstruction comparisons</div>',
         unsafe_allow_html=True,
@@ -1961,251 +2253,98 @@ def render_rollout_inspection_page() -> None:
         'reconstructed 2DGS surface against ground truth.</div>',
         unsafe_allow_html=True,
     )
-    available_catalogs = [
-        frame
-        for frame in (render_catalog, vggt_render_catalog)
-        if not frame.empty
-    ]
     if not available_catalogs:
-        st.info(
-            "No completed reconstruction viewer is available yet."
-        )
+        st.info("No completed reconstruction viewer is available yet.")
     else:
-        all_renders = (
-            pd.concat(available_catalogs, ignore_index=True)
-            .drop_duplicates(
-                ["policy", "category_id", "object_id", "acquired_view_count"]
-            )
-        )
         reconstruction_policies = sorted(
             all_renders["policy"].unique(), key=pretty_policy
         )
-        default_reconstruction_policy = (
-            reconstruction_policies.index(rollout_policy)
-            if rollout_policy in reconstruction_policies
-            else 0
-        )
+        default_reconstruction_policies = [reconstruction_policies[0]]
         (
             render_policy_control,
             render_category_control,
             render_object_control,
-        ) = st.columns([1.25, 1, 2])
+        ) = st.columns([2.2, 1, 2])
         with render_policy_control:
-            reconstruction_policy = st.selectbox(
-                "Reconstruction policy",
+            selected_reconstruction_policies = st.multiselect(
+                "Reconstruction policies",
                 reconstruction_policies,
-                index=default_reconstruction_policy,
+                default=default_reconstruction_policies,
                 format_func=pretty_policy,
-                help=(
-                    "Reconstruction artifacts are generated per policy and may not "
-                    "exist for the rollout policy selected above."
-                ),
             )
-        policy_3dgs_renders = (
-            render_catalog[render_catalog["policy"] == reconstruction_policy]
-            if not render_catalog.empty
-            else pd.DataFrame()
-        )
-        policy_vggt_renders = (
-            vggt_render_catalog[
-                vggt_render_catalog["policy"] == reconstruction_policy
+        if not selected_reconstruction_policies:
+            with render_category_control:
+                st.selectbox("Reconstruction category", [], disabled=True)
+            with render_object_control:
+                st.selectbox("Reconstruction object", [], disabled=True)
+            st.info("Select at least one reconstruction policy to display its row.")
+        else:
+            policy_renders = all_renders[
+                all_renders["policy"].isin(selected_reconstruction_policies)
             ]
-            if not vggt_render_catalog.empty
-            else pd.DataFrame()
-        )
-        policy_renders = all_renders[
-            all_renders["policy"] == reconstruction_policy
-        ]
-        render_categories = sorted(
-            policy_renders["category_id"].unique(),
-            key=lambda value: CATEGORY_NAMES.get(value, value),
-        )
-        with render_category_control:
-            render_category = st.selectbox(
-                "Reconstruction category",
-                render_categories,
-                format_func=lambda value: CATEGORY_NAMES.get(value, value),
+            render_categories = sorted(
+                policy_renders["category_id"].unique(),
+                key=lambda value: CATEGORY_NAMES.get(value, value),
             )
-        category_renders = policy_renders[
-            policy_renders["category_id"] == render_category
-        ]
-        with render_object_control:
-            render_object = st.selectbox(
-                "Reconstruction object",
-                sorted(category_renders["object_id"].unique()),
-            )
-        selected_renders = category_renders[
-            category_renders["object_id"] == render_object
-        ].sort_values("acquired_view_count")
-        render_view_counts = sorted(
-            selected_renders["acquired_view_count"].astype(int).unique().tolist()
-        )
-        render_view_count = st.segmented_control(
-            "Reconstruction input views",
-            options=render_view_counts,
-            default=render_view_counts[-1],
-            required=True,
-            width="stretch",
-        )
-        matching_3dgs = (
-            policy_3dgs_renders.loc[
-                (policy_3dgs_renders["category_id"] == render_category)
-                & (policy_3dgs_renders["object_id"] == render_object)
-                & (policy_3dgs_renders["acquired_view_count"] == render_view_count)
-            ]
-            if not policy_3dgs_renders.empty
-            else pd.DataFrame()
-        )
-        matching_vggt = (
-            policy_vggt_renders.loc[
-                (policy_vggt_renders["category_id"] == render_category)
-                & (policy_vggt_renders["object_id"] == render_object)
-                & (policy_vggt_renders["acquired_view_count"] == render_view_count)
-            ]
-            if not policy_vggt_renders.empty
-            else pd.DataFrame()
-        )
-        comparison_3dgs_path = (
-            Path(matching_3dgs["path"].iloc[0]) if not matching_3dgs.empty else None
-        )
-        comparison_vggt_path = (
-            Path(matching_vggt["path"].iloc[0]) if not matching_vggt.empty else None
-        )
-        comparison_2dgs_path = None
-        if comparison_3dgs_path is not None:
-            comparison_2dgs_path = (
-                GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT
-                / comparison_3dgs_path.parent.parent.relative_to(
-                    GAUSSIAN_SPLATTING_ROOT
+            with render_category_control:
+                render_category = st.selectbox(
+                    "Reconstruction category",
+                    render_categories,
+                    format_func=lambda value: CATEGORY_NAMES.get(value, value),
                 )
-                / "2dgs"
-                / "comparison_interactive.html"
-            )
-        render_3dgs_tab, surface_2dgs_tab, vggt_tab = st.tabs(
-            [
-                "3DGS render vs. RGB",
-                "2DGS surface vs. ground truth",
-                "VGGT oracle-ICP vs. ground truth",
+            category_renders = policy_renders[
+                policy_renders["category_id"] == render_category
             ]
-        )
-        with render_3dgs_tab:
-            if comparison_3dgs_path is None:
-                st.info("No 3DGS render is available for this selection yet.")
-            else:
-                components.html(
-                    make_manual_3dgs_comparison(
-                        comparison_3dgs_path.read_text(encoding="utf-8")
-                    ),
-                    height=680,
-                    scrolling=False,
+            with render_object_control:
+                render_object = st.selectbox(
+                    "Reconstruction object",
+                    sorted(category_renders["object_id"].unique()),
                 )
-                st.caption(
-                    "Drag the 3DGS panel from edge to edge to inspect anchors 0–47; "
-                    "the matching ground-truth NUM image stays beside it."
-                )
-        with surface_2dgs_tab:
-            comparison_2dgs_image_path = (
-                comparison_2dgs_path.with_name("comparison.png")
-                if comparison_2dgs_path is not None
-                else None
+            selected_renders = category_renders[
+                category_renders["object_id"] == render_object
+            ].sort_values("acquired_view_count")
+            render_view_counts = sorted(
+                selected_renders["acquired_view_count"].astype(int).unique().tolist()
             )
-            if (
-                comparison_2dgs_image_path is not None
-                and comparison_2dgs_image_path.is_file()
+            render_view_count = st.segmented_control(
+                "Reconstruction input views",
+                options=render_view_counts,
+                default=render_view_counts[-1],
+                required=True,
+                width="stretch",
+            )
+            matrix_headers = st.columns(
+                [0.9, 1, 1, 1, 1], gap="small", vertical_alignment="bottom"
+            )
+            for column, label in zip(
+                matrix_headers,
+                ("Policy", "3DGS render", "2DGS surface", "VGGT cloud", "Ground truth"),
             ):
-                st.image(
-                    str(comparison_2dgs_image_path),
-                    caption=(
-                        "2DGS surface (orange) vs. ground truth (blue) · "
-                        "XY, XZ, and YZ projections"
-                    ),
-                    width="stretch",
+                with column:
+                    st.markdown(
+                        f'<div class="matrix-header">{label}</div>',
+                        unsafe_allow_html=True,
+                    )
+            for reconstruction_policy in selected_reconstruction_policies:
+                render_reconstruction_comparison_row(
+                    reconstruction_policy,
+                    render_category,
+                    render_object,
+                    render_view_count,
+                    render_catalog,
+                    vggt_render_catalog,
                 )
-                st.caption(
-                    "Hover over the image and click the fullscreen icon to enlarge it."
-                )
-            if comparison_2dgs_path is not None and comparison_2dgs_path.is_file():
-                components.html(
-                    comparison_2dgs_path.read_text(encoding="utf-8"),
-                    height=720,
-                    scrolling=False,
-                )
-                st.caption(
-                    "Drag to rotate the 2DGS surface comparison. Toggle ground truth "
-                    "and prediction, or switch between overlay and side-by-side layouts."
-                )
-            else:
-                st.info(
-                    "No interactive 2DGS surface comparison is available for this "
-                    "selection yet."
-                )
-        with vggt_tab:
-            comparison_vggt_image_path = (
-                comparison_vggt_path.with_name("comparison_oracle_icp.png")
-                if comparison_vggt_path is not None
-                else None
+            selection_label = (
+                f"{CATEGORY_NAMES.get(render_category, render_category)} / "
+                f"{render_object} · {render_view_count} acquired views"
             )
-            if (
-                comparison_vggt_image_path is not None
-                and comparison_vggt_image_path.is_file()
-            ):
-                st.image(
-                    str(comparison_vggt_image_path),
-                    caption=(
-                        "Oracle-ICP-aligned VGGT prediction (orange) vs. ground truth "
-                        "(blue) · XY, XZ, and YZ projections"
-                    ),
-                    width="stretch",
-                )
-                st.caption(
-                    "Hover over the image and click the fullscreen icon to enlarge it."
-                )
-            if comparison_vggt_path is not None:
-                components.html(
-                    comparison_vggt_path.read_text(encoding="utf-8"),
-                    height=720,
-                    scrolling=False,
-                )
-                st.caption(
-                    "Drag to rotate and use the controls to toggle the VGGT prediction "
-                    "and ground truth or switch between overlay and side-by-side views. "
-                    "This oracle ICP alignment uses ground truth and is a structural "
-                    "diagnostic, not an official evaluation result."
-                )
-            else:
-                available_vggt_policies = []
-                if not vggt_render_catalog.empty:
-                    available_vggt_policies = sorted(
-                        vggt_render_catalog.loc[
-                            (vggt_render_catalog["category_id"] == render_category)
-                            & (vggt_render_catalog["object_id"] == render_object)
-                            & (
-                                vggt_render_catalog["acquired_view_count"]
-                                == render_view_count
-                            ),
-                            "policy",
-                        ].unique(),
-                        key=pretty_policy,
-                    )
-                availability_hint = (
-                    " Choose "
-                    + ", ".join(
-                        f"'{pretty_policy(policy)}'"
-                        for policy in available_vggt_policies
-                    )
-                    + " under Reconstruction policy above."
-                    if available_vggt_policies
-                    else ""
-                )
-                st.info(
-                    "No interactive oracle-ICP VGGT point-cloud comparison is available "
-                    f"for this selection yet.{availability_hint}"
-                )
-        st.caption(
-            f"{pretty_policy(reconstruction_policy)} · "
-            f"{CATEGORY_NAMES.get(render_category, render_category)} / {render_object} · "
-            f"{render_view_count} acquired views"
-        )
+            st.markdown(
+                f'<div class="matrix-footer"><strong>{selection_label}</strong> · '
+                "Drag any point-cloud cell to rotate the entire matrix; zoom is shared. "
+                "Each 3DGS cell follows the nearest rendered anchor. VGGT is oracle-ICP "
+                "aligned.</div>",
+                unsafe_allow_html=True,
+            )
 
 
 navigation = st.navigation(
@@ -2225,6 +2364,11 @@ navigation = st.navigation(
             render_rollout_inspection_page,
             title="Rollout inspection",
             url_path="rollout-inspection",
+        ),
+        st.Page(
+            render_reconstruction_gallery_page,
+            title="Reconstruction gallery",
+            url_path="reconstruction-gallery",
         ),
     ],
     position="top",
