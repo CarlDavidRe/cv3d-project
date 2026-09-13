@@ -1363,33 +1363,17 @@ def render_closed_loop_page() -> None:
         unsafe_allow_html=True,
     )
     summary_metrics = {
-        "final_reachable_normalized_coverage_mean": (
-            "Final reachable-normalized coverage",
-            "↑ higher is better",
-        ),
         "final_coverage_mean": ("Final absolute coverage", "↑ higher is better"),
         "coverage_auc_mean": ("Coverage AUC", "↑ higher is better"),
         "normalized_regret_mean": ("Mean normalized regret", "↓ lower is better"),
         "ndcg_at_5_mean": ("Mean NDCG @ 5", "↑ higher is better"),
         "median_policy_ms": ("Median decision time (ms)", "↓ lower is better"),
     }
-    summary_control, coverage_control = st.columns([1, 1])
-    with summary_control:
-        summary_metric = st.selectbox(
-            "Policy summary metric",
-            list(summary_metrics),
-            format_func=lambda value: summary_metrics[value][0],
-        )
-    with coverage_control:
-        coverage_metric = st.selectbox(
-            "Coverage trajectory",
-            ["reachable_normalized_coverage_mean", "coverage_mean"],
-            format_func=lambda value: (
-                "Reachable-normalized coverage"
-                if value.startswith("reachable")
-                else "Absolute coverage"
-            ),
-        )
+    summary_metric = st.selectbox(
+        "Policy summary metric",
+        list(summary_metrics),
+        format_func=lambda value: summary_metrics[value][0],
+    )
 
     metric_label, direction = summary_metrics[summary_metric]
     leading_row = comparison.loc[
@@ -1414,18 +1398,13 @@ def render_closed_loop_page() -> None:
             width="stretch",
         )
     with overview_right:
-        coverage_label = (
-            "Reachable-normalized coverage"
-            if coverage_metric.startswith("reachable")
-            else "Absolute surface coverage"
-        )
         st.altair_chart(
             build_closed_loop_curve(
-                tables["coverage"].dropna(subset=[coverage_metric]),
+                tables["coverage"].dropna(subset=["coverage_mean"]),
                 x="acquired_view_count",
-                y=coverage_metric,
+                y="coverage_mean",
                 x_title="Acquired views",
-                y_title=coverage_label,
+                y_title="Absolute surface coverage",
             ),
             width="stretch",
         )
@@ -1502,16 +1481,54 @@ def render_closed_loop_page() -> None:
             width="stretch",
         )
 
-    st.markdown(
-        '<div class="section-kicker">Rollout inspection</div>', unsafe_allow_html=True
-    )
-    st.markdown(
-        '<div class="section-title">Inspect one policy trajectory view by view.</div>',
-        unsafe_allow_html=True,
-    )
+    with st.expander("Inspect aggregate closed-loop metrics"):
+        display_columns = [
+            "phase",
+            "policy_label",
+            "object_count",
+            "final_coverage_mean",
+            "coverage_auc_mean",
+            "normalized_regret_mean",
+            "spearman_mean",
+            "ndcg_at_5_mean",
+            "median_policy_ms",
+        ]
+        st.dataframe(
+            comparison[display_columns].sort_values(["phase", "policy_label"]),
+            hide_index=True,
+            width="stretch",
+        )
+
+
+def render_rollout_inspection_page() -> None:
+    """Render object-level, view-by-view closed-loop rollout inspection."""
     catalog = load_rollout_catalog(
         str(PHASE2_CLOSED_LOOP_ROOT), str(PHASE3_CLOSED_LOOP_ROOT)
     )
+
+    header_left, header_right = st.columns([4, 1], vertical_alignment="center")
+    with header_left:
+        st.markdown(
+            '<div class="eyebrow">CV3D / rollout inspection</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="hero-title">Inspect a policy<br>view by view.</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="hero-copy">Choose a phase, object, and policy to follow its '
+            'camera trajectory and absolute surface coverage through the acquisition '
+            'sequence.</div>',
+            unsafe_allow_html=True,
+        )
+    with header_right:
+        st.markdown(
+            f'<div class="run-pill"><span class="run-dot"></span>{len(catalog):,} rollouts '
+            'loaded</div>',
+            unsafe_allow_html=True,
+        )
+
     if catalog.empty:
         st.info("No replayable rollout files are available for object-level inspection.")
         return
@@ -1549,7 +1566,6 @@ def render_closed_loop_page() -> None:
     acquired = np.asarray(rollout["acquired_anchor_ids"], dtype=int)
     counts = np.asarray(rollout["acquired_view_counts"], dtype=int)
     coverage = np.asarray(rollout["coverage"], dtype=float)
-    metadata = rollout["metadata"]
     steps = rollout["steps"]
 
     acquired_count = st.slider(
@@ -1562,18 +1578,12 @@ def render_closed_loop_page() -> None:
     current_index = int(np.flatnonzero(counts == acquired_count)[0])
     current_anchor = int(acquired[current_index])
     current_step = steps[current_index - 1] if current_index > 0 else None
-    ceiling = metadata.get("reachable_coverage_ceiling")
-    current_reachable = coverage[current_index] / float(ceiling) if ceiling else None
     object_key = f"{rollout_category}/{rollout_object}"
 
-    rollout_kpis = st.columns(4)
+    rollout_kpis = st.columns(3)
     rollout_kpis[0].metric("Current anchor", current_anchor)
     rollout_kpis[1].metric("Absolute coverage", f"{coverage[current_index]:.3f}")
     rollout_kpis[2].metric(
-        "Reachable-normalized",
-        f"{current_reachable:.3f}" if current_reachable is not None else "—",
-    )
-    rollout_kpis[3].metric(
         "Decision regret",
         f'{float(current_step["normalized_regret"]):.3f}'
         if current_step and current_step.get("normalized_regret") is not None
@@ -1619,30 +1629,7 @@ def render_closed_loop_page() -> None:
                 "Absolute coverage": coverage[: current_index + 1],
             }
         ).set_index("Acquired views")
-        if ceiling:
-            trajectory["Reachable-normalized"] = (
-                coverage[: current_index + 1] / float(ceiling)
-            )
         st.line_chart(trajectory, height=210)
-
-    with st.expander("Inspect aggregate closed-loop metrics"):
-        display_columns = [
-            "phase",
-            "policy_label",
-            "object_count",
-            "final_coverage_mean",
-            "final_reachable_normalized_coverage_mean",
-            "coverage_auc_mean",
-            "normalized_regret_mean",
-            "spearman_mean",
-            "ndcg_at_5_mean",
-            "median_policy_ms",
-        ]
-        st.dataframe(
-            comparison[display_columns].sort_values(["phase", "policy_label"]),
-            hide_index=True,
-            width="stretch",
-        )
 
 
 navigation = st.navigation(
@@ -1657,6 +1644,11 @@ navigation = st.navigation(
             render_closed_loop_page,
             title="Closed-loop evaluation",
             url_path="closed-loop",
+        ),
+        st.Page(
+            render_rollout_inspection_page,
+            title="Rollout inspection",
+            url_path="rollout-inspection",
         ),
     ],
     position="top",

@@ -733,6 +733,38 @@ if [ -f /tmp/cv3d-sync.pid ]; then
 fi
 ```
 
+### Sync only Gaussian splatting variant comparisons every three minutes
+
+Start this once per runtime to sync only
+`outputs/gaussian_splatting_variant_comparison` to Drive in the background.
+It runs immediately, then waits three minutes after each sync. In a Colab cell,
+put `%%bash` at the top. The background sync runs while the runtime stays active.
+
+```bash
+cd /content/cv3d-project
+
+nohup bash -c '
+  DRIVE_OUTPUTS=/content/drive/MyDrive/cv3d-project/outputs
+  RESULT_DIR=gaussian_splatting_variant_comparison
+
+  while true; do
+    if [ -d "outputs/$RESULT_DIR" ]; then
+      mkdir -p "$DRIVE_OUTPUTS/$RESULT_DIR"
+      rsync -av "outputs/$RESULT_DIR/" "$DRIVE_OUTPUTS/$RESULT_DIR/"
+    fi
+    sleep 180
+  done
+' > /content/gaussian_sync.log 2>&1 &
+
+echo $! > /content/gaussian_sync.pid
+```
+
+Sync output is saved in `/content/gaussian_sync.log`. To stop the loop:
+
+```bash
+kill "$(cat /content/gaussian_sync.pid)"
+```
+
 ## 8. Resume after a runtime reset
 
 Repeat steps 1, 3, and 4, then restart the automatic backup. Resume joint

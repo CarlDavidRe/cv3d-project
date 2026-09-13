@@ -1,0 +1,376 @@
+{
+  "backend": "both",
+  "object_id": "02691156/165c4491d10067b3bd46d022fd7d80aa",
+  "runs": [
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/1views/phase2_random",
+      "policy": "random",
+      "status": "skipped",
+      "variant": "phase2_random",
+      "views": 1
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/1views/phase2_farthest",
+      "policy": "farthest",
+      "status": "skipped",
+      "variant": "phase2_farthest",
+      "views": 1
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/1views/phase2_pun",
+      "policy": "pun",
+      "status": "skipped",
+      "variant": "phase2_pun",
+      "views": 1
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/1views/phase2_vggt",
+      "policy": "vggt",
+      "status": "skipped",
+      "variant": "phase2_vggt",
+      "views": 1
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/1views/phase2_oracle",
+      "policy": "oracle",
+      "status": "skipped",
+      "variant": "phase2_oracle",
+      "views": 1
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/1views/phase3_vggt_independent_history",
+      "policy": "vggt_independent_history",
+      "status": "skipped",
+      "variant": "phase3_vggt_independent_history",
+      "views": 1
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/1views/phase3_vggt_joint_history",
+      "policy": "vggt_joint_history",
+      "status": "skipped",
+      "variant": "phase3_vggt_joint_history",
+      "views": 1
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/1views/phase3_vggt_joint_pose_deepsets",
+      "policy": "vggt_joint_pose_deepsets",
+      "status": "skipped",
+      "variant": "phase3_vggt_joint_pose_deepsets",
+      "views": 1
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/1views/phase3_vggt_joint_token_attention",
+      "policy": "vggt_joint_token_attention",
+      "status": "skipped",
+      "variant": "phase3_vggt_joint_token_attention",
+      "views": 1
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/2views/phase2_random",
+      "policy": "random",
+      "status": "skipped",
+      "variant": "phase2_random",
+      "views": 2
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/2views/phase2_farthest",
+      "policy": "farthest",
+      "status": "skipped",
+      "variant": "phase2_farthest",
+      "views": 2
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/2views/phase2_pun",
+      "policy": "pun",
+      "status": "skipped",
+      "variant": "phase2_pun",
+      "views": 2
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/2views/phase2_vggt",
+      "policy": "vggt",
+      "status": "skipped",
+      "variant": "phase2_vggt",
+      "views": 2
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/2views/phase2_oracle",
+      "policy": "oracle",
+      "status": "skipped",
+      "variant": "phase2_oracle",
+      "views": 2
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/2views/phase3_vggt_independent_history",
+      "policy": "vggt_independent_history",
+      "status": "skipped",
+      "variant": "phase3_vggt_independent_history",
+      "views": 2
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/2views/phase3_vggt_joint_history",
+      "policy": "vggt_joint_history",
+      "status": "skipped",
+      "variant": "phase3_vggt_joint_history",
+      "views": 2
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/2views/phase3_vggt_joint_pose_deepsets",
+      "policy": "vggt_joint_pose_deepsets",
+      "status": "skipped",
+      "variant": "phase3_vggt_joint_pose_deepsets",
+      "views": 2
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/2views/phase3_vggt_joint_token_attention",
+      "policy": "vggt_joint_token_attention",
+      "status": "skipped",
+      "variant": "phase3_vggt_joint_token_attention",
+      "views": 2
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/3views/phase2_random",
+      "policy": "random",
+      "status": "skipped",
+      "variant": "phase2_random",
+      "views": 3
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/3views/phase2_farthest",
+      "policy": "farthest",
+      "status": "skipped",
+      "variant": "phase2_farthest",
+      "views": 3
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/3views/phase2_pun",
+      "policy": "pun",
+      "status": "skipped",
+      "variant": "phase2_pun",
+      "views": 3
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/3views/phase2_vggt",
+      "policy": "vggt",
+      "status": "skipped",
+      "variant": "phase2_vggt",
+      "views": 3
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/3views/phase2_oracle",
+      "policy": "oracle",
+      "status": "skipped",
+      "variant": "phase2_oracle",
+      "views": 3
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/3views/phase3_vggt_independent_history",
+      "policy": "vggt_independent_history",
+      "status": "skipped",
+      "variant": "phase3_vggt_independent_history",
+      "views": 3
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/3views/phase3_vggt_joint_history",
+      "policy": "vggt_joint_history",
+      "status": "skipped",
+      "variant": "phase3_vggt_joint_history",
+      "views": 3
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/3views/phase3_vggt_joint_pose_deepsets",
+      "policy": "vggt_joint_pose_deepsets",
+      "status": "skipped",
+      "variant": "phase3_vggt_joint_pose_deepsets",
+      "views": 3
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/3views/phase3_vggt_joint_token_attention",
+      "policy": "vggt_joint_token_attention",
+      "status": "skipped",
+      "variant": "phase3_vggt_joint_token_attention",
+      "views": 3
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/5views/phase2_random",
+      "policy": "random",
+      "status": "skipped",
+      "variant": "phase2_random",
+      "views": 5
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/5views/phase2_farthest",
+      "policy": "farthest",
+      "status": "skipped",
+      "variant": "phase2_farthest",
+      "views": 5
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/5views/phase2_pun",
+      "policy": "pun",
+      "status": "skipped",
+      "variant": "phase2_pun",
+      "views": 5
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/5views/phase2_vggt",
+      "policy": "vggt",
+      "status": "skipped",
+      "variant": "phase2_vggt",
+      "views": 5
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/5views/phase2_oracle",
+      "policy": "oracle",
+      "status": "skipped",
+      "variant": "phase2_oracle",
+      "views": 5
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/5views/phase3_vggt_independent_history",
+      "policy": "vggt_independent_history",
+      "status": "skipped",
+      "variant": "phase3_vggt_independent_history",
+      "views": 5
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/5views/phase3_vggt_joint_history",
+      "policy": "vggt_joint_history",
+      "status": "skipped",
+      "variant": "phase3_vggt_joint_history",
+      "views": 5
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/5views/phase3_vggt_joint_pose_deepsets",
+      "policy": "vggt_joint_pose_deepsets",
+      "status": "skipped",
+      "variant": "phase3_vggt_joint_pose_deepsets",
+      "views": 5
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/5views/phase3_vggt_joint_token_attention",
+      "policy": "vggt_joint_token_attention",
+      "status": "skipped",
+      "variant": "phase3_vggt_joint_token_attention",
+      "views": 5
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/10views/phase2_random",
+      "policy": "random",
+      "status": "skipped",
+      "variant": "phase2_random",
+      "views": 10
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/10views/phase2_farthest",
+      "policy": "farthest",
+      "status": "skipped",
+      "variant": "phase2_farthest",
+      "views": 10
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/10views/phase2_pun",
+      "policy": "pun",
+      "status": "skipped",
+      "variant": "phase2_pun",
+      "views": 10
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/10views/phase2_vggt",
+      "policy": "vggt",
+      "status": "skipped",
+      "variant": "phase2_vggt",
+      "views": 10
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/10views/phase2_oracle",
+      "policy": "oracle",
+      "status": "complete",
+      "variant": "phase2_oracle",
+      "views": 10
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/10views/phase3_vggt_independent_history",
+      "policy": "vggt_independent_history",
+      "status": "complete",
+      "variant": "phase3_vggt_independent_history",
+      "views": 10
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/10views/phase3_vggt_joint_history",
+      "policy": "vggt_joint_history",
+      "status": "complete",
+      "variant": "phase3_vggt_joint_history",
+      "views": 10
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/10views/phase3_vggt_joint_pose_deepsets",
+      "policy": "vggt_joint_pose_deepsets",
+      "status": "complete",
+      "variant": "phase3_vggt_joint_pose_deepsets",
+      "views": 10
+    },
+    {
+      "output": "/content/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/165c4491d10067b3bd46d022fd7d80aa/10views/phase3_vggt_joint_token_attention",
+      "policy": "vggt_joint_token_attention",
+      "status": "complete",
+      "variant": "phase3_vggt_joint_token_attention",
+      "views": 10
+    }
+  ],
+  "schema_version": 1,
+  "variants": [
+    {
+      "metrics": "/content/cv3d-project/outputs/phase2/phase2_closed_loop_reconstruction/seed_0/metrics/reconstruction_per_object.csv",
+      "phase": "phase2",
+      "policy": "random"
+    },
+    {
+      "metrics": "/content/cv3d-project/outputs/phase2/phase2_closed_loop_reconstruction/seed_0/metrics/reconstruction_per_object.csv",
+      "phase": "phase2",
+      "policy": "farthest"
+    },
+    {
+      "metrics": "/content/cv3d-project/outputs/phase2/phase2_closed_loop_reconstruction/seed_0/metrics/reconstruction_per_object.csv",
+      "phase": "phase2",
+      "policy": "pun"
+    },
+    {
+      "metrics": "/content/cv3d-project/outputs/phase2/phase2_closed_loop_reconstruction/seed_0/metrics/reconstruction_per_object.csv",
+      "phase": "phase2",
+      "policy": "vggt"
+    },
+    {
+      "metrics": "/content/cv3d-project/outputs/phase2/phase2_closed_loop_reconstruction/seed_0/metrics/reconstruction_per_object.csv",
+      "phase": "phase2",
+      "policy": "oracle"
+    },
+    {
+      "metrics": "/content/cv3d-project/outputs/phase3/controlled_history_comparison_reconstruction/seed_0/metrics/reconstruction_per_object.csv",
+      "phase": "phase3",
+      "policy": "vggt_independent_history"
+    },
+    {
+      "metrics": "/content/cv3d-project/outputs/phase3/controlled_history_comparison_reconstruction/seed_0/metrics/reconstruction_per_object.csv",
+      "phase": "phase3",
+      "policy": "vggt_joint_history"
+    },
+    {
+      "metrics": "/content/cv3d-project/outputs/phase3/controlled_pose_deepsets/seed_0/metrics/reconstruction_per_object.csv",
+      "phase": "phase3",
+      "policy": "vggt_joint_pose_deepsets"
+    },
+    {
+      "metrics": "/content/cv3d-project/outputs/phase3/controlled_token_attention/seed_0/metrics/reconstruction_per_object.csv",
+      "phase": "phase3",
+      "policy": "vggt_joint_token_attention"
+    }
+  ],
+  "views": [
+    1,
+    2,
+    3,
+    5,
+    10
+  ]
+}
