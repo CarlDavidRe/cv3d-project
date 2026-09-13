@@ -1,0 +1,377 @@
+{
+  "acquired_view_count": 2,
+  "alignment": {
+    "camera_center_rmse_normalized": 0.5507864731886135,
+    "mode": "camera_pose_sim3",
+    "scale": 0.04793179945853638
+  },
+  "backend": "3dgs",
+  "camera_source": "known_num_cameras",
+  "geometry_evaluation_enabled": false,
+  "ground_truth_cache": "/content/cv3d-project/data/cache/reconstruction/ground_truth/02691156/162ed8d0d989f3acc1ccec171a275967/2c447c288f73f01c407d.npz",
+  "ground_truth_comparison": {
+    "type": "canonical_render_vs_corresponding_num_rgb",
+    "interactive": "/home/reese/computer_vision/cv3d-project/outputs/gaussian_splatting_alignment_repair/02691156/162ed8d0d989f3acc1ccec171a275967/2views/phase2_random/3dgs/ground_truth_comparison.html",
+    "training_view_ids": [
+      0,
+      13
+    ],
+    "held_out_view_ids": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47
+    ]
+  },
+  "history_anchor_ids": [
+    0,
+    13
+  ],
+  "initialization": "camera_aligned_vggt_filtered_point_map",
+  "metric_status": "disabled_by_contract_3dgs_is_qualitative_visualization_only",
+  "object_id": "02691156/162ed8d0d989f3acc1ccec171a275967",
+  "policy": "random",
+  "prediction_cache": "/content/cv3d-project/data/cache/reconstruction/predictions/02691156/162ed8d0d989f3acc1ccec171a275967/5c8b73e4bd0a47eaabbc75e3.npz",
+  "schema_version": 1,
+  "settings": {
+    "alpha_threshold": 0.5,
+    "backend": "3dgs",
+    "distortion_loss_weight": 0.01,
+    "fscore_thresholds": [
+      0.01,
+      0.02,
+      0.1
+    ],
+    "iterations": 1500,
+    "learning_rate": 0.01,
+    "metric_chunk_size": 1024,
+    "normal_loss_weight": 0.05,
+    "opacity_loss_weight": 0.1,
+    "position_learning_rate": 0.0002,
+    "render_batch_size": 8,
+    "resolution": 256,
+    "seed": 0,
+    "surface_point_count": 10000
+  },
+  "training_history": [
+    {
+      "color_l1": 0.025269871577620506,
+      "iteration": 1.0,
+      "loss": 0.030898839235305786,
+      "opacity_l1": 0.0562896728515625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 100.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 200.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 300.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 400.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 500.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 600.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 700.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 800.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 900.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 1000.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 1100.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 1200.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 1300.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 1400.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    },
+    {
+      "color_l1": 0.0574747733771801,
+      "iteration": 1500.0,
+      "loss": 0.06854807585477829,
+      "opacity_l1": 0.1107330322265625
+    }
+  ],
+  "turntable": "/home/reese/computer_vision/cv3d-project/outputs/gaussian_splatting_alignment_repair/02691156/162ed8d0d989f3acc1ccec171a275967/2views/phase2_random/3dgs/turntable.html",
+  "cpu_rendering": {
+    "renderer": "numpy_3dgs_antialiased_rgb_v1",
+    "cuda_parity_verified": false,
+    "anchor_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47
+    ]
+  },
+  "alignment_repair": {
+    "identity": {
+      "version": "acquired_silhouette_sim3_v1",
+      "steps": 200,
+      "starts": 32,
+      "seed": 0,
+      "inputs": {
+        "checkpoint": "e2734f50169bd99a3bdf8f6aedf17ce5f593187620e1afc4b4064a6de50d5e94",
+        "summary": "72dc9d3b8aabfb1d55922d1e4d4ac100d4b9c90e8d478d4b2ecb59415450c3be",
+        "visibility": "e349ca3ee6600af0aa538b971ec67a39fea550a70f1ce6ad1112927b9d4d23a2"
+      },
+      "acquired_rgb_sha256": [
+        "97cc1f468cbda1cb00fe9fbf8203f5b7ff4fcc2ac24bbed3cc45fed7311a2eb4",
+        "afdafd217f8d72e1fd51705a0de1d526a3b4604dbea45cde036c50a8a1fb81b2"
+      ],
+      "audit": {
+        "original_alignment": {
+          "camera_center_rmse_normalized": 0.5507864731886135,
+          "mode": "camera_pose_sim3",
+          "scale": 0.04793179945853638
+        },
+        "prediction_cache_available": true,
+        "prediction_cache_sha256": "41f2c395aa9fb264d887548ddae6f5d74944c23cf40310161822c65e54d9322a",
+        "relative_rotation_errors_degrees": [
+          152.28673938104862
+        ],
+        "median_relative_rotation_error_degrees": 152.28673938104862
+      },
+      "reference_rgb_sha256": [
+        "97cc1f468cbda1cb00fe9fbf8203f5b7ff4fcc2ac24bbed3cc45fed7311a2eb4",
+        "efe7b86af4a157ed43c5dfb1ee71be02c4c7372d935231807e1624bc4b29c69b",
+        "fff64c46dd5cb91d0ee6f00931d267e012b6406253e2bc8af1c127bdfdda2221",
+        "5debbf83be7675943f9b8a9531d7b8bfbe70a45711a00344868f673f16c3aa61",
+        "fec30c83a09b71ef5fd55bae0554cc1c1b78577f3a2e2a1f95a8eb825339c0ec",
+        "390ece3cb50474cdd8d1d40c0939cf8ef23b05edae3d1821aec2a4528a21e314",
+        "cbe869d3a6bdf8a821d996c162f0742c756842fbf61f8fab6984a159121a94f7",
+        "69e6b2703b8fdf5ebc6f00d6a18314ef8a2072e0258c5982685cdb37d3dc0d65",
+        "9440e12f660f6264b6228b3bb72674445b8754e70d1786b969047a181eba6654",
+        "37e4698bd3457e5fbc88d5d5632708184c036010260515ec10acfc2a29908516",
+        "8a93664396cdc551ddfb4dcc0292c527055da735c6e4c17ec1b87b09ac880f27",
+        "cda7270af7d5ebc15e6be612bdeaff91b7e42968de840869405db0eeb3c426ef",
+        "766e4fdc39a7348f6fa6d4d9d9076d8bbfc2d51dbb20dd6c87c73e0d662649f9",
+        "afdafd217f8d72e1fd51705a0de1d526a3b4604dbea45cde036c50a8a1fb81b2",
+        "ab310c0a183ddcb46ea7da7e952f45539f3fed21784c5cde040039bdc39cd317",
+        "2af6a9fd06b217ab8b079b2a1c23a72be10b2724c7f2f6cb827df37c4d805b8c",
+        "ec91665dafa117f9c1fbbd681082836876ba72e44c8532aa789cbf93b45ed932",
+        "0449d1293346313ca66d59369edc1c5497f849177036911a2976a3e9e9b9dbca",
+        "a2416b0a761c22286a4bc66ec5bf6ebc1c2adb849a129178d5a82015e83e6257",
+        "588bda72a0892c9b731f89d8bcff569fb4816a5ff71842aa27a8f903feaee5a1",
+        "59f805afa8b0cc1ece986944383e3cd1fce48cfe7668b56875413fcf6f35f2f1",
+        "411bd911e1b2b0ed97e82f630f3143bcb9ef6a7037f816e1b5d417505fcf164e",
+        "f0bc55b56f31d68ea474bb602d7f21877b237e6b2fdbaa99e01974d693f6d7b8",
+        "7f34691872cce6f4e81418bc9a9fe72277269f10296de5c9b5b32155b3949cb5",
+        "71958e6083eac7f58ff9cfaab4467ea9fbf6f0508f77c82a86d607093ef0e9ab",
+        "8c86220aec58c6c18419769d3fe2bebe6c64339174335f4d70608d234187bdea",
+        "fc492369ff5fc93148af5c9fdf67f54259b6b3d996769def0b2eaf50e4f5a877",
+        "282022c607237cd8f39f2945d6b4a8ef47e30263905783dbc112cc8607784e5d",
+        "f86a3243c158ce606c05bf5a2c8e80af9e6afcb8e2b88a0502b8743aabd52811",
+        "2bfb7b3d6c64073a4f6b89cab39ada5b6f730682916fbdafc902b2640a264f9c",
+        "eba41160f773c3349b70a998f841d60cb15c91ebe7f44de95ac9c78bf43febe5",
+        "ca99edaa926683f88c762ed7a651a82918e4c10b64160493a5fb4c2cd3de1344",
+        "553eb2bab66be18ec7efc6417801ed6a8d9e9a312ecef9203f9e62735f8fbd73",
+        "04cd51f3815cd27d26238e2ad9c88a25bd814915ed0c9251409fc7de1192252f",
+        "4c68651b68935e0191c7c94faffe5ca1233719e6d6f3e9914d1876beba0f754d",
+        "f61c0b16b67daf4c3bc01d3f720d88f1b1a33c21a287c81b4082a39214193e02",
+        "52ac4ea9e9ba1887ef910a31e0fc34ef6fe9142798c2a16bf31273a083202019",
+        "3d97b73252293eb8731996d4ea91205964e2de8b0d2cd45c73799bac674eae35",
+        "040fdbe785892a779683386cff44b1a12e340364a728ae4f9afee73ba77a5a27",
+        "07e86078aec6669f398f871ea8d0ea74d171f1648e27ce5ad4b98fd35fb9dd35",
+        "2eb1cf9ee34d3ce53ade66b973608706584d8a4e36a59e3ae9c669da350c50d5",
+        "9c930a8602e698343d95158168b3e90bf6855a14983d05b9e8fc4987d98ac490",
+        "bb93d6fa07bdee3036f0f44d9245d72a26f8dffd4e316a04686380c3d208527f",
+        "7b53a258374fc0ed75fd9afb6d02af1e851be84d13e496ee51b39a9c845a0e09",
+        "aee93b9e2793599fcf664d5a7da1d7f2d310150541b697955c501e256be98989",
+        "5a345188a1d01bf3e72840fa03102d0aecc0cb734d22c9353e09fa218ecf2a64",
+        "75e787349f8363d540a5a5dad275bec992c851db47ef1b635f0f02e7e38afa5d",
+        "af0d9e003bfd4bb5117dc7da07062bda58ed45c3235b664b0ed6dfba2f3cfbcf"
+      ],
+      "renderer": "numpy_3dgs_antialiased_rgb_v1"
+    },
+    "source": "/home/reese/computer_vision/cv3d-project/outputs/gaussian_splatting_variant_comparison/02691156/162ed8d0d989f3acc1ccec171a275967/2views/phase2_random/3dgs",
+    "accepted": true,
+    "scale": 195.41625831327406,
+    "quaternion_wxyz": [
+      0.6540161967277527,
+      0.6955018043518066,
+      -0.2838549017906189,
+      -0.0892554223537445
+    ],
+    "translation": [
+      148.13404846191406,
+      441.2604675292969,
+      -106.84808349609375
+    ],
+    "transform": [
+      [
+        160.8118896484375,
+        -54.3441276550293,
+        -96.81820678710938,
+        148.13404846191406
+      ],
+      [
+        -99.97342681884766,
+        3.248105525970459,
+        -167.8758087158203,
+        441.2604675292969
+      ],
+      [
+        48.29454803466797,
+        187.67974853515625,
+        -25.12911033630371,
+        -106.84808349609375
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "silhouette_proxy_before": 7.269272804260254,
+    "silhouette_proxy_after": 0.0005414423067122698,
+    "fitted_to": "acquired_rgb_foreground_only",
+    "ground_truth_used_for_fit": false,
+    "limitations": "Similarity placement only; cannot recover missing or deformed geometry. Silhouettes may admit symmetric/ambiguous fits."
+  }
+}

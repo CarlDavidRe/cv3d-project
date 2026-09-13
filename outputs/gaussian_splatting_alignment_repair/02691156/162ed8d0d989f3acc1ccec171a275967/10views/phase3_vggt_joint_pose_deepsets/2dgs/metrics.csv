@@ -1,0 +1,2 @@
+object_id,policy,acquired_view_count,backend,accuracy_normalized,completeness_normalized,chamfer_l1_normalized,ground_truth_diameter,precision_1pct,recall_1pct,fscore_1pct,precision_2pct,recall_2pct,fscore_2pct,precision_10pct,recall_10pct,fscore_10pct
+02691156/162ed8d0d989f3acc1ccec171a275967,vggt_joint_pose_deepsets,10,2dgs,0.042857684195041656,0.014133162796497345,0.0284954234957695,1.9750766272402376,0.1336,0.3236,0.18912055993000876,0.2874,0.7977,0.42255825269560404,0.941,1.0,0.9696032972694487
