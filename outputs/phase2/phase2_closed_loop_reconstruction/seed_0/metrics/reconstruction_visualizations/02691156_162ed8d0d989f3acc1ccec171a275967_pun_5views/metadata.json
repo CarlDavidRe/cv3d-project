@@ -1,0 +1,136 @@
+{
+  "acquired_view_count": 5,
+  "alignment": {
+    "camera_center_rmse_normalized": 1.2165706141438528,
+    "mode": "camera_pose_sim3",
+    "scale": 1.0173433215527112
+  },
+  "alignment_transform": [
+    [
+      0.8369561031496032,
+      -0.20388853384808373,
+      0.5412221180567299,
+      -0.5288515131258906
+    ],
+    [
+      -0.5397531158185495,
+      -0.61733465423031,
+      0.6021228550374209,
+      -0.09842118480422002
+    ],
+    [
+      0.20774621361820694,
+      -0.7825054788047983,
+      -0.6160471737421378,
+      0.7305933814693888
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "colors": {
+    "ground_truth": [
+      37,
+      99,
+      235
+    ],
+    "prediction": [
+      234,
+      88,
+      12
+    ]
+  },
+  "ground_truth_cache": "/home/reese/computer_vision/cv3d-project/data/cache/reconstruction/ground_truth/02691156/162ed8d0d989f3acc1ccec171a275967/2c447c288f73f01c407d.npz",
+  "history_anchor_ids": [
+    0,
+    18,
+    31,
+    2,
+    33
+  ],
+  "object_id": "02691156/162ed8d0d989f3acc1ccec171a275967",
+  "oracle_icp_diagnostic": {
+    "additional_scale": 9.519211368854274,
+    "combined_transform_from_vggt_frame": [
+      [
+        8.759262913902253,
+        -2.5026676692512586,
+        3.285993399878315,
+        -3.181816010026178
+      ],
+      [
+        -4.117240223876799,
+        -5.907193069006199,
+        6.476047240871413,
+        -6.502664564163898
+      ],
+      [
+        0.33080360586045404,
+        -7.254482025919672,
+        -6.4069372083375935,
+        6.634995691520454
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "iterations_completed": 30,
+    "method": "symmetric_trimmed_similarity_icp_v1",
+    "metrics": {
+      "accuracy_normalized": 0.033246636390686035,
+      "chamfer_l1_normalized": 0.03359410539269447,
+      "completeness_normalized": 0.03394157439470291,
+      "fscore_10pct": 0.9535243775879239,
+      "fscore_1pct": 0.20212773269689738,
+      "fscore_2pct": 0.4167418344519016,
+      "ground_truth_diameter": 1.975076625827974,
+      "precision_10pct": 0.9338,
+      "precision_1pct": 0.2488,
+      "precision_2pct": 0.4826,
+      "recall_10pct": 0.9741,
+      "recall_1pct": 0.1702,
+      "recall_2pct": 0.3667
+    },
+    "prediction_points_outside_ground_truth_frame": 0,
+    "sample_count_per_cloud": 3000,
+    "sample_symmetric_trimmed_distance": 0.04776435566521882,
+    "transform_after_camera_alignment": [
+      [
+        9.294640484817412,
+        -1.1635737814574436,
+        1.694443683933666,
+        0.3811990233979589
+      ],
+      [
+        1.2207294151001258,
+        9.438167038690361,
+        -0.21495983302064275,
+        -4.771116152256225
+      ],
+      [
+        -1.653742131659941,
+        0.4271815653885078,
+        9.364723058216383,
+        -1.039349306962546
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "trim_fraction": 0.85,
+    "warning": "Ground truth was used for alignment. These values are an oracle structural diagnostic, not official evaluation metrics."
+  },
+  "policy": "pun",
+  "prediction_cache": "/home/reese/computer_vision/cv3d-project/data/cache/reconstruction/predictions/02691156/162ed8d0d989f3acc1ccec171a275967/4dee84b60f6473a702ff9dad.npz",
+  "preview_prediction_points_outside_ground_truth_frame": 0,
+  "visibility_cache": "/home/reese/computer_vision/cv3d-project/data/cache/visibility/02691156/162ed8d0d989f3acc1ccec171a275967.npz"
+}
