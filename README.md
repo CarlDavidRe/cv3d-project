@@ -378,53 +378,56 @@ variant independently at each incremental view count, geometrically evaluate
 visualization:
 
 ```bash
+(
 mapfile -t test_objects < <(
   python3 - <<'PY'
 import json
-import sys
-from pathlib import Path
 
 with open("data/splits/num_v1.json", encoding="utf-8") as handle:
-    manifest = json.load(handle)
-
-test_objects = manifest["splits"]["test"]
-views = (1, 2, 3, 5, 10)
-variants = (
-    "phase2_random", "phase2_farthest", "phase2_pun", "phase2_vggt",
-    "phase2_oracle", "phase3_vggt_independent_history",
-    "phase3_vggt_joint_history", "phase3_vggt_joint_pose_deepsets",
-    "phase3_vggt_joint_token_attention",
-)
-backends = ("2dgs", "3dgs")
-output_root = Path("outputs/gaussian_splatting_variant_comparison")
+    test_objects = json.load(handle)["splits"]["test"]
 
 for object_id in test_objects:
-    root = output_root / object_id.replace("/", "_")
-    complete = all(
-        (root / f"{view_count}views" / variant / backend / "summary.json").is_file()
-        for view_count in views
-        for variant in variants
-        for backend in backends
-    )
-    if complete:
-        print(f"SKIP {object_id} (already complete)", file=sys.stderr)
-    else:
-        print(object_id)
+    print(object_id)
 PY
 )
 
+failure_log=outputs/gaussian_splatting_variant_comparison/failed_objects.tsv
+mkdir -p "$(dirname "$failure_log")"
+printf 'object_id\texit_code\n' > "$failure_log"
+succeeded=0
+failed=0
+
 for object_id in "${test_objects[@]}"; do
-  python3 scripts/evaluate_gaussian_splatting_variants.py \
-    --object-id "$object_id" \
-    --views 1 2 3 5 10 \
-    --backend both \
-    --iterations 1500
+  if python3 scripts/evaluate_gaussian_splatting_variants.py \
+      --object-id "$object_id" \
+      --views 1 2 3 5 10 \
+      --backend both \
+      --iterations 1500; then
+    succeeded=$((succeeded + 1))
+  else
+    status=$?
+    printf '%s\t%d\n' "$object_id" "$status" >> "$failure_log"
+    failed=$((failed + 1))
+    if ((status == 130 || status == 143)); then
+      printf 'GS batch interrupted while processing %s.\n' "$object_id" >&2
+      exit "$status"
+    fi
+  fi
 done
+
+printf 'GS batch result: %d/%d object runners succeeded; %d failed.\n' \
+  "$succeeded" "${#test_objects[@]}" "$failed"
+if ((failed > 0)); then
+  printf 'Failed objects were recorded in %s.\n' "$failure_log" >&2
+  exit 1
+fi
+)
 ```
 
 Selection is deterministic: the command processes every object ID in
-`splits.test` in manifest order. An object is omitted from the loop once all
-requested view, variant, and backend summaries exist.
+`splits.test` in manifest order. Every object is passed to the runner so that
+the final counts cover the complete split; requested view, variant, and backend
+summaries that already exist are skipped individually.
 
 The runner discovers the five Phase 2 policies (`random`, `farthest`, `pun`,
 `vggt`, and `oracle`) and the four distinct Phase 3 policies
@@ -435,13 +438,28 @@ once. Each policy/view-count pair gets a fresh model; view counts do not
 continue training from the preceding model.
 Completed backend summaries are skipped individually on reruns unless `--force`
 is given, so a failed `both` run resumes only its missing backend.
+Failures are recorded in `failed_objects.tsv`, processing continues with the
+next object, and the batch exits nonzero after reporting the final counts if
+any object runner failed. An interrupted command exits immediately.
 Use `--dry-run` to validate all histories and inspect the commands without
 starting CUDA training.
 
 Results for each object are written below
-`outputs/gaussian_splatting_variant_comparison/<category>_<object>/`, where its
+`outputs/gaussian_splatting_variant_comparison/<category>/<object>/`, mirroring
+the `data/NUM/<category>/<object>/` hierarchy. Each object's
 `index.html` links the 2DGS ground-truth overlays and the 2DGS/3DGS render
 galleries for every variant and view count.
+
+Migrate results created with the former flattened layout before resuming a run:
+
+```bash
+python3 scripts/migrate_gaussian_splatting_layout.py --dry-run
+python3 scripts/migrate_gaussian_splatting_layout.py
+```
+
+The migration refuses to merge a flattened object directory into an existing
+nested object directory. It also updates absolute artifact paths stored in JSON
+summaries and manifests. The dry run only validates and lists planned moves.
 
 Both backends use the cached, camera-aligned VGGT points for initialization
 and train against the selected RGB history with known NUM cameras. The 2DGS

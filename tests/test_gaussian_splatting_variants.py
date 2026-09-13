@@ -16,6 +16,7 @@ from scripts.evaluate_gaussian_splatting_variants import (
     discover_variants,
     main,
     normalize_views,
+    object_output_root,
     validate_inputs,
     write_index,
 )
@@ -39,6 +40,12 @@ def write_rows(path: Path, policies: tuple[str, ...], views=(1, 2, 3, 5, 10)) ->
 
 
 class GaussianSplattingVariantTests(unittest.TestCase):
+    def test_object_output_root_mirrors_num_hierarchy(self) -> None:
+        self.assertEqual(
+            object_output_root(Path("output"), "category/object"),
+            Path("output/category/object"),
+        )
+
     def test_views_are_unique_sorted_and_positive(self) -> None:
         self.assertEqual(normalize_views((10, 1, 5, 1)), (1, 5, 10))
         with self.assertRaisesRegex(ValueError, "positive"):
@@ -145,7 +152,7 @@ class GaussianSplattingVariantTests(unittest.TestCase):
             with patch("sys.argv", arguments), redirect_stdout(StringIO()):
                 self.assertEqual(main(), 0)
 
-            object_root = output / "category_object"
+            object_root = output / "category/object"
             payload = json.loads(
                 (object_root / "manifest.json").read_text(encoding="utf-8")
             )
@@ -181,7 +188,7 @@ class GaussianSplattingVariantTests(unittest.TestCase):
             )
             for variant_name in variant_names:
                 summary = (
-                    output / "category_object/1views" / variant_name
+                    output / "category/object/1views" / variant_name
                     / "2dgs/summary.json"
                 )
                 summary.parent.mkdir(parents=True)

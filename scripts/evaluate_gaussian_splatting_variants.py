@@ -155,6 +155,13 @@ def validate_inputs(
         )
 
 
+def object_output_root(output_root: Path, object_id: str) -> Path:
+    """Mirror NUM's category/object hierarchy below an output root."""
+
+    category_id, object_key = object_id.split("/", 1)
+    return output_root / category_id / object_key
+
+
 def backend_summaries(output: Path, backend: str) -> tuple[Path, ...]:
     names = ("2dgs", "3dgs") if backend == "both" else (backend,)
     return tuple(output / name / "summary.json" for name in names)
@@ -244,7 +251,7 @@ def main() -> int:
         views = normalize_views(args.views)
         variants = discover_variants(args.phase2_root, args.phase3_root)
         validate_inputs(variants, args.object_id, views)
-        object_root = args.output_root / args.object_id.replace("/", "_")
+        object_root = object_output_root(args.output_root, args.object_id)
         results: list[RunResult] = []
         for view_count in views:
             for variant in variants:

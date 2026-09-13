@@ -190,9 +190,10 @@ def main() -> int:
         image_paths = [store.acquire(anchor).image_path for anchor in history]
         all_image_paths = [store.acquire(anchor.anchor_id).image_path for anchor in anchors]
         view_count = int(row["acquired_view_count"])
-        output = args.output_dir or args.metrics.parent / (
-            "gaussian_splatting/"
-            f"{object_id.replace('/', '_')}_{args.policy}_{view_count}views"
+        category_id, object_key = object_id.split("/", 1)
+        output = args.output_dir or (
+            args.metrics.parent / "gaussian_splatting" / category_id / object_key
+            / f"{args.policy}_{view_count}views"
         )
         output.mkdir(parents=True, exist_ok=True)
         common = {
