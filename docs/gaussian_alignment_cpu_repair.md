@@ -159,8 +159,11 @@ Apply it consistently across policies for comparisons; do not combine repaired
 and original scores in one policy curve. The existing CPU renderer still has
 `cuda_parity_verified: false`. The dashboard loads this directory by default
 through `GAUSSIAN_SPLATTING_REPAIR_ROOT` in `dashboard/app.py`. Its 2DGS curves
-include only completed repairs. The gallery shows repaired 3DGS RGB, unrepaired
-2DGS from `gaussian_splatting_cpu_recovery`, and repaired 2DGS side by side.
+and gallery accept only artifacts trained with 1,500 iterations per view and
+repaired with `acquired_rendered_silhouette_sim3_v2`. The gallery indexes 2DGS
+and 3DGS independently, so either backend can appear while the other is still
+running. It shows repaired 3DGS RGB, unrepaired 2DGS from
+`gaussian_splatting_cpu_recovery`, and repaired 2DGS side by side.
 Missing artifacts show an availability message. The unrepaired 2DGS column
 uses correct depth extraction at the original placement, not the older
 blue-channel-as-depth artifacts. Original files are preserved.
