@@ -17,6 +17,7 @@ import streamlit.components.v1 as components
 
 from dashboard.gaussian_artifacts import (
     is_current_gaussian_repair,
+    is_current_gaussian_training,
     summary_file_matches,
 )
 
@@ -862,29 +863,62 @@ def load_closed_loop_tables(
 
 
 @st.cache_data(show_spinner=False)
-def load_gaussian_splatting_metrics(root: str) -> pd.DataFrame:
-    """Aggregate completed silhouette-refined 2DGS evaluations by policy and view count."""
+def load_gaussian_splatting_metrics(
+    repaired_root: str, original_root: str
+) -> pd.DataFrame:
+    """Aggregate repaired 2DGS metrics plus the original one-view fallback."""
     frames: list[pd.DataFrame] = []
-    for path in sorted(Path(root).glob("*/*/*views/phase*/2dgs/metrics.csv")):
-        summary_path = path.with_name("summary.json")
-        if not summary_path.is_file():
-            continue
-        summary = json.loads(summary_path.read_text(encoding="utf-8"))
-        if ("cpu_recovery" not in summary
-                or not is_current_gaussian_repair(summary, "2dgs")):
-            continue
-        frame = pd.read_csv(path)
-        if frame.empty:
-            continue
-        variant = path.parents[1].name
-        frame["phase"] = "Phase 2" if variant.startswith("phase2_") else "Phase 3"
-        frame["policy_label"] = frame["policy"].map(pretty_policy)
-        frames.append(frame)
+    sources = (
+        (Path(repaired_root), True, "Silhouette-refined placement"),
+        (Path(original_root), False, "Original placement (one view)"),
+    )
+    for root, repaired, protocol in sources:
+        for path in sorted(root.glob("*/*/*views/phase*/2dgs/metrics.csv")):
+            summary_path = path.with_name("summary.json")
+            if not summary_path.is_file():
+                continue
+            try:
+                summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            try:
+                view_count = int(summary.get("acquired_view_count", 0))
+            except (TypeError, ValueError):
+                continue
+            if repaired:
+                valid = (
+                    "cpu_recovery" in summary
+                    and is_current_gaussian_repair(summary, "2dgs")
+                )
+            else:
+                valid = view_count == 1 and is_current_gaussian_training(
+                    summary, "2dgs"
+                )
+            if not valid:
+                continue
+            frame = pd.read_csv(path)
+            if frame.empty:
+                continue
+            variant = path.parents[1].name
+            frame["phase"] = (
+                "Phase 2" if variant.startswith("phase2_") else "Phase 3"
+            )
+            frame["policy_label"] = frame["policy"].map(pretty_policy)
+            frame["evaluation_protocol"] = protocol
+            frame["protocol_priority"] = int(repaired)
+            frames.append(frame)
 
     if not frames:
         return pd.DataFrame()
 
     combined = pd.concat(frames, ignore_index=True)
+    combined = (
+        combined.sort_values("protocol_priority", ascending=False)
+        .drop_duplicates(
+            ["phase", "object_id", "policy", "acquired_view_count", "backend"],
+            keep="first",
+        )
+    )
     metric_columns = [
         column
         for column in combined.columns
@@ -893,6 +927,7 @@ def load_gaussian_splatting_metrics(root: str) -> pd.DataFrame:
     ]
     aggregations = {column: "mean" for column in metric_columns}
     aggregations["object_id"] = "nunique"
+    aggregations["evaluation_protocol"] = "first"
     return (
         combined.groupby(
             ["phase", "policy", "policy_label", "acquired_view_count"],
@@ -904,44 +939,58 @@ def load_gaussian_splatting_metrics(root: str) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
-def load_gaussian_render_catalog(root: str) -> pd.DataFrame:
-    """Index histories with a current repaired 2DGS or 3DGS artifact."""
+def load_gaussian_render_catalog(
+    repaired_root: str, original_root: str
+) -> pd.DataFrame:
+    """Index repaired histories and original-placement one-view artifacts."""
     records: dict[tuple[str, str, str, int], dict[str, object]] = {}
-    root_path = Path(root)
-    for summary_path in sorted(root_path.glob("*/*/*views/phase*/*/summary.json")):
-        relative = summary_path.relative_to(root_path)
-        category_id, object_id, view_directory, variant, backend, _ = relative.parts
-        if backend not in ("2dgs", "3dgs"):
-            continue
-        try:
-            summary = json.loads(summary_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        if not is_current_gaussian_repair(summary, backend):
-            continue
-        viewer = summary_path.with_name(
-            "comparison_interactive.html"
-            if backend == "2dgs" else "ground_truth_comparison.html"
-        )
-        if not viewer.is_file():
-            continue
-        object_key = f"{category_id}/{object_id}"
-        if object_key not in DASHBOARD_RENDERING_OBJECT_KEYS:
-            continue
-        phase_token, policy = variant.split("_", maxsplit=1)
-        view_count = int(view_directory.removesuffix("views"))
-        key = category_id, object_id, policy, view_count
-        records[key] = {
-            "phase": "Phase 2" if phase_token == "phase2" else "Phase 3",
-            "policy": policy,
-            "policy_label": pretty_policy(policy),
-            "category_id": category_id,
-            "object_id": object_id,
-            "object_key": object_key,
-            "acquired_view_count": view_count,
-            "path": str(summary_path.parent.parent),
-        }
-    return pd.DataFrame.from_records(records.values())
+    # Process the original fallback first so a repaired artifact wins any collision.
+    for root_path, repaired in (
+        (Path(original_root), False),
+        (Path(repaired_root), True),
+    ):
+        summaries = sorted(root_path.glob("*/*/*views/phase*/*/summary.json"))
+        for summary_path in summaries:
+            relative = summary_path.relative_to(root_path)
+            category_id, object_id, view_directory, variant, backend, _ = relative.parts
+            if backend not in ("2dgs", "3dgs"):
+                continue
+            try:
+                summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            view_count = int(view_directory.removesuffix("views"))
+            valid = (
+                is_current_gaussian_repair(summary, backend)
+                if repaired
+                else view_count == 1
+                and is_current_gaussian_training(summary, backend)
+            )
+            if not valid:
+                continue
+            viewer = summary_path.with_name(
+                "comparison_interactive.html"
+                if backend == "2dgs" else "ground_truth_comparison.html"
+            )
+            if not viewer.is_file():
+                continue
+            object_key = f"{category_id}/{object_id}"
+            if object_key not in DASHBOARD_RENDERING_OBJECT_KEYS:
+                continue
+            phase_token, policy = variant.split("_", maxsplit=1)
+            key = category_id, object_id, policy, view_count
+            records[key] = {
+                "phase": "Phase 2" if phase_token == "phase2" else "Phase 3",
+                "policy": policy,
+                "policy_label": pretty_policy(policy),
+                "category_id": category_id,
+                "object_id": object_id,
+                "object_key": object_key,
+                "acquired_view_count": view_count,
+                "path": str(summary_path.parent.parent),
+                "repaired": repaired,
+            }
+    return pd.DataFrame.from_records(list(records.values()))
 
 
 @st.cache_data(show_spinner=False)
@@ -1124,8 +1173,11 @@ def render_reconstruction_comparison_row(
 
     matching_3dgs = matching_rows(render_catalog)
     matching_vggt = matching_rows(vggt_render_catalog)
-    repaired_history = (
+    gaussian_history = (
         Path(matching_3dgs["path"].iloc[0]) if not matching_3dgs.empty else None
+    )
+    history_is_repaired = (
+        bool(matching_3dgs["repaired"].iloc[0]) if not matching_3dgs.empty else False
     )
     comparison_vggt_path = (
         Path(matching_vggt["path"].iloc[0]) if not matching_vggt.empty else None
@@ -1133,18 +1185,13 @@ def render_reconstruction_comparison_row(
     comparison_2dgs_path = None
     original_2dgs_path = None
     comparison_3dgs_path = None
-    if repaired_history is not None:
-        relative_history = repaired_history.relative_to(GAUSSIAN_SPLATTING_REPAIR_ROOT)
-        original_2dgs_path = (
-            GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT / relative_history
-            / "2dgs" / "comparison_interactive.html"
+    if gaussian_history is not None and history_is_repaired:
+        relative_history = gaussian_history.relative_to(GAUSSIAN_SPLATTING_REPAIR_ROOT)
+        original_2dgs_path = GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT / relative_history / (
+            "2dgs/comparison_interactive.html"
         )
-        comparison_2dgs_path = (
-            repaired_history
-            / "2dgs"
-            / "comparison_interactive.html"
-        )
-        repaired_3dgs_path = repaired_history / "3dgs" / "ground_truth_comparison.html"
+        comparison_2dgs_path = gaussian_history / "2dgs/comparison_interactive.html"
+        repaired_3dgs_path = gaussian_history / "3dgs/ground_truth_comparison.html"
         if not summary_file_matches(
             original_2dgs_path.with_name("summary.json"),
             backend="2dgs", repaired=False,
@@ -1160,6 +1207,19 @@ def render_reconstruction_comparison_row(
             backend="3dgs", repaired=True,
         ):
             comparison_3dgs_path = repaired_3dgs_path
+    elif gaussian_history is not None:
+        original_2dgs_path = gaussian_history / "2dgs/comparison_interactive.html"
+        original_3dgs_path = gaussian_history / "3dgs/ground_truth_comparison.html"
+        if not summary_file_matches(
+            original_2dgs_path.with_name("summary.json"),
+            backend="2dgs", repaired=False,
+        ):
+            original_2dgs_path = None
+        if summary_file_matches(
+            original_3dgs_path.with_name("summary.json"),
+            backend="3dgs", repaired=False,
+        ):
+            comparison_3dgs_path = original_3dgs_path
     ground_truth_cloud_path = comparison_vggt_path
     if ground_truth_cloud_path is None and (
         comparison_2dgs_path is not None and comparison_2dgs_path.is_file()
@@ -1402,7 +1462,7 @@ def build_reconstruction_comparison_chart(
     y_domain: tuple[float, float],
 ) -> alt.FacetChart:
     """Draw separate VGGT and 2DGS plots with one shared policy legend."""
-    method_order = ["VGGT reconstruction", "2DGS (silhouette-refined)"]
+    method_order = ["VGGT reconstruction", "2DGS reconstruction"]
     frames: list[pd.DataFrame] = []
     for data, metric, method in (
         (vggt_data, vggt_metric, method_order[0]),
@@ -1454,6 +1514,7 @@ def build_reconstruction_comparison_chart(
             alt.Tooltip("acquired_view_count:Q", title="Acquired views"),
             alt.Tooltip("metric_value:Q", title=y_title, format=".4f"),
             alt.Tooltip("object_count:Q", title="Objects"),
+            alt.Tooltip("evaluation_protocol:N", title="2DGS protocol"),
         ],
     }
     line = alt.Chart(combined).mark_line(point=False, strokeWidth=3).encode(**encoding)
@@ -2007,7 +2068,7 @@ def render_closed_loop_page() -> None:
     )
     vggt_reconstruction = tables["vggt_reconstruction"]
     gaussian_splatting = load_gaussian_splatting_metrics(
-        str(GAUSSIAN_SPLATTING_REPAIR_ROOT)
+        str(GAUSSIAN_SPLATTING_REPAIR_ROOT), str(GAUSSIAN_SPLATTING_ROOT)
     )
     available_reconstruction_metrics = [
         metric
@@ -2134,9 +2195,10 @@ def render_closed_loop_page() -> None:
         "the same scale. The anomalous Phase 2 farthest-view VGGT point at two inputs "
         "is omitted from these plots and their y-axis range only; source metrics remain "
         "unchanged. Coverage and VGGT reconstruction use the full 300-object test cohort; "
-        "2DGS means use only runs trained with 1,500 iterations per view and completed "
-        "with the v2 silhouette repair. A placement candidate is accepted only when "
-        "rendered mask IoU improves; one-view histories are skipped by the repair."
+        "2DGS means use runs trained with 1,500 iterations per view. The one-view point "
+        "uses the original placement because depth and scale are underconstrained; points "
+        "from two views onward require the v2 silhouette repair. A repair candidate is "
+        "accepted only when rendered mask IoU improves."
     )
 
     st.markdown(
@@ -2396,7 +2458,7 @@ def render_rollout_inspection_page() -> None:
 def render_reconstruction_gallery_page() -> None:
     """Render object-level comparisons across reconstruction methods."""
     render_catalog = load_gaussian_render_catalog(
-        str(GAUSSIAN_SPLATTING_REPAIR_ROOT)
+        str(GAUSSIAN_SPLATTING_REPAIR_ROOT), str(GAUSSIAN_SPLATTING_ROOT)
     )
     vggt_render_catalog = load_vggt_render_catalog(
         str(PHASE2_CLOSED_LOOP_ROOT), str(PHASE3_CLOSED_LOOP_ROOT)
@@ -2424,7 +2486,8 @@ def render_reconstruction_gallery_page() -> None:
         )
         st.markdown(
             '<div class="hero-copy">Inspect VGGT point clouds, 3DGS novel-view renders, '
-            'and repaired 2DGS surfaces alongside ground truth.</div>',
+            'and 2DGS surfaces alongside ground truth. One-view GS uses its original '
+            'placement; later view counts use repaired placement.</div>',
             unsafe_allow_html=True,
         )
     with header_right:
@@ -2440,7 +2503,7 @@ def render_reconstruction_gallery_page() -> None:
     )
     st.markdown(
         '<div class="section-title">Inspect VGGT point clouds, 3DGS renders, and the '
-        'silhouette-refined 2DGS surface against ground truth.</div>',
+        '2DGS surface against ground truth.</div>',
         unsafe_allow_html=True,
     )
     if not available_catalogs:
@@ -2508,7 +2571,14 @@ def render_reconstruction_gallery_page() -> None:
             )
             for column, label in zip(
                 matrix_headers,
-                ("Policy", "Repaired 3DGS", "Unrepaired 2DGS", "Repaired 2DGS", "VGGT cloud", "Ground truth"),
+                (
+                    "Policy",
+                    "3DGS",
+                    "Original 2DGS",
+                    "Repaired 2DGS",
+                    "VGGT cloud",
+                    "Ground truth",
+                ),
             ):
                 with column:
                     st.markdown(
@@ -2525,9 +2595,10 @@ def render_reconstruction_gallery_page() -> None:
                     vggt_render_catalog,
                 )
             st.caption(
-                "Unrepaired 2DGS uses corrected CPU depth extraction at the original "
-                "placement. Repaired 2DGS and 3DGS accept a silhouette-fitted placement "
-                "only when its rendered mask IoU improves."
+                "At one view, 2DGS and 3DGS use the original placement because similarity "
+                "repair is underconstrained. From two views onward, repaired 2DGS and "
+                "3DGS accept a silhouette-fitted placement only when rendered mask IoU "
+                "improves; the Original 2DGS column shows the pre-repair CPU recovery."
             )
             selection_label = (
                 f"{CATEGORY_NAMES.get(render_category, render_category)} / "
