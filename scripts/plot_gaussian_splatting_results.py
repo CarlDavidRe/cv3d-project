@@ -52,6 +52,8 @@ METRICS = (
 OBJECT_LABELS = {
     "02691156": "Airplane",
     "02828884": "Bench",
+    "02933112": "Cabinet",
+    "02958343": "Car",
 }
 
 ResultKey = tuple[str, str, int]
@@ -157,10 +159,10 @@ def select_transfer_budget(
             if view_count in complete_views(rows, object_id)
         ]
         if complete_objects:
-            choices.append((len(complete_objects), -view_count, view_count, complete_objects))
+            choices.append((len(complete_objects), view_count, complete_objects))
     if not choices:
         raise ValueError("no complete policy-by-object slice is available")
-    _count, _negative_views, view_count, complete_objects = max(choices)
+    _count, view_count, complete_objects = max(choices)
     return view_count, complete_objects
 
 
@@ -192,9 +194,9 @@ def write_view_budget_plot(
     panel_width = (width - 2 * outer - gap) / 2
     plot_height = height - top - bottom
     cohort_label = (
-        _object_label(object_ids[0])
+        f"{_object_label(object_ids[0])} case study"
         if len(object_ids) == 1
-        else f"mean over {len(object_ids)} matched objects"
+        else f"case study: mean over {len(object_ids)} matched objects"
     )
     lines = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
@@ -206,7 +208,7 @@ def write_view_budget_plot(
         "</style>",
         '<rect width="100%" height="100%" fill="#ffffff"/>',
         '<text x="55" y="40" class="title">Silhouette-refined 2DGS quality by view budget</text>',
-        f'<text x="55" y="66" class="subtitle">Matched nine-policy {escape(cohort_label)} case study; each budget is trained independently for 1,500 iterations per acquired view.</text>',
+        f'<text x="55" y="66" class="subtitle">Matched nine-policy {escape(cohort_label)}; each budget is trained independently for 1,500 iterations per acquired view.</text>',
     ]
     for index, (_policy, label, color, group) in enumerate(POLICIES):
         row, column = divmod(index, 5)
@@ -303,7 +305,7 @@ def write_transfer_plot(
         ".panel{font-size:15px;font-weight:700}.grid{stroke:#d9dee8;stroke-width:1}",
         "</style>",
         '<rect width="100%" height="100%" fill="#ffffff"/>',
-        f'<text x="55" y="40" class="title">Two-object silhouette-refined 2DGS transfer check at {view_count} views</text>',
+        f'<text x="55" y="40" class="title">{len(object_ids)}-object silhouette-refined 2DGS comparison at {view_count} views</text>',
         '<text x="55" y="66" class="subtitle">Paired object scores expose case-study sensitivity; policy positions are descriptive, not population estimates.</text>',
     ]
     for index, object_id in enumerate(object_ids):

@@ -1,7 +1,7 @@
 # Results Report: Direct Next-Best-View Prediction from Frozen VGGT Features
 
 **Report date:** 2026-09-14  
-**Gaussian-splatting snapshot:** 2026-09-14 18:20 CEST; later live outputs are outside this report<br>
+**Gaussian-splatting matched cohort completed:** 2026-09-14 22:34 CEST<br>
 **Primary evaluation seed:** 0, except the frozen Phase 1 primary sweep (seed 1)  
 **Coverage target:** area-weighted rasterized visible mesh faces (`VisA`)  
 **Action space:** 48 canonical PUN/NUM camera anchors  
@@ -20,7 +20,7 @@ The results support a deliberately qualified conclusion:
 5. **H4—the prespecified capacity-matched joint-processing advantage is not supported.** The matched joint model lowers fixed-history Huber error (0.00768 versus 0.00811), but the independent control is better on fixed-history ranking, closed-loop ranking, coverage, Chamfer, latency, and memory. This is a descriptive single-seed conclusion, not a significance test.
 6. **The expressive joint follow-ups are promising but do not rescue the controlled H4 claim.** Pose-conditioned DeepSets gives the best final shared-VGGT reconstruction (Chamfer 0.1752). Token attention gives the best one-step ranking and best non-oracle coverage, but a worse final Chamfer (0.2232) than the independent control (0.1988). Their capacities are not matched to the independent model.
 7. **`VisA` is useful but remains a proxy.** It supports cheap, deterministic precomputation and controlled per-view/cross-view comparison. However, policy order differs between coverage and reconstruction: token attention wins learned-policy coverage, while pose-conditioned DeepSets wins reconstruction. Coverage and reconstruction should therefore both remain reportable outcomes.
-8. **Gaussian splatting adds a final reconstruction case study, but not a population-level policy ranking.** Under the corrected, silhouette-refined 2DGS protocol, all nine policies are matched on one airplane at 2, 5, and 10 views and on an airplane plus a bench at 2 views. The winner changes with object, budget, and metric: two-object mean Chamfer at two views favors Oracle (0.0296), while the 10-view airplane favors Phase 2 VGGT (0.0193). This instability is useful evidence that neither `VisA` nor shared-VGGT reconstruction determines 2DGS quality by itself.
+8. **Gaussian splatting adds a final reconstruction case study, but not a population-level policy ranking.** Under the corrected, silhouette-refined 2DGS protocol, all nine policies are matched on three objects at 2, 5, and 10 views. Oracle has the best mean Chamfer at two and five views (0.0431 and 0.0264); Pose DeepSets is best at ten views (0.0217), while the independent Phase 3 policy has the best final F@2 (0.5704). Matched joint has the lowest Chamfer AUC by only 0.0004 over independent. The changing order shows that neither `VisA` nor shared-VGGT reconstruction determines 2DGS quality by itself.
 
 ## Research questions and answers
 
@@ -35,7 +35,7 @@ The results support a deliberately qualified conclusion:
 | Do more expressive joint heads help? | Yes for ranking and coverage. Pose DeepSets is best on reconstruction; token attention is best on ranking/coverage. | **Promising exploratory result; unequal capacity.** |
 | Is PUN-style precomputed visibility suitable for per-view and cross-view comparison? | Yes. The same rasterized face cache generated all Phase 2 evaluator gains and all Phase 3 targets for 300 test objects and 51,160 histories, without policy-specific rendering. | **Methodologically successful.** |
 | Is surface coverage sufficient as the only endpoint? | No. Coverage and reconstruction rankings disagree, and the reconstructor has alignment/outlier sensitivity. | **Keep both endpoints.** |
-| Does the corrected Gaussian-splatting evaluation preserve the full-cohort policy ordering? | No stable ordering appears in the bounded case study. At two views Oracle has the best two-object mean 2DGS Chamfer; at 10 views on the fully evaluated airplane, Phase 2 VGGT is best. | **No; GS quality remains object-, budget-, and protocol-dependent.** |
+| Does the corrected Gaussian-splatting evaluation preserve the full-cohort policy ordering? | No. Across three matched objects, Oracle has the best 2DGS Chamfer at 2/5 views, Pose DeepSets at 10 views, matched joint over the full Chamfer curve, and independent Phase 3 on final F@2. | **No; GS quality remains object-, budget-, metric-, and protocol-dependent.** |
 | Does the method transfer to real imagery? | No MipNeRF360 or other real-world transfer result is present. | **Unanswered.** |
 
 ## Experimental basis and metric interpretation
@@ -57,7 +57,7 @@ The principal cohorts are:
 | Phase 3 history dataset | 34,800 train / 4,360 validation / 12,000 test histories | Complete; lengths 1, 2, 4, 6, 8 |
 | Phase 3 closed-loop test | 300 objects, 10 views, 2,700 decisions per policy | Complete for all four distinct Phase 3 variants |
 | Shared-VGGT reconstruction | 300 objects per policy at 1, 2, 3, 5, 10 views | Complete |
-| Corrected Gaussian-splatting case study | 9 policies; 1 airplane at 2/5/10 views; airplane + bench at 2 views | Complete for the stated matched slices |
+| Corrected Gaussian-splatting case study | 9 policies × 3 objects × 3 budgets (2/5/10 views) | Complete 81-row matched comparison |
 
 Metric directions are: Huber, normalized regret, Chamfer, accuracy distance, completeness distance, time, and memory lower is better; Spearman, NDCG@5, coverage, precision, recall, and F-score higher is better. “Accuracy” in the reconstruction tables is a distance from predicted points to ground truth, not classification accuracy. Coverage AUC and Chamfer AUC are unnormalized trapezoidal areas over acquired-view count.
 
@@ -370,54 +370,43 @@ Each view budget is trained independently with 1,500 optimization iterations per
 
 ### Matched evaluation slices
 
-The snapshot aggregate contains 47 corrected 2DGS rows. Two balanced slices are used for inference:
-
-- **View-budget slice:** all nine policies on airplane `02691156/1628…` at 2, 5, and 10 views (27 rows).
-- **Object-transfer slice:** all nine policies on that airplane and bench `02828884/1b9d…` at two views (18 rows).
-
-The 11 additional bench rows at 5 or 10 views are valid artifacts but are omitted from aggregate comparisons because the other policies are not present at the same object/budget at the snapshot cutoff. This is a complete case study for the stated slices, not an estimate over the 300-object test population.
+The complete comparison rectangle contains all nine policies for an airplane (`02691156/1628…`), bench (`02828884/1b9d…`), and cabinet (`02933112/18d94…`) at 2, 5, and 10 views: **81 matched rows**. Additional partial two-view car results are valid but excluded until all nine policies are present for that object. Thus every aggregate below uses the same three objects and policies at every budget. It remains a case study rather than an estimate over the 300-object test population.
 
 ![Silhouette-refined 2DGS view-budget curves](outputs/all_policy_comparison/gaussian_splatting_view_budget.svg)
 
-*Figure 3. Matched airplane 2DGS results across independently trained 2-, 5-, and 10-view budgets. Phase 2 policies are solid and Phase 3 policies dashed. More views and more optimization do not guarantee monotonic improvement for every acquired history.*
+*Figure 3. Mean silhouette-refined 2DGS results over the matched airplane, bench, and cabinet at independently trained 2-, 5-, and 10-view budgets. Phase 2 policies are solid and Phase 3 policies dashed.*
 
-![Two-object silhouette-refined 2DGS comparison](outputs/all_policy_comparison/gaussian_splatting_two_object.svg)
+![Three-object silhouette-refined 2DGS comparison](outputs/all_policy_comparison/gaussian_splatting_two_object.svg)
 
-*Figure 4. Paired airplane/bench scores at two views. The within-policy spread shows why this two-object slice should be read as a transfer check rather than a dataset-wide ranking.*
+*Figure 4. Individual airplane, bench, and cabinet scores at 10 views. The within-policy spread exposes object sensitivity hidden by the three-object means.*
 
-### Two-object result at two views
+### Matched three-object aggregate
 
-These are means over the matched airplane and bench; the graph above retains both individual object scores.
+Chamfer AUC is the unnormalized trapezoidal area over the 2-, 5-, and 10-view means. It summarizes the evaluated budget range but also reflects the larger interval from 5 to 10 views.
 
-| Policy | Chamfer ↓ | F@1 ↑ | F@2 ↑ | F@10 ↑ |
-| --- | ---: | ---: | ---: | ---: |
-| Random | 0.0777 | 0.0975 | 0.2086 | 0.7073 |
-| Farthest | 0.0563 | 0.2398 | 0.3810 | 0.8238 |
-| PUN | 0.0333 | 0.2223 | 0.4057 | 0.9260 |
-| Phase 2 VGGT | 0.0610 | 0.1835 | 0.3256 | 0.8138 |
-| Oracle | **0.0296** | **0.2931** | **0.5058** | 0.9448 |
-| Phase 3 independent | 0.0560 | 0.1708 | 0.3058 | 0.8061 |
-| Phase 3 matched joint | 0.0342 | 0.1967 | 0.3781 | **0.9472** |
-| Phase 3 pose DeepSets | 0.0736 | 0.1030 | 0.2527 | 0.7022 |
-| Phase 3 token attention | 0.0399 | 0.1915 | 0.3468 | 0.9161 |
+| Policy | Chamfer @2 ↓ | Chamfer @5 ↓ | Chamfer @10 ↓ | Chamfer AUC ↓ | F@2 at 10 ↑ |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Random | 0.0742 | 0.0621 | 0.0367 | 0.4515 | 0.3685 |
+| Farthest | 0.0558 | 0.0716 | 0.0287 | 0.4418 | 0.4765 |
+| PUN | 0.0440 | 0.0393 | 0.0428 | 0.3305 | 0.3234 |
+| Phase 2 VGGT | 0.0689 | 0.0586 | 0.0334 | 0.4210 | 0.4008 |
+| Oracle | **0.0431** | **0.0264** | 0.0436 | 0.2795 | 0.3515 |
+| Phase 3 independent | 0.0606 | 0.0289 | 0.0263 | 0.2723 | **0.5704** |
+| Phase 3 matched joint | 0.0479 | 0.0296 | 0.0327 | **0.2719** | 0.4567 |
+| Phase 3 pose DeepSets | 0.0756 | 0.0840 | **0.0217** | 0.5037 | 0.5667 |
+| Phase 3 token attention | 0.0492 | 0.0425 | 0.0238 | 0.3034 | 0.5092 |
 
-Oracle is strongest at this sparse budget on Chamfer and the strict F-scores, but this does not establish a general oracle reconstruction advantage: the selected history optimizes `VisA`, not 2DGS, and the cohort contains only two objects. Among learned Phase 3 policies, matched joint has the best two-object mean Chamfer (0.0342), while token attention is second (0.0399); their full-cohort shared-VGGT ordering is different.
+Oracle leads mean Chamfer at two and five views, but degrades at ten views; selecting true one-step `VisA` gain is not equivalent to selecting a history for 2DGS. At ten views, the four Phase 3 policies occupy four of the five best Chamfer positions. Pose DeepSets is best on final Chamfer, while independent Phase 3 is best on final F@2. Over the entire evaluated range, matched joint has the best Chamfer AUC, but its 0.2719 is effectively tied descriptively with independent at 0.2723 and Oracle at 0.2795.
 
-### Ten-view airplane endpoint
+### Object sensitivity at ten views
 
-| Policy | Chamfer ↓ | F@1 ↑ | F@2 ↑ | F@10 ↑ |
-| --- | ---: | ---: | ---: | ---: |
-| Random | 0.0451 | 0.1242 | 0.2356 | 0.9365 |
-| Farthest | 0.0202 | **0.3438** | **0.6537** | 0.9704 |
-| PUN | 0.0536 | 0.1597 | 0.3314 | 0.8143 |
-| Phase 2 VGGT | **0.0193** | 0.3417 | 0.6407 | 0.9807 |
-| Oracle | 0.0722 | 0.0866 | 0.1685 | 0.6213 |
-| Phase 3 independent | 0.0240 | 0.2867 | 0.5536 | 0.9798 |
-| Phase 3 matched joint | 0.0195 | 0.2841 | 0.5906 | 0.9998 |
-| Phase 3 pose DeepSets | 0.0200 | 0.2703 | 0.5471 | 0.9997 |
-| Phase 3 token attention | 0.0207 | 0.2071 | 0.4953 | **0.9999** |
+| Object | Best Chamfer policy (score) | Best F@2 policy (score) |
+| --- | --- | --- |
+| Airplane | Phase 2 VGGT (0.0193) | Farthest (0.6537) |
+| Bench | Phase 3 pose DeepSets (0.0289) | Phase 3 token attention (0.4458) |
+| Cabinet | Phase 3 independent (0.0160) | Phase 3 independent (0.7405) |
 
-At this endpoint, Phase 2 VGGT has the best Chamfer, Farthest the best F@1/F@2, and token attention the best F@10. The four strongest Chamfer values—Phase 2 VGGT, matched joint, pose DeepSets, and Farthest—lie within 0.0009. Oracle and PUN are substantially worse despite their strong early/full-cohort coverage results. Taken with the two-object slice, this supports a narrow but useful conclusion: **the acquired history affects GS reconstruction, but the existing coverage and shared-VGGT rankings do not transfer as a stable 2DGS ordering.**
+No policy wins Chamfer on more than one of the three objects at the final budget, and Chamfer and F@2 select different policies on two objects. The larger matched comparison therefore strengthens the earlier qualitative conclusion: **acquired history materially affects GS reconstruction, but coverage and shared-VGGT rankings do not transfer as a stable 2DGS ordering.**
 
 ## Limitations and validity threats
 
@@ -432,7 +421,7 @@ At this endpoint, Phase 2 VGGT has the best Chamfer, Farthest the best F@1/F@2, 
 9. **Random-history training distribution.** Phase 3 trains on random unique-view histories; learned-policy rollouts may visit a different state distribution.
 10. **No real-world transfer.** The optional domain-shift questions remain unanswered.
 11. **Runtime provenance is incomplete.** The retained Phase 3 profiles identify CUDA execution but not the exact GPU model, and Phase 1 inference time/peak memory were deferred rather than measured. Timing values are useful within the recorded protocols but are not portable hardware benchmarks.
-12. **Gaussian-splatting scope and protocol coupling.** The final matched slices contain only two objects, each view count receives a different total optimization budget, and placement uses an acquired-silhouette fit whose CPU renderers have not been parity-checked against CUDA. These results are valid for the stated case study but cannot estimate test-population policy effects.
+12. **Gaussian-splatting scope and protocol coupling.** The matched comparison contains only three objects, each view count receives a different total optimization budget, and placement uses an acquired-silhouette fit whose CPU renderers have not been parity-checked against CUDA. These results are valid for the stated case study but cannot estimate test-population policy effects.
 
 ## Final conclusion
 

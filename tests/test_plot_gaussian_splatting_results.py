@@ -63,7 +63,7 @@ class GaussianSplattingResultsPlotTests(unittest.TestCase):
 
             self.assertIn("Silhouette-refined 2DGS", budget_output.read_text())
             self.assertIn("P3 token attention", budget_output.read_text())
-            self.assertIn("Two-object", transfer_output.read_text())
+            self.assertIn("2-object", transfer_output.read_text())
 
     def test_view_budget_selection_prefers_larger_balanced_rectangle(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -80,6 +80,10 @@ class GaussianSplattingResultsPlotTests(unittest.TestCase):
             self.assertEqual(
                 select_view_budget_cohort(rows),
                 (["category/a", "category/b"], [2, 5]),
+            )
+            self.assertEqual(
+                select_transfer_budget(rows),
+                (5, ["category/a", "category/b"]),
             )
 
     def test_rejects_duplicate_rows(self) -> None:
