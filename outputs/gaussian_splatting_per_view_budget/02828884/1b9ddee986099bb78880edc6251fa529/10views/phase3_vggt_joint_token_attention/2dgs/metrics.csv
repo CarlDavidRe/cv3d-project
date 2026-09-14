@@ -1,0 +1,2 @@
+object_id,policy,acquired_view_count,backend,accuracy_normalized,completeness_normalized,chamfer_l1_normalized,ground_truth_diameter,precision_1pct,recall_1pct,fscore_1pct,precision_2pct,recall_2pct,fscore_2pct,precision_10pct,recall_10pct,fscore_10pct
+02828884/1b9ddee986099bb78880edc6251fa529,vggt_joint_token_attention,10,2dgs,0.04499871796873999,0.01750885372307363,0.03125378584590681,1.9999222837012909,0.1479,0.3601,0.2096802755905512,0.329,0.6933,0.44624024259023776,0.8741,1.0,0.9328210874553119
