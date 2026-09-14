@@ -229,28 +229,28 @@
     {
       "output": "outputs/gaussian_splatting_per_view_budget/02691156/1628b65a9f3cd7c05e9e2656aff7dd5b/10views/phase3_vggt_independent_history",
       "policy": "vggt_independent_history",
-      "status": "complete",
+      "status": "skipped",
       "variant": "phase3_vggt_independent_history",
       "views": 10
     },
     {
       "output": "outputs/gaussian_splatting_per_view_budget/02691156/1628b65a9f3cd7c05e9e2656aff7dd5b/10views/phase3_vggt_joint_history",
       "policy": "vggt_joint_history",
-      "status": "complete",
+      "status": "skipped",
       "variant": "phase3_vggt_joint_history",
       "views": 10
     },
     {
       "output": "outputs/gaussian_splatting_per_view_budget/02691156/1628b65a9f3cd7c05e9e2656aff7dd5b/10views/phase3_vggt_joint_pose_deepsets",
       "policy": "vggt_joint_pose_deepsets",
-      "status": "complete",
+      "status": "skipped",
       "variant": "phase3_vggt_joint_pose_deepsets",
       "views": 10
     },
     {
       "output": "outputs/gaussian_splatting_per_view_budget/02691156/1628b65a9f3cd7c05e9e2656aff7dd5b/10views/phase3_vggt_joint_token_attention",
       "policy": "vggt_joint_token_attention",
-      "status": "complete",
+      "status": "skipped",
       "variant": "phase3_vggt_joint_token_attention",
       "views": 10
     }
