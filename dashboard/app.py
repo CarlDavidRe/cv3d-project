@@ -188,6 +188,170 @@ VARIANT_DESCRIPTIONS = {
     "vggt_camera_patch": "Probe combining VGGT's camera representation with mean-pooled patch tokens.",
 }
 
+PHASE1_VARIANT_OVERVIEW = [
+    {
+        "Variant": "PUN / UPNet",
+        "Training": "Original NUM dataset (official checkpoint)",
+        "Target": "PSNR-based neural uncertainty map",
+        "Representation / rule": "ViT-based UPNet",
+    },
+    {
+        "Variant": "Train mean map",
+        "Training": "Original NUM dataset",
+        "Target": "PSNR-based neural uncertainty map",
+        "Representation / rule": "Mean training target; no image input",
+    },
+    {
+        "Variant": "Raw RGB · 16×16 MLP",
+        "Training": "Original NUM dataset",
+        "Target": "PSNR-based neural uncertainty map",
+        "Representation / rule": "Flattened 16×16 RGB",
+    },
+    {
+        "Variant": "ImageNet ViT · pooled patch",
+        "Training": "Original NUM dataset",
+        "Target": "PSNR-based neural uncertainty map",
+        "Representation / rule": "Mean-pooled frozen patch tokens",
+    },
+    {
+        "Variant": "ImageNet ViT · CLS token",
+        "Training": "Original NUM dataset",
+        "Target": "PSNR-based neural uncertainty map",
+        "Representation / rule": "Frozen CLS token",
+    },
+    {
+        "Variant": "DINOv2 · pooled patch",
+        "Training": "Original NUM dataset",
+        "Target": "PSNR-based neural uncertainty map",
+        "Representation / rule": "Mean-pooled frozen patch tokens",
+    },
+    {
+        "Variant": "DINOv2 · CLS token",
+        "Training": "Original NUM dataset",
+        "Target": "PSNR-based neural uncertainty map",
+        "Representation / rule": "Frozen CLS token",
+    },
+    {
+        "Variant": "VGGT · pooled patch",
+        "Training": "Original NUM dataset",
+        "Target": "PSNR-based neural uncertainty map",
+        "Representation / rule": "Mean-pooled frozen patch tokens",
+    },
+    {
+        "Variant": "VGGT · max pooled patch",
+        "Training": "Original NUM dataset",
+        "Target": "PSNR-based neural uncertainty map",
+        "Representation / rule": "Max-pooled frozen patch tokens",
+    },
+    {
+        "Variant": "VGGT · camera token",
+        "Training": "Original NUM dataset",
+        "Target": "PSNR-based neural uncertainty map",
+        "Representation / rule": "Frozen camera token",
+    },
+    {
+        "Variant": "VGGT · pooled register",
+        "Training": "Original NUM dataset",
+        "Target": "PSNR-based neural uncertainty map",
+        "Representation / rule": "Mean-pooled frozen register tokens",
+    },
+    {
+        "Variant": "VGGT · camera + patch",
+        "Training": "Original NUM dataset",
+        "Target": "PSNR-based neural uncertainty map",
+        "Representation / rule": "Camera token + mean-pooled patch tokens",
+    },
+]
+
+POLICY_VARIANT_OVERVIEW = [
+    {
+        "Variant": "Random",
+        "Phase": "2",
+        "Training": "None",
+        "Target": "None",
+        "History / selection rule": "Uniform random unseen anchor",
+    },
+    {
+        "Variant": "Farthest view",
+        "Phase": "2",
+        "Training": "None",
+        "Target": "None",
+        "History / selection rule": "Farthest direction from acquired views",
+    },
+    {
+        "Variant": "PUN",
+        "Phase": "2",
+        "Training": "Original NUM dataset (official checkpoint)",
+        "Target": "PSNR-based neural uncertainty map",
+        "History / selection rule": "Per-view UPNet maps; PUN product aggregation",
+    },
+    {
+        "Variant": "VGGT · single image",
+        "Phase": "2",
+        "Training": "Original NUM dataset",
+        "Target": "PSNR-based neural uncertainty map",
+        "History / selection rule": "Per-view max-pooled VGGT maps; PUN aggregation",
+    },
+    {
+        "Variant": "Oracle",
+        "Phase": "2",
+        "Training": "None (privileged baseline)",
+        "Target": "Ground-truth marginal VisA surface gain",
+        "History / selection rule": "Selects the true best remaining anchor",
+    },
+    {
+        "Variant": "VGGT · independent history",
+        "Phase": "3",
+        "Training": "NUM enhanced history dataset (random_unique_v1)",
+        "Target": "Direct marginal VisA surface gain",
+        "History / selection rule": "Independent per-image VGGT vectors; masked mean",
+    },
+    {
+        "Variant": "VGGT · joint history",
+        "Phase": "3",
+        "Training": "NUM enhanced history dataset (random_unique_v1)",
+        "Target": "Direct marginal VisA surface gain",
+        "History / selection rule": "Joint VGGT history forward; masked mean",
+    },
+    {
+        "Variant": "VGGT · pose DeepSets",
+        "Phase": "3",
+        "Training": "NUM enhanced history dataset (random_unique_v1)",
+        "Target": "Direct marginal VisA surface gain",
+        "History / selection rule": "Pose-conditioned DeepSets mean",
+    },
+    {
+        "Variant": "VGGT · token attention",
+        "Phase": "3",
+        "Training": "NUM enhanced history dataset (random_unique_v1)",
+        "Target": "Direct marginal VisA surface gain",
+        "History / selection rule": "Spatial-token candidate cross-attention",
+    },
+]
+
+
+def render_variant_overview(kind: str) -> None:
+    """Render a full-width expandable table explaining compared variants."""
+    if kind == "phase1":
+        rows = PHASE1_VARIANT_OVERVIEW
+        caption = (
+            "All learned probes use frozen representations and a locally trained MLP "
+            "head. The table describes the supervision used for the compared output."
+        )
+    elif kind == "policy":
+        rows = POLICY_VARIANT_OVERVIEW
+        caption = (
+            "Training refers to policy learning, not downstream reconstruction. "
+            "VisA is rasterized absolute surface visibility; marginal VisA gain is the "
+            "additional surface revealed by a candidate view."
+        )
+    else:
+        raise ValueError(f"Unknown variant overview kind: {kind}")
+
+    with st.expander("ⓘ Variant overview"):
+        st.caption(caption)
+        st.table(pd.DataFrame.from_records(rows))
+
 
 def load_dashboard_rendering_object_keys(path: str | Path) -> frozenset[str]:
     """Read the rendering-object allowlist maintained in its Markdown README."""
@@ -942,9 +1106,8 @@ def load_gaussian_splatting_metrics(
 def load_gaussian_render_catalog(
     repaired_root: str, original_root: str
 ) -> pd.DataFrame:
-    """Index repaired histories and original-placement one-view artifacts."""
-    records: dict[tuple[str, str, str, int], dict[str, object]] = {}
-    # Process the original fallback first so a repaired artifact wins any collision.
+    """Index original-placement and repaired GS artifacts independently."""
+    records: dict[tuple[str, str, str, int, bool], dict[str, object]] = {}
     for root_path, repaired in (
         (Path(original_root), False),
         (Path(repaired_root), True),
@@ -963,8 +1126,7 @@ def load_gaussian_render_catalog(
             valid = (
                 is_current_gaussian_repair(summary, backend)
                 if repaired
-                else view_count == 1
-                and is_current_gaussian_training(summary, backend)
+                else is_current_gaussian_training(summary, backend)
             )
             if not valid:
                 continue
@@ -978,7 +1140,7 @@ def load_gaussian_render_catalog(
             if object_key not in DASHBOARD_RENDERING_OBJECT_KEYS:
                 continue
             phase_token, policy = variant.split("_", maxsplit=1)
-            key = category_id, object_id, policy, view_count
+            key = category_id, object_id, policy, view_count, repaired
             records[key] = {
                 "phase": "Phase 2" if phase_token == "phase2" else "Phase 3",
                 "policy": policy,
@@ -1171,27 +1333,42 @@ def render_reconstruction_comparison_row(
             selected = selected[selected[column] == value]
         return selected
 
-    matching_3dgs = matching_rows(render_catalog)
+    matching_gaussian = matching_rows(render_catalog)
     matching_vggt = matching_rows(vggt_render_catalog)
-    gaussian_history = (
-        Path(matching_3dgs["path"].iloc[0]) if not matching_3dgs.empty else None
+    original_gaussian = (
+        matching_gaussian[~matching_gaussian["repaired"]]
+        if not matching_gaussian.empty
+        else pd.DataFrame()
     )
-    history_is_repaired = (
-        bool(matching_3dgs["repaired"].iloc[0]) if not matching_3dgs.empty else False
+    repaired_gaussian = (
+        matching_gaussian[matching_gaussian["repaired"]]
+        if not matching_gaussian.empty
+        else pd.DataFrame()
+    )
+    original_history = (
+        Path(original_gaussian["path"].iloc[0])
+        if not original_gaussian.empty
+        else None
+    )
+    repaired_history = (
+        Path(repaired_gaussian["path"].iloc[0])
+        if not repaired_gaussian.empty
+        else None
     )
     comparison_vggt_path = (
         Path(matching_vggt["path"].iloc[0]) if not matching_vggt.empty else None
     )
     comparison_2dgs_path = None
     original_2dgs_path = None
+    original_3dgs_path = None
     comparison_3dgs_path = None
-    if gaussian_history is not None and history_is_repaired:
-        relative_history = gaussian_history.relative_to(GAUSSIAN_SPLATTING_REPAIR_ROOT)
+    if repaired_history is not None:
+        relative_history = repaired_history.relative_to(GAUSSIAN_SPLATTING_REPAIR_ROOT)
         original_2dgs_path = GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT / relative_history / (
             "2dgs/comparison_interactive.html"
         )
-        comparison_2dgs_path = gaussian_history / "2dgs/comparison_interactive.html"
-        repaired_3dgs_path = gaussian_history / "3dgs/ground_truth_comparison.html"
+        comparison_2dgs_path = repaired_history / "2dgs/comparison_interactive.html"
+        repaired_3dgs_path = repaired_history / "3dgs/ground_truth_comparison.html"
         if not summary_file_matches(
             original_2dgs_path.with_name("summary.json"),
             backend="2dgs", repaired=False,
@@ -1207,19 +1384,20 @@ def render_reconstruction_comparison_row(
             backend="3dgs", repaired=True,
         ):
             comparison_3dgs_path = repaired_3dgs_path
-    elif gaussian_history is not None:
-        original_2dgs_path = gaussian_history / "2dgs/comparison_interactive.html"
-        original_3dgs_path = gaussian_history / "3dgs/ground_truth_comparison.html"
-        if not summary_file_matches(
-            original_2dgs_path.with_name("summary.json"),
-            backend="2dgs", repaired=False,
+    if original_history is not None:
+        direct_original_2dgs = original_history / "2dgs/comparison_interactive.html"
+        original_3dgs_path = original_history / "3dgs/ground_truth_comparison.html"
+        if original_2dgs_path is None and summary_file_matches(
+            direct_original_2dgs.with_name("summary.json"),
+            backend="2dgs",
+            repaired=False,
         ):
-            original_2dgs_path = None
-        if summary_file_matches(
+            original_2dgs_path = direct_original_2dgs
+        if not summary_file_matches(
             original_3dgs_path.with_name("summary.json"),
             backend="3dgs", repaired=False,
         ):
-            comparison_3dgs_path = original_3dgs_path
+            original_3dgs_path = None
     ground_truth_cloud_path = comparison_vggt_path
     if ground_truth_cloud_path is None and (
         comparison_2dgs_path is not None and comparison_2dgs_path.is_file()
@@ -1230,18 +1408,32 @@ def render_reconstruction_comparison_row(
 
     (
         policy_column,
-        render_3dgs_column,
+        original_3dgs_column,
+        repaired_3dgs_column,
         original_2dgs_column,
         surface_2dgs_column,
         vggt_column,
         ground_truth_column,
-    ) = st.columns([0.9, 1, 1, 1, 1, 1], gap="small", vertical_alignment="center")
+    ) = st.columns(
+        [0.9, 1, 1, 1, 1, 1, 1], gap="small", vertical_alignment="center"
+    )
     with policy_column:
         st.markdown(
             f'<div class="matrix-row-label">{pretty_policy(policy)}</div>',
             unsafe_allow_html=True,
         )
-    with render_3dgs_column:
+    with original_3dgs_column:
+        if original_3dgs_path is None:
+            st.info("Original 3DGS not available for this selection yet.")
+        else:
+            components.html(
+                make_compact_3dgs_view(
+                    original_3dgs_path.read_text(encoding="utf-8")
+                ),
+                height=240,
+                scrolling=False,
+            )
+    with repaired_3dgs_column:
         if comparison_3dgs_path is None:
             st.info("Repaired 3DGS not available for this selection yet.")
         else:
@@ -1295,10 +1487,11 @@ def render_reconstruction_comparison_row(
                 height=240,
                 scrolling=False,
             )
-        elif comparison_3dgs_path is not None:
+        elif comparison_3dgs_path is not None or original_3dgs_path is not None:
+            ground_truth_3dgs_path = comparison_3dgs_path or original_3dgs_path
             components.html(
                 make_compact_3dgs_view(
-                    comparison_3dgs_path.read_text(encoding="utf-8"),
+                    ground_truth_3dgs_path.read_text(encoding="utf-8"),
                     ground_truth=True,
                 ),
                 height=240,
@@ -1778,6 +1971,7 @@ def render_representation_page() -> None:
         'uncertainty?</div>',
         unsafe_allow_html=True,
     )
+    render_variant_overview("phase1")
 
     control_a, control_b, control_c = st.columns([1.15, 1.7, 2.6])
     with control_a:
@@ -1856,6 +2050,7 @@ def render_representation_page() -> None:
         'ground truth.</div>',
         unsafe_allow_html=True,
     )
+    render_variant_overview("phase1")
     st.markdown(
         '<div class="metric-note">Choose a test object, input anchor, and Phase 1 variant. '
         'Each map is rotated into source-relative coordinates, making the selected input view '
@@ -2028,6 +2223,7 @@ def render_closed_loop_page() -> None:
         '<div class="section-title">Which policy leaves the most surface observed?</div>',
         unsafe_allow_html=True,
     )
+    render_variant_overview("policy")
     summary_metrics = {
         "final_coverage_mean": ("Final absolute coverage", "↑ higher is better"),
         "coverage_auc_mean": ("Coverage AUC", "↑ higher is better"),
@@ -2066,6 +2262,7 @@ def render_closed_loop_page() -> None:
         'VGGT and 2DGS reconstructions?</div>',
         unsafe_allow_html=True,
     )
+    render_variant_overview("policy")
     vggt_reconstruction = tables["vggt_reconstruction"]
     gaussian_splatting = load_gaussian_splatting_metrics(
         str(GAUSSIAN_SPLATTING_REPAIR_ROOT), str(GAUSSIAN_SPLATTING_ROOT)
@@ -2208,6 +2405,7 @@ def render_closed_loop_page() -> None:
         '<div class="section-title">How does ranking quality change as history grows?</div>',
         unsafe_allow_html=True,
     )
+    render_variant_overview("policy")
     quality_metrics = {
         "normalized_regret": "Normalized regret ↓",
         "selected_true_gain": "Selected true surface gain ↑",
@@ -2299,6 +2497,7 @@ def render_rollout_inspection_page() -> None:
         'step by step.</div>',
         unsafe_allow_html=True,
     )
+    render_variant_overview("policy")
 
     rollout_a, rollout_b, rollout_c = st.columns([2.2, 1.25, 2.1])
     with rollout_a:
@@ -2506,6 +2705,7 @@ def render_reconstruction_gallery_page() -> None:
         '2DGS surface against ground truth.</div>',
         unsafe_allow_html=True,
     )
+    render_variant_overview("policy")
     if not available_catalogs:
         st.info("No completed reconstruction viewer is available yet.")
     else:
@@ -2567,13 +2767,16 @@ def render_reconstruction_gallery_page() -> None:
                 width="stretch",
             )
             matrix_headers = st.columns(
-                [0.9, 1, 1, 1, 1, 1], gap="small", vertical_alignment="bottom"
+                [0.9, 1, 1, 1, 1, 1, 1],
+                gap="small",
+                vertical_alignment="bottom",
             )
             for column, label in zip(
                 matrix_headers,
                 (
                     "Policy",
-                    "3DGS",
+                    "Original 3DGS",
+                    "Repaired 3DGS",
                     "Original 2DGS",
                     "Repaired 2DGS",
                     "VGGT cloud",
@@ -2595,10 +2798,12 @@ def render_reconstruction_gallery_page() -> None:
                     vggt_render_catalog,
                 )
             st.caption(
-                "At one view, 2DGS and 3DGS use the original placement because similarity "
-                "repair is underconstrained. From two views onward, repaired 2DGS and "
-                "3DGS accept a silhouette-fitted placement only when rendered mask IoU "
-                "improves; the Original 2DGS column shows the pre-repair CPU recovery."
+                "Original 3DGS remains visible beside the repaired render at every "
+                "available view count. At one view, repaired GS is unavailable because "
+                "similarity repair is underconstrained. From two views onward, repaired "
+                "2DGS and 3DGS accept a silhouette-fitted placement only when rendered "
+                "mask IoU improves; Original 2DGS prefers the pre-repair CPU recovery "
+                "and falls back to the training artifact when needed."
             )
             selection_label = (
                 f"{CATEGORY_NAMES.get(render_category, render_category)} / "
