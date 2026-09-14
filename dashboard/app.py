@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import math
 from pathlib import Path
@@ -331,7 +332,10 @@ def load_object_mesh(path: str) -> tuple[np.ndarray, np.ndarray] | None:
     vertices -= vertices.mean(axis=0, keepdims=True)
     scale = float(np.linalg.norm(vertices, axis=1).max())
     if scale > 0:
-        vertices *= 0.72 / scale
+        # Keep the object prominent inside the camera sphere.  The previous
+        # scale left thin objects especially difficult to distinguish from the
+        # surrounding anchors and guide lines.
+        vertices *= 0.88 / scale
     return vertices, np.asarray(triangles, dtype=np.int32)
 
 
@@ -342,7 +346,7 @@ def build_anchor_sphere(
     figure = go.Figure()
     sphere_radius = 1.35
 
-    line_color = "rgba(100, 116, 139, .28)"
+    line_color = "rgba(100, 116, 139, .18)"
     longitude = np.linspace(0, 2 * math.pi, 100)
     for elevation in np.linspace(-math.pi / 3, math.pi / 3, 5):
         radius = sphere_radius * math.cos(elevation)
@@ -382,9 +386,16 @@ def build_anchor_sphere(
                 j=faces[:, 1],
                 k=faces[:, 2],
                 color="#22d3ee",
-                opacity=0.86,
+                opacity=1.0,
                 flatshading=False,
-                lighting={"ambient": 0.45, "diffuse": 0.75, "roughness": 0.65},
+                lighting={
+                    "ambient": 0.68,
+                    "diffuse": 0.82,
+                    "specular": 0.28,
+                    "roughness": 0.48,
+                    "fresnel": 0.12,
+                },
+                lightposition={"x": 100, "y": 140, "z": 180},
                 hoverinfo="skip",
                 name="Object",
             )
@@ -410,6 +421,7 @@ def build_anchor_sphere(
             marker={
                 "size": np.where(selected, 10, 5),
                 "color": np.where(selected, "#f59e0b", "#e2e8f0"),
+                "opacity": 0.72,
                 "line": {"color": "#07101f", "width": 1},
             },
             customdata=np.column_stack(
@@ -443,7 +455,7 @@ def build_anchor_sphere(
         margin={"l": 0, "r": 0, "t": 18, "b": 0},
         paper_bgcolor="rgba(0,0,0,0)",
         scene={
-            "bgcolor": "rgba(15,23,42,.42)",
+            "bgcolor": "rgba(5,10,20,.9)",
             "aspectmode": "cube",
             "camera": {
                 "eye": {
@@ -1253,6 +1265,38 @@ def load_dashboard_rollout(path: str) -> dict[str, object]:
         }
 
 
+@st.cache_data(show_spinner=False)
+def load_observation_data_uri(path: str) -> str | None:
+    """Encode one local rollout observation for a compact HTML matrix cell."""
+    source = Path(path)
+    if not source.is_file():
+        return None
+    encoded = base64.b64encode(source.read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
+def render_rollout_matrix_cell(
+    observation_path: Path,
+    *,
+    view_number: int,
+    anchor_id: int,
+) -> None:
+    """Render one small acquired-view cell with its anchor label."""
+    data_uri = load_observation_data_uri(str(observation_path))
+    image = (
+        f'<img src="{data_uri}" alt="Observation from anchor {anchor_id}">'
+        if data_uri is not None
+        else '<div class="rollout-cell-missing">Image unavailable</div>'
+    )
+    st.markdown(
+        '<div class="rollout-matrix-cell">'
+        f"{image}"
+        f'<div class="rollout-cell-anchor">View {view_number} · Anchor {anchor_id}</div>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def build_closed_loop_curve(
     data: pd.DataFrame,
     *,
@@ -1412,6 +1456,9 @@ def build_rollout_trajectory(
     anchors: pd.DataFrame,
     acquired_anchor_ids: np.ndarray,
     mesh: tuple[np.ndarray, np.ndarray] | None,
+    *,
+    height: int = 560,
+    view_revision: int = 0,
 ) -> go.Figure:
     """Show the ordered camera trajectory around the selected object."""
     figure = build_anchor_sphere(anchors, int(acquired_anchor_ids[-1]), mesh)
@@ -1426,8 +1473,8 @@ def build_rollout_trajectory(
             y=y,
             z=z,
             mode="lines+markers+text",
-            line={"color": "#22d3ee", "width": 7},
-            marker={"color": "#22d3ee", "size": 7},
+            line={"color": "#f472b6", "width": 7},
+            marker={"color": "#f472b6", "size": 7},
             text=[str(index + 1) for index in range(len(x))],
             textposition="top center",
             textfont={"color": "#f8fafc", "size": 12},
@@ -1438,7 +1485,16 @@ def build_rollout_trajectory(
             name="Acquisition order",
         )
     )
-    figure.update_layout(height=560, showlegend=False)
+    figure.update_layout(
+        height=height,
+        showlegend=False,
+        uirevision=f"rollout-camera-{view_revision}",
+        scene_camera={
+            "eye": {"x": 1.55, "y": 1.55, "z": 1.15},
+            "center": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "up": {"x": 0.0, "y": 0.0, "z": 1.0},
+        },
+    )
     return figure
 
 
@@ -1465,6 +1521,10 @@ st.markdown(
       .matrix-header { color: #94a3b8; border-bottom: 1px solid #334155; padding: .7rem .25rem .55rem; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-align: center; text-transform: uppercase; }
       .matrix-row-label { color: #f8fafc; font-size: .9rem; font-weight: 650; line-height: 1.35; padding-right: .65rem; }
       .matrix-footer { color: #94a3b8; border-top: 1px solid #334155; margin-top: .15rem; padding: .7rem .25rem 0; font-size: .78rem; line-height: 1.55; }
+      .rollout-matrix-cell { max-width: 88px; margin: .25rem auto .4rem; text-align: center; }
+      .rollout-matrix-cell img, .rollout-cell-missing { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border: 1px solid #334155; border-radius: 9px; background: rgba(15,23,42,.7); }
+      .rollout-cell-missing { display: grid; place-items: center; color: #64748b; font-size: .68rem; padding: .5rem; }
+      .rollout-cell-anchor { color: #e2e8f0; font-size: .72rem; font-weight: 650; margin-top: .38rem; }
       .metric-note { color: #94a3b8; font-size: .84rem; padding-top: .25rem; }
       .split-badge { display: inline-flex; align-items: center; gap: .45rem; border: 1px solid currentColor; border-radius: 999px; padding: .28rem .62rem; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
       .split-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
@@ -2124,8 +2184,8 @@ def render_rollout_inspection_page() -> None:
         )
         st.markdown(
             '<div class="hero-copy">Choose a policy and object to follow its camera '
-            'trajectory, acquired observations, and absolute surface coverage through '
-            'the acquisition sequence.</div>',
+            'trajectory and compare acquired observations through the acquisition '
+            'sequence.</div>',
             unsafe_allow_html=True,
         )
     with header_right:
@@ -2139,14 +2199,26 @@ def render_rollout_inspection_page() -> None:
         st.info("No replayable rollout files are available for object-level inspection.")
         return
 
-    rollout_a, rollout_b, rollout_c = st.columns([1.8, 1.25, 2.1])
+    st.markdown(
+        '<div class="section-kicker">Rollout comparisons</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="section-title">Compare the acquired views of each policy '
+        'step by step.</div>',
+        unsafe_allow_html=True,
+    )
+
+    rollout_a, rollout_b, rollout_c = st.columns([2.2, 1.25, 2.1])
     with rollout_a:
-        rollout_policy = st.selectbox(
-            "Rollout policy",
-            sorted(catalog["policy"].unique(), key=pretty_policy),
+        rollout_policies = sorted(catalog["policy"].unique(), key=pretty_policy)
+        selected_rollout_policies = st.multiselect(
+            "Rollout policies",
+            rollout_policies,
+            default=[rollout_policies[0]],
             format_func=pretty_policy,
         )
-    policy_catalog = catalog[catalog["policy"] == rollout_policy]
+    policy_catalog = catalog[catalog["policy"].isin(selected_rollout_policies)]
     category_options = sorted(
         policy_catalog["category_id"].unique(),
         key=lambda value: CATEGORY_NAMES.get(value, value),
@@ -2156,81 +2228,140 @@ def render_rollout_inspection_page() -> None:
             "Rollout category",
             category_options,
             format_func=lambda value: CATEGORY_NAMES.get(value, value),
+            disabled=not category_options,
         )
-    category_catalog = policy_catalog[policy_catalog["category_id"] == rollout_category]
-    object_options = sorted(category_catalog["object_id"].unique())
+    category_catalog = (
+        policy_catalog[policy_catalog["category_id"] == rollout_category]
+        if rollout_category is not None
+        else pd.DataFrame()
+    )
+    object_options = (
+        sorted(category_catalog["object_id"].unique())
+        if "object_id" in category_catalog
+        else []
+    )
     with rollout_c:
-        rollout_object = st.selectbox("Rollout object", object_options)
-    object_catalog = category_catalog[category_catalog["object_id"] == rollout_object]
-    rollout_path = object_catalog["path"].iloc[0]
-    rollout = load_dashboard_rollout(str(rollout_path))
-    acquired = np.asarray(rollout["acquired_anchor_ids"], dtype=int)
-    counts = np.asarray(rollout["acquired_view_counts"], dtype=int)
-    coverage = np.asarray(rollout["coverage"], dtype=float)
-    steps = rollout["steps"]
+        rollout_object = st.selectbox(
+            "Rollout object", object_options, disabled=not object_options
+        )
 
-    acquired_count = st.segmented_control(
-        "Views acquired",
-        options=counts.astype(int).tolist(),
-        default=int(counts[-1]),
+    if not selected_rollout_policies:
+        st.info("Select at least one rollout policy to display its row.")
+        return
+
+    object_catalog = category_catalog[category_catalog["object_id"] == rollout_object]
+    loaded_rollouts = {
+        str(row.policy): load_dashboard_rollout(str(row.path))
+        for row in object_catalog.itertuples()
+    }
+    if not loaded_rollouts:
+        st.info("No rollout is available for this object and policy selection.")
+        return
+
+    maximum_view_count = max(
+        len(np.asarray(rollout["acquired_anchor_ids"]))
+        for rollout in loaded_rollouts.values()
+    )
+    displayed_view_count = st.segmented_control(
+        "Acquisition steps shown",
+        options=list(range(1, maximum_view_count + 1)),
+        default=maximum_view_count,
         required=True,
         width="stretch",
     )
-    current_index = int(np.flatnonzero(counts == acquired_count)[0])
-    current_anchor = int(acquired[current_index])
-    current_step = steps[current_index - 1] if current_index > 0 else None
-    object_key = f"{rollout_category}/{rollout_object}"
+    displayed_view_count = int(displayed_view_count)
 
-    rollout_kpis = st.columns(3)
-    rollout_kpis[0].metric("Current anchor", current_anchor)
-    rollout_kpis[1].metric("Absolute coverage", f"{coverage[current_index]:.3f}")
-    rollout_kpis[2].metric(
-        "Decision regret",
-        f'{float(current_step["normalized_regret"]):.3f}'
-        if current_step and current_step.get("normalized_regret") is not None
-        else "Initial view",
+    if "rollout_camera_revision" not in st.session_state:
+        st.session_state.rollout_camera_revision = 0
+    if st.button("Reset all 3D views", width="content"):
+        st.session_state.rollout_camera_revision += 1
+    camera_revision = int(st.session_state.rollout_camera_revision)
+
+    matrix_widths = [1.0, 3.55, 4.45]
+    headers = st.columns(
+        matrix_widths,
+        gap="small",
+        vertical_alignment="bottom",
     )
+    labels = ["Policy", "3D trajectory", "Acquired views"]
+    for column, label in zip(headers, labels):
+        with column:
+            st.markdown(
+                f'<div class="matrix-header">{label}</div>',
+                unsafe_allow_html=True,
+            )
 
+    object_key = f"{rollout_category}/{rollout_object}"
     mesh_path = SHAPENET_ROOT / object_key / "models" / "model_normalized.ply"
-    trajectory_column, observation_column = st.columns([2.1, 1], vertical_alignment="center")
-    with trajectory_column:
-        st.plotly_chart(
-            build_rollout_trajectory(
-                load_anchor_directions(str(ANCHOR_PATH)),
-                acquired[: current_index + 1],
-                load_object_mesh(str(mesh_path)),
-            ),
-            width="stretch",
-            config={"displayModeBar": False, "scrollZoom": False},
+    mesh = load_object_mesh(str(mesh_path))
+    anchors = load_anchor_directions(str(ANCHOR_PATH))
+    for policy in selected_rollout_policies:
+        row_columns = st.columns(
+            matrix_widths,
+            gap="small",
+            vertical_alignment="center",
         )
-    with observation_column:
-        observation_path = (
-            NUM_ROOT
-            / object_key
-            / "images"
-            / f"viewpoint_{current_anchor}_offset_phi_0.png"
-        )
-        if observation_path.is_file():
-            st.image(
-                str(observation_path),
-                caption=(
-                    f"Acquired view {acquired_count} · anchor {current_anchor} · "
-                    f"{pretty_policy(rollout_policy)}"
+        with row_columns[0]:
+            st.markdown(
+                f'<div class="matrix-row-label">{pretty_policy(policy)}</div>',
+                unsafe_allow_html=True,
+            )
+        rollout = loaded_rollouts.get(policy)
+        if rollout is None:
+            with row_columns[1]:
+                st.info("Not available.")
+            continue
+        acquired = np.asarray(rollout["acquired_anchor_ids"], dtype=int)
+        with row_columns[1]:
+            st.plotly_chart(
+                build_rollout_trajectory(
+                    anchors,
+                    acquired[:displayed_view_count],
+                    mesh,
+                    height=420,
+                    view_revision=camera_revision,
                 ),
                 width="stretch",
+                config={"displayModeBar": False, "scrollZoom": False},
+                key=(
+                    f"rollout-trajectory-{policy}-{rollout_category}-{rollout_object}"
+                ),
             )
-        else:
-            st.info(
-                "The rollout metrics are available, but observation previews require "
-                "the local `data/NUM` dataset."
-            )
-        trajectory = pd.DataFrame(
-            {
-                "Acquired views": counts[: current_index + 1],
-                "Absolute coverage": coverage[: current_index + 1],
-            }
-        ).set_index("Acquired views")
-        st.line_chart(trajectory, height=210)
+        with row_columns[2]:
+            views_per_row = min(displayed_view_count, 4)
+            for row_start in range(0, displayed_view_count, views_per_row):
+                view_columns = st.columns(views_per_row, gap="small")
+                for offset, column in enumerate(view_columns):
+                    view_index = row_start + offset
+                    if view_index >= displayed_view_count:
+                        continue
+                    with column:
+                        if view_index >= len(acquired):
+                            st.markdown(
+                                '<div class="rollout-cell-missing">Not acquired</div>',
+                                unsafe_allow_html=True,
+                            )
+                            continue
+                        anchor_id = int(acquired[view_index])
+                        render_rollout_matrix_cell(
+                            NUM_ROOT
+                            / object_key
+                            / "images"
+                            / f"viewpoint_{anchor_id}_offset_phi_0.png",
+                            view_number=view_index + 1,
+                            anchor_id=anchor_id,
+                        )
+
+    selection_label = (
+        f"{CATEGORY_NAMES.get(rollout_category, rollout_category)} / "
+        f"{rollout_object} · first {displayed_view_count} acquired views"
+    )
+    st.markdown(
+        f'<div class="matrix-footer"><strong>{selection_label}</strong> · '
+        "Each row is one policy with its own rotatable 3D trajectory; image cells "
+        "follow acquisition order.</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def render_reconstruction_gallery_page() -> None:
