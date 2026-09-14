@@ -231,3 +231,8 @@ __marimo__/
 data/*tar.gz
 
 colab.ipynb
+
+
+RESULTS_REPORT.md
+docs/
+README_manual.md
