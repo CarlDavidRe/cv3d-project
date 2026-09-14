@@ -312,6 +312,10 @@ Gaussian splatting is an optional CUDA workflow and is not part of the base
 installation. Install the official `gsplat` rasterizer in the project
 environment:
 
+For a step-by-step explanation of how the cached VGGT point map, 2DGS surface,
+and 3DGS image galleries are produced, see
+[`docs/rendering_vggt_2dgs_3dgs.md`](docs/rendering_vggt_2dgs_3dgs.md).
+
 ```bash
 python3 -m pip install -e '.[gaussian-splatting]'
 ```
