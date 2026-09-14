@@ -1,6 +1,7 @@
 # Results Report: Direct Next-Best-View Prediction from Frozen VGGT Features
 
 **Report date:** 2026-09-14  
+**Gaussian-splatting snapshot:** 2026-09-14 18:20 CEST; later live outputs are outside this report<br>
 **Primary evaluation seed:** 0, except the frozen Phase 1 primary sweep (seed 1)  
 **Coverage target:** area-weighted rasterized visible mesh faces (`VisA`)  
 **Action space:** 48 canonical PUN/NUM camera anchors  
@@ -369,12 +370,12 @@ Each view budget is trained independently with 1,500 optimization iterations per
 
 ### Matched evaluation slices
 
-The aggregate contains 39 corrected 2DGS rows. Two balanced slices are used for inference:
+The snapshot aggregate contains 47 corrected 2DGS rows. Two balanced slices are used for inference:
 
 - **View-budget slice:** all nine policies on airplane `02691156/1628…` at 2, 5, and 10 views (27 rows).
 - **Object-transfer slice:** all nine policies on that airplane and bench `02828884/1b9d…` at two views (18 rows).
 
-The three additional bench rows at 5 or 10 views are valid artifacts but are omitted from aggregate comparisons because the other policies are not present at the same object/budget. This is a complete case study for the stated slices, not an estimate over the 300-object test population.
+The 11 additional bench rows at 5 or 10 views are valid artifacts but are omitted from aggregate comparisons because the other policies are not present at the same object/budget at the snapshot cutoff. This is a complete case study for the stated slices, not an estimate over the 300-object test population.
 
 ![Silhouette-refined 2DGS view-budget curves](outputs/all_policy_comparison/gaussian_splatting_view_budget.svg)
 

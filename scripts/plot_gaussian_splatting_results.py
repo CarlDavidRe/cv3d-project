@@ -191,6 +191,11 @@ def write_view_budget_plot(
     outer, gap, top, bottom = 82.0, 70.0, 190.0, 82.0
     panel_width = (width - 2 * outer - gap) / 2
     plot_height = height - top - bottom
+    cohort_label = (
+        _object_label(object_ids[0])
+        if len(object_ids) == 1
+        else f"mean over {len(object_ids)} matched objects"
+    )
     lines = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
         "<style>",
@@ -201,7 +206,7 @@ def write_view_budget_plot(
         "</style>",
         '<rect width="100%" height="100%" fill="#ffffff"/>',
         '<text x="55" y="40" class="title">Silhouette-refined 2DGS quality by view budget</text>',
-        f'<text x="55" y="66" class="subtitle">Matched nine-policy mean over {len(object_ids)} object(s); each budget is trained independently for 1,500 iterations per acquired view.</text>',
+        f'<text x="55" y="66" class="subtitle">Matched nine-policy {escape(cohort_label)} case study; each budget is trained independently for 1,500 iterations per acquired view.</text>',
     ]
     for index, (_policy, label, color, group) in enumerate(POLICIES):
         row, column = divmod(index, 5)

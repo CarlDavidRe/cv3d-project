@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="680" viewBox="0 0 1320 680">
+<style>
+text{font-family:Inter,Arial,sans-serif;fill:#172033}
+.title{font-size:25px;font-weight:700}.subtitle{font-size:13px;fill:#536076}
+.axis{font-size:12px;fill:#536076}.legend{font-size:12px;font-weight:600}
+.panel{font-size:15px;font-weight:700}.grid{stroke:#d9dee8;stroke-width:1}
+</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="55" y="40" class="title">Silhouette-refined 2DGS quality by view budget</text>
+<text x="55" y="66" class="subtitle">Matched nine-policy Airplane (1628b6…) case study; each budget is trained independently for 1,500 iterations per acquired view.</text>
+<line x1="62" y1="104" x2="90" y2="104" stroke="#64748b" stroke-width="4"/>
+<text x="98" y="108" class="legend">P2 Random</text>
+<line x1="312" y1="104" x2="340" y2="104" stroke="#2563eb" stroke-width="4"/>
+<text x="348" y="108" class="legend">P2 Farthest</text>
+<line x1="562" y1="104" x2="590" y2="104" stroke="#dc2626" stroke-width="4"/>
+<text x="598" y="108" class="legend">P2 PUN</text>
+<line x1="812" y1="104" x2="840" y2="104" stroke="#7c3aed" stroke-width="4"/>
+<text x="848" y="108" class="legend">P2 VGGT</text>
+<line x1="1062" y1="104" x2="1090" y2="104" stroke="#059669" stroke-width="4"/>
+<text x="1098" y="108" class="legend">P2 Oracle</text>
+<line x1="62" y1="134" x2="90" y2="134" stroke="#ea580c" stroke-width="4" stroke-dasharray="8 5"/>
+<text x="98" y="138" class="legend">P3 independent</text>
+<line x1="312" y1="134" x2="340" y2="134" stroke="#0891b2" stroke-width="4" stroke-dasharray="8 5"/>
+<text x="348" y="138" class="legend">P3 joint</text>
+<line x1="562" y1="134" x2="590" y2="134" stroke="#ca8a04" stroke-width="4" stroke-dasharray="8 5"/>
+<text x="598" y="138" class="legend">P3 pose DeepSets</text>
+<line x1="812" y1="134" x2="840" y2="134" stroke="#db2777" stroke-width="4" stroke-dasharray="8 5"/>
+<text x="848" y="138" class="legend">P3 token attention</text>
+<text x="353.50" y="172.0" class="panel" text-anchor="middle">Normalized Chamfer-L1 ↓</text>
+<line x1="82.00" y1="598.00" x2="625.00" y2="598.00" class="grid"/>
+<text x="72.00" y="602.00" class="axis" text-anchor="end">0.00</text>
+<line x1="82.00" y1="516.40" x2="625.00" y2="516.40" class="grid"/>
+<text x="72.00" y="520.40" class="axis" text-anchor="end">0.03</text>
+<line x1="82.00" y1="434.80" x2="625.00" y2="434.80" class="grid"/>
+<text x="72.00" y="438.80" class="axis" text-anchor="end">0.05</text>
+<line x1="82.00" y1="353.20" x2="625.00" y2="353.20" class="grid"/>
+<text x="72.00" y="357.20" class="axis" text-anchor="end">0.08</text>
+<line x1="82.00" y1="271.60" x2="625.00" y2="271.60" class="grid"/>
+<text x="72.00" y="275.60" class="axis" text-anchor="end">0.10</text>
+<line x1="82.00" y1="190.00" x2="625.00" y2="190.00" class="grid"/>
+<text x="72.00" y="194.00" class="axis" text-anchor="end">0.13</text>
+<line x1="82.00" y1="190.0" x2="82.00" y2="598.00" stroke="#64748b"/>
+<line x1="82.00" y1="598.00" x2="625.00" y2="598.00" stroke="#64748b"/>
+<text x="82.00" y="622.00" class="axis" text-anchor="middle">2</text>
+<text x="285.62" y="622.00" class="axis" text-anchor="middle">5</text>
+<text x="625.00" y="622.00" class="axis" text-anchor="middle">10</text>
+<text x="353.50" y="656" class="axis" text-anchor="middle">Total acquired views</text>
+<polyline points="82.00,458.11 285.62,498.53 625.00,451.00" fill="none" stroke="#64748b" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="82.00" cy="458.11" r="3" fill="#64748b"/>
+<circle cx="285.62" cy="498.53" r="3" fill="#64748b"/>
+<circle cx="625.00" cy="451.00" r="3" fill="#64748b"/>
+<polyline points="82.00,312.49 285.62,303.92 625.00,532.35" fill="none" stroke="#2563eb" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="82.00" cy="312.49" r="3" fill="#2563eb"/>
+<circle cx="285.62" cy="303.92" r="3" fill="#2563eb"/>
+<circle cx="625.00" cy="532.35" r="3" fill="#2563eb"/>
+<polyline points="82.00,515.74 285.62,480.64 625.00,423.25" fill="none" stroke="#dc2626" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="82.00" cy="515.74" r="3" fill="#dc2626"/>
+<circle cx="285.62" cy="480.64" r="3" fill="#dc2626"/>
+<circle cx="625.00" cy="423.25" r="3" fill="#dc2626"/>
+<polyline points="82.00,320.34 285.62,476.86 625.00,535.25" fill="none" stroke="#7c3aed" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="82.00" cy="320.34" r="3" fill="#7c3aed"/>
+<circle cx="285.62" cy="476.86" r="3" fill="#7c3aed"/>
+<circle cx="625.00" cy="535.25" r="3" fill="#7c3aed"/>
+<polyline points="82.00,522.44 285.62,515.76 625.00,362.94" fill="none" stroke="#059669" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="82.00" cy="522.44" r="3" fill="#059669"/>
+<circle cx="285.62" cy="515.76" r="3" fill="#059669"/>
+<circle cx="625.00" cy="362.94" r="3" fill="#059669"/>
+<polyline points="82.00,332.21 285.62,499.52 625.00,519.85" fill="none" stroke="#ea580c" stroke-width="2.6" stroke-linejoin="round" stroke-dasharray="8 5"/>
+<circle cx="82.00" cy="332.21" r="3" fill="#ea580c"/>
+<circle cx="285.62" cy="499.52" r="3" fill="#ea580c"/>
+<circle cx="625.00" cy="519.85" r="3" fill="#ea580c"/>
+<polyline points="82.00,475.95 285.62,499.89 625.00,534.56" fill="none" stroke="#0891b2" stroke-width="2.6" stroke-linejoin="round" stroke-dasharray="8 5"/>
+<circle cx="82.00" cy="475.95" r="3" fill="#0891b2"/>
+<circle cx="285.62" cy="499.89" r="3" fill="#0891b2"/>
+<circle cx="625.00" cy="534.56" r="3" fill="#0891b2"/>
+<polyline points="82.00,220.22 285.62,517.26 625.00,532.80" fill="none" stroke="#ca8a04" stroke-width="2.6" stroke-linejoin="round" stroke-dasharray="8 5"/>
+<circle cx="82.00" cy="220.22" r="3" fill="#ca8a04"/>
+<circle cx="285.62" cy="517.26" r="3" fill="#ca8a04"/>
+<circle cx="625.00" cy="532.80" r="3" fill="#ca8a04"/>
+<polyline points="82.00,437.74 285.62,483.56 625.00,530.55" fill="none" stroke="#db2777" stroke-width="2.6" stroke-linejoin="round" stroke-dasharray="8 5"/>
+<circle cx="82.00" cy="437.74" r="3" fill="#db2777"/>
+<circle cx="285.62" cy="483.56" r="3" fill="#db2777"/>
+<circle cx="625.00" cy="530.55" r="3" fill="#db2777"/>
+<text x="966.50" y="172.0" class="panel" text-anchor="middle">F-score @ 2% of object diameter ↑</text>
+<line x1="695.00" y1="598.00" x2="1238.00" y2="598.00" class="grid"/>
+<text x="685.00" y="602.00" class="axis" text-anchor="end">0.00</text>
+<line x1="695.00" y1="516.40" x2="1238.00" y2="516.40" class="grid"/>
+<text x="685.00" y="520.40" class="axis" text-anchor="end">0.20</text>
+<line x1="695.00" y1="434.80" x2="1238.00" y2="434.80" class="grid"/>
+<text x="685.00" y="438.80" class="axis" text-anchor="end">0.40</text>
+<line x1="695.00" y1="353.20" x2="1238.00" y2="353.20" class="grid"/>
+<text x="685.00" y="357.20" class="axis" text-anchor="end">0.60</text>
+<line x1="695.00" y1="271.60" x2="1238.00" y2="271.60" class="grid"/>
+<text x="685.00" y="275.60" class="axis" text-anchor="end">0.80</text>
+<line x1="695.00" y1="190.00" x2="1238.00" y2="190.00" class="grid"/>
+<text x="685.00" y="194.00" class="axis" text-anchor="end">1.00</text>
+<line x1="695.00" y1="190.0" x2="695.00" y2="598.00" stroke="#64748b"/>
+<line x1="695.00" y1="598.00" x2="1238.00" y2="598.00" stroke="#64748b"/>
+<text x="695.00" y="622.00" class="axis" text-anchor="middle">2</text>
+<text x="898.62" y="622.00" class="axis" text-anchor="middle">5</text>
+<text x="1238.00" y="622.00" class="axis" text-anchor="middle">10</text>
+<text x="966.50" y="656" class="axis" text-anchor="middle">Total acquired views</text>
+<polyline points="695.00,491.28 898.62,453.89 1238.00,501.87" fill="none" stroke="#64748b" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="695.00" cy="491.28" r="3" fill="#64748b"/>
+<circle cx="898.62" cy="453.89" r="3" fill="#64748b"/>
+<circle cx="1238.00" cy="501.87" r="3" fill="#64748b"/>
+<polyline points="695.00,526.35 898.62,580.97 1238.00,331.28" fill="none" stroke="#2563eb" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="695.00" cy="526.35" r="3" fill="#2563eb"/>
+<circle cx="898.62" cy="580.97" r="3" fill="#2563eb"/>
+<circle cx="1238.00" cy="331.28" r="3" fill="#2563eb"/>
+<polyline points="695.00,382.77 898.62,482.45 1238.00,462.79" fill="none" stroke="#dc2626" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="695.00" cy="382.77" r="3" fill="#dc2626"/>
+<circle cx="898.62" cy="482.45" r="3" fill="#dc2626"/>
+<circle cx="1238.00" cy="462.79" r="3" fill="#dc2626"/>
+<polyline points="695.00,529.28 898.62,455.44 1238.00,336.60" fill="none" stroke="#7c3aed" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="695.00" cy="529.28" r="3" fill="#7c3aed"/>
+<circle cx="898.62" cy="455.44" r="3" fill="#7c3aed"/>
+<circle cx="1238.00" cy="336.60" r="3" fill="#7c3aed"/>
+<polyline points="695.00,364.07 898.62,439.50 1238.00,529.25" fill="none" stroke="#059669" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="695.00" cy="364.07" r="3" fill="#059669"/>
+<circle cx="898.62" cy="439.50" r="3" fill="#059669"/>
+<circle cx="1238.00" cy="529.25" r="3" fill="#059669"/>
+<polyline points="695.00,518.48 898.62,437.86 1238.00,372.14" fill="none" stroke="#ea580c" stroke-width="2.6" stroke-linejoin="round" stroke-dasharray="8 5"/>
+<circle cx="695.00" cy="518.48" r="3" fill="#ea580c"/>
+<circle cx="898.62" cy="437.86" r="3" fill="#ea580c"/>
+<circle cx="1238.00" cy="372.14" r="3" fill="#ea580c"/>
+<polyline points="695.00,469.84 898.62,426.81 1238.00,357.02" fill="none" stroke="#0891b2" stroke-width="2.6" stroke-linejoin="round" stroke-dasharray="8 5"/>
+<circle cx="695.00" cy="469.84" r="3" fill="#0891b2"/>
+<circle cx="898.62" cy="426.81" r="3" fill="#0891b2"/>
+<circle cx="1238.00" cy="357.02" r="3" fill="#0891b2"/>
+<polyline points="695.00,567.54 898.62,393.28 1238.00,374.77" fill="none" stroke="#ca8a04" stroke-width="2.6" stroke-linejoin="round" stroke-dasharray="8 5"/>
+<circle cx="695.00" cy="567.54" r="3" fill="#ca8a04"/>
+<circle cx="898.62" cy="393.28" r="3" fill="#ca8a04"/>
+<circle cx="1238.00" cy="374.77" r="3" fill="#ca8a04"/>
+<polyline points="695.00,483.29 898.62,503.84 1238.00,395.91" fill="none" stroke="#db2777" stroke-width="2.6" stroke-linejoin="round" stroke-dasharray="8 5"/>
+<circle cx="695.00" cy="483.29" r="3" fill="#db2777"/>
+<circle cx="898.62" cy="503.84" r="3" fill="#db2777"/>
+<circle cx="1238.00" cy="395.91" r="3" fill="#db2777"/>
+</svg>

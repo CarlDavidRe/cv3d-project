@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1420" height="700" viewBox="0 0 1420 700">
+<style>
+text{font-family:Inter,Arial,sans-serif;fill:#172033}
+.title{font-size:25px;font-weight:700}.subtitle{font-size:13px;fill:#536076}
+.axis{font-size:11px;fill:#536076}.legend{font-size:13px;font-weight:600}
+.panel{font-size:15px;font-weight:700}.grid{stroke:#d9dee8;stroke-width:1}
+</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="55" y="40" class="title">Two-object silhouette-refined 2DGS transfer check at 2 views</text>
+<text x="55" y="66" class="subtitle">Paired object scores expose case-study sensitivity; policy positions are descriptive, not population estimates.</text>
+<circle cx="62" cy="105" r="6" fill="#0f766e"/>
+<text x="76" y="109" class="legend">Airplane (1628b6…)</text>
+<circle cx="332" cy="105" r="6" fill="#9333ea"/>
+<text x="346" y="109" class="legend">Bench (1b9dde…)</text>
+<text x="378.50" y="128.0" class="panel" text-anchor="middle">Normalized Chamfer-L1 ↓</text>
+<line x1="82.00" y1="555.00" x2="675.00" y2="555.00" class="grid"/>
+<text x="72.00" y="559.00" class="axis" text-anchor="end">0.00</text>
+<line x1="82.00" y1="473.00" x2="675.00" y2="473.00" class="grid"/>
+<text x="72.00" y="477.00" class="axis" text-anchor="end">0.03</text>
+<line x1="82.00" y1="391.00" x2="675.00" y2="391.00" class="grid"/>
+<text x="72.00" y="395.00" class="axis" text-anchor="end">0.05</text>
+<line x1="82.00" y1="309.00" x2="675.00" y2="309.00" class="grid"/>
+<text x="72.00" y="313.00" class="axis" text-anchor="end">0.08</text>
+<line x1="82.00" y1="227.00" x2="675.00" y2="227.00" class="grid"/>
+<text x="72.00" y="231.00" class="axis" text-anchor="end">0.10</text>
+<line x1="82.00" y1="145.00" x2="675.00" y2="145.00" class="grid"/>
+<text x="72.00" y="149.00" class="axis" text-anchor="end">0.13</text>
+<line x1="114.94" y1="187.05" x2="114.94" y2="414.42" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="112.44" cy="414.42" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="117.44" cy="187.05" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="117.94" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 117.94 571.00)">P2 Random</text>
+<line x1="180.83" y1="268.09" x2="180.83" y2="473.55" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="178.33" cy="268.09" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="183.33" cy="473.55" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="183.83" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 183.83 571.00)">P2 Farthest</text>
+<line x1="246.72" y1="419.81" x2="246.72" y2="472.34" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="244.22" cy="472.34" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="249.22" cy="419.81" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="249.72" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 249.72 571.00)">P2 PUN</text>
+<line x1="312.61" y1="275.98" x2="312.61" y2="434.57" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="310.11" cy="275.98" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="315.11" cy="434.57" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="315.61" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 315.61 571.00)">P2 VGGT</text>
+<line x1="378.50" y1="437.46" x2="378.50" y2="479.07" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="376.00" cy="479.07" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="381.00" cy="437.46" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="381.50" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 381.50 571.00)">P2 Oracle</text>
+<line x1="444.39" y1="287.91" x2="444.39" y2="455.24" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="441.89" cy="287.91" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="446.89" cy="455.24" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="447.39" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 447.39 571.00)">P3 independent</text>
+<line x1="510.28" y1="432.35" x2="510.28" y2="453.71" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="507.78" cy="432.35" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="512.78" cy="453.71" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="513.28" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 513.28 571.00)">P3 joint</text>
+<line x1="576.17" y1="175.37" x2="576.17" y2="452.72" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="573.67" cy="175.37" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="578.67" cy="452.72" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="579.17" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 579.17 571.00)">P3 pose DeepSets</text>
+<line x1="642.06" y1="393.96" x2="642.06" y2="454.93" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="639.56" cy="393.96" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="644.56" cy="454.93" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="645.06" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 645.06 571.00)">P3 token attention</text>
+<line x1="82.00" y1="145.0" x2="82.00" y2="555.00" stroke="#64748b"/>
+<line x1="82.00" y1="555.00" x2="675.00" y2="555.00" stroke="#64748b"/>
+<text x="1041.50" y="128.0" class="panel" text-anchor="middle">F-score @ 2% of object diameter ↑</text>
+<line x1="745.00" y1="555.00" x2="1338.00" y2="555.00" class="grid"/>
+<text x="735.00" y="559.00" class="axis" text-anchor="end">0.00</text>
+<line x1="745.00" y1="473.00" x2="1338.00" y2="473.00" class="grid"/>
+<text x="735.00" y="477.00" class="axis" text-anchor="end">0.20</text>
+<line x1="745.00" y1="391.00" x2="1338.00" y2="391.00" class="grid"/>
+<text x="735.00" y="395.00" class="axis" text-anchor="end">0.40</text>
+<line x1="745.00" y1="309.00" x2="1338.00" y2="309.00" class="grid"/>
+<text x="735.00" y="313.00" class="axis" text-anchor="end">0.60</text>
+<line x1="745.00" y1="227.00" x2="1338.00" y2="227.00" class="grid"/>
+<text x="735.00" y="231.00" class="axis" text-anchor="end">0.80</text>
+<line x1="745.00" y1="145.00" x2="1338.00" y2="145.00" class="grid"/>
+<text x="735.00" y="149.00" class="axis" text-anchor="end">1.00</text>
+<line x1="777.94" y1="447.76" x2="777.94" y2="491.20" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="775.44" cy="447.76" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="780.44" cy="491.20" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="780.94" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 780.94 571.00)">P2 Random</text>
+<line x1="843.83" y1="314.54" x2="843.83" y2="483.00" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="841.33" cy="483.00" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="846.33" cy="314.54" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="846.83" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 846.83 571.00)">P2 Farthest</text>
+<line x1="909.72" y1="338.71" x2="909.72" y2="438.62" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="907.22" cy="338.71" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="912.22" cy="438.62" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="912.72" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 912.72 571.00)">P2 PUN</text>
+<line x1="975.61" y1="357.09" x2="975.61" y2="485.94" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="973.11" cy="485.94" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="978.11" cy="357.09" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="978.61" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 978.61 571.00)">P2 VGGT</text>
+<line x1="1041.50" y1="319.93" x2="1041.50" y2="375.34" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="1039.00" cy="319.93" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="1044.00" cy="375.34" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="1044.50" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 1044.50 571.00)">P2 Oracle</text>
+<line x1="1107.39" y1="384.15" x2="1107.39" y2="475.09" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="1104.89" cy="475.09" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="1109.89" cy="384.15" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="1110.39" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 1110.39 571.00)">P3 independent</text>
+<line x1="1173.28" y1="373.73" x2="1173.28" y2="426.21" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="1170.78" cy="426.21" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="1175.78" cy="373.73" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="1176.28" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 1176.28 571.00)">P3 joint</text>
+<line x1="1239.17" y1="378.36" x2="1239.17" y2="524.39" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="1236.67" cy="524.39" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="1241.67" cy="378.36" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="1242.17" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 1242.17 571.00)">P3 pose DeepSets</text>
+<line x1="1305.06" y1="385.87" x2="1305.06" y2="439.72" stroke="#94a3b8" stroke-width="1.5"/>
+<circle cx="1302.56" cy="439.72" r="4.5" fill="#0f766e" stroke="#ffffff" stroke-width="1"/>
+<circle cx="1307.56" cy="385.87" r="4.5" fill="#9333ea" stroke="#ffffff" stroke-width="1"/>
+<text x="1308.06" y="571.00" class="axis" text-anchor="end" transform="rotate(-42 1308.06 571.00)">P3 token attention</text>
+<line x1="745.00" y1="145.0" x2="745.00" y2="555.00" stroke="#64748b"/>
+<line x1="745.00" y1="555.00" x2="1338.00" y2="555.00" stroke="#64748b"/>
+</svg>
