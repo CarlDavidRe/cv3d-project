@@ -20,24 +20,30 @@ data, and saved-result trees used by the dashboard:
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/CarlDavidRe/cv3d-project.git
 cd cv3d-project
-git sparse-checkout set \
-  dashboard \
-  dashboard_data \
-  dashboard_rendering_objects \
-  data/splits \
-  src/nbv/geometry \
-  outputs/phase1/backbone_sweep \
-  outputs/phase2/phase2_closed_loop_reconstruction \
-  outputs/phase3/controlled_history_comparison_reconstruction \
-  outputs/phase3/controlled_pose_deepsets \
-  outputs/phase3/controlled_token_attention \
-  outputs/gaussian_splatting_per_view_budget \
-  outputs/gaussian_splatting_per_view_budget_alignment_repair
+git sparse-checkout set --no-cone \
+  '/*' \
+  '!/*/' \
+  '/dashboard/' \
+  '/dashboard_data/' \
+  '/dashboard_rendering_objects/' \
+  '/data/splits/' \
+  '/src/nbv/geometry/' \
+  '/outputs/phase1/backbone_sweep/' \
+  '/outputs/phase2/phase2_closed_loop_reconstruction/' \
+  '/outputs/phase3/controlled_history_comparison_reconstruction/' \
+  '/outputs/phase3/controlled_pose_deepsets/' \
+  '/outputs/phase3/controlled_token_attention/' \
+  '/outputs/gaussian_splatting_per_view_budget/' \
+  '/outputs/gaussian_splatting_per_view_budget_alignment_repair/' \
+  '!/outputs/phase3/controlled_history_comparison_reconstruction/**/joint_feature_cache/**' \
+  '!/outputs/phase3/controlled_pose_deepsets/**/joint_feature_cache/**' \
+  '!/outputs/phase3/controlled_token_attention/**/joint_feature_cache/**'
 ```
 
-Git's cone-mode sparse checkout includes the root-level `Makefile`, dependency
-list, and READMEs automatically. For GitHub SSH authentication, replace the
-HTTPS URL with `git@github.com:CarlDavidRe/cv3d-project.git`.
+The non-cone patterns omit the Phase 3 `joint_feature_cache` artifacts, which
+the dashboard does not use. Git still includes the root-level `Makefile`,
+dependency list, and READMEs. For GitHub SSH authentication, replace the HTTPS
+URL with `git@github.com:CarlDavidRe/cv3d-project.git`.
 
 ## Initialize and run the dashboard
 
