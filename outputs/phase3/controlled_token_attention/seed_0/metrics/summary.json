@@ -521,14 +521,14 @@
       "cached_shards_before_invocation": 47,
       "invocation_kind": "resumed_cache_restore_or_live_completion",
       "note": "Do not interpret a resumed cache-restore duration as live VGGT precompute time.",
-      "seconds_this_invocation": 6.908515135000016,
+      "seconds_this_invocation": 6.811213194999709,
       "shard_count": 47,
       "storage_bytes": 1651507200
     },
     "one_step": {
-      "independent_cached_seconds": 9.659939642000154,
+      "independent_cached_seconds": 9.397916909000287,
       "independent_peak_cuda_allocated_bytes": 3716658688,
-      "joint_cached_seconds": 7.322562675999961,
+      "joint_cached_seconds": 7.298993609999798,
       "joint_peak_cuda_allocated_bytes": 3833981952,
       "sample_count": 12000
     },
