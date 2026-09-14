@@ -40,13 +40,13 @@ PHASE3_TOKEN_ATTENTION_ROOT = (
     REPO_ROOT / "outputs" / "phase3" / "controlled_token_attention" / "seed_0"
 )
 GAUSSIAN_SPLATTING_ROOT = (
-    REPO_ROOT / "outputs" / "gaussian_splatting_variant_comparison"
+    REPO_ROOT / "outputs" / "gaussian_splatting_per_view_budget"
 )
 GAUSSIAN_SPLATTING_REPAIR_ROOT = (
-    REPO_ROOT / "outputs" / "gaussian_splatting_alignment_repair"
+    REPO_ROOT / "outputs" / "gaussian_splatting_per_view_budget_alignment_repair"
 )
 GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT = (
-    REPO_ROOT / "outputs" / "gaussian_splatting_cpu_recovery"
+    REPO_ROOT / "outputs" / "gaussian_splatting_per_view_budget_cpu_recovery"
 )
 NUM_ROOT = REPO_ROOT / "data" / "NUM"
 SHAPENET_ROOT = REPO_ROOT / "data" / "ShapeNetCore.v2"

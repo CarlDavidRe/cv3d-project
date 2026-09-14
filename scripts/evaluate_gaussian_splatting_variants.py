@@ -65,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--phase3-root", type=Path, default=ROOT / "outputs/phase3")
     parser.add_argument(
         "--output-root", type=Path,
-        default=ROOT / "outputs/gaussian_splatting_variant_comparison",
+        default=ROOT / "outputs/gaussian_splatting_per_view_budget",
     )
     parser.add_argument("--data-root", type=Path, default=ROOT / "data/NUM")
     parser.add_argument(

@@ -391,7 +391,7 @@ for object_id in test_objects:
 PY
 )
 
-failure_log=outputs/gaussian_splatting_variant_comparison/failed_objects.tsv
+failure_log=outputs/gaussian_splatting_per_view_budget/failed_objects.tsv
 mkdir -p "$(dirname "$failure_log")"
 printf 'object_id\texit_code\n' > "$failure_log"
 succeeded=0
@@ -445,7 +445,7 @@ Use `--dry-run` to validate all histories and inspect the commands without
 starting CUDA training.
 
 Results for each object are written below
-`outputs/gaussian_splatting_variant_comparison/<category>/<object>/`, mirroring
+`outputs/gaussian_splatting_per_view_budget/<category>/<object>/`, mirroring
 the `data/NUM/<category>/<object>/` hierarchy. Each object's
 `index.html` links the 2DGS ground-truth overlays and the 2DGS/3DGS render
 galleries for every variant and view count.
@@ -643,7 +643,7 @@ for RESULT_DIR in \
   phase2 \
   phase3 \
   all_policy_comparison \
-  gaussian_splatting_variant_comparison
+  gaussian_splatting_per_view_budget
 do
   if [ -d "outputs/$RESULT_DIR" ]; then
     mkdir -p "$DRIVE_OUTPUTS/$RESULT_DIR"
@@ -673,7 +673,7 @@ done
 ## 7. Back up long runs automatically
 
 Start this once per runtime. It syncs all results—including Gaussian-splatting
-results in `outputs/gaussian_splatting_variant_comparison`—and reusable data to
+results in `outputs/gaussian_splatting_per_view_budget`—and reusable data to
 Drive every five minutes:
 
 ```bash
@@ -688,7 +688,7 @@ then
 else
   (
     while true; do
-      # Syncing outputs also includes gaussian_splatting_variant_comparison.
+      # Syncing outputs also includes gaussian_splatting_per_view_budget.
       for PATH_TO_SYNC in \
         outputs \
         data/cache/features \
@@ -715,7 +715,7 @@ Before disconnecting, interrupt the active experiment and force a final sync:
 REPO=/content/cv3d-project
 BACKUP=/content/drive/MyDrive/cv3d-project
 
-# Syncing outputs also includes gaussian_splatting_variant_comparison.
+# Syncing outputs also includes gaussian_splatting_per_view_budget.
 for PATH_TO_SYNC in \
   outputs \
   data/cache/features \
@@ -736,7 +736,7 @@ fi
 ### Sync only Gaussian splatting variant comparisons every three minutes
 
 Start this once per runtime to sync only
-`outputs/gaussian_splatting_variant_comparison` to Drive in the background.
+`outputs/gaussian_splatting_per_view_budget` to Drive in the background.
 It runs immediately, then waits three minutes after each sync. In a Colab cell,
 put `%%bash` at the top. The background sync runs while the runtime stays active.
 
@@ -745,7 +745,7 @@ cd /content/cv3d-project
 
 nohup bash -c '
   DRIVE_OUTPUTS=/content/drive/MyDrive/cv3d-project/outputs
-  RESULT_DIR=gaussian_splatting_variant_comparison
+  RESULT_DIR=gaussian_splatting_per_view_budget
 
   while true; do
     if [ -d "outputs/$RESULT_DIR" ]; then

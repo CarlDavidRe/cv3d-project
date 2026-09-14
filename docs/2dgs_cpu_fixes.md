@@ -1,7 +1,7 @@
 # Gaussian CPU fixes: depth extraction and placement
 
 Both scripts read the original trained artifacts from
-`outputs/gaussian_splatting_variant_comparison`. They preserve those artifacts
+`outputs/gaussian_splatting_per_view_budget`. They preserve those artifacts
 and existing caches; neither requires CUDA, VGGT inference, or Gaussian retraining.
 
 | Script | Problem addressed | What changes |
@@ -48,8 +48,8 @@ to build the comparison gallery, but only acquired views participate in fitting.
 Default output directories are separate:
 
 ```text
-outputs/gaussian_splatting_cpu_recovery/      # Original placement, corrected extraction
-outputs/gaussian_splatting_alignment_repair/  # Refined placement, corrected extraction
+outputs/gaussian_splatting_per_view_budget_cpu_recovery/      # Original placement
+outputs/gaussian_splatting_per_view_budget_alignment_repair/  # Refined placement
 ```
 
 Placement repair cannot restore missing or distorted geometry and skips

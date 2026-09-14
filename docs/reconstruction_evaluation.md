@@ -130,9 +130,10 @@ For machines without CUDA, recover geometry from the existing artifacts:
 .venv/bin/python scripts/reevaluate_gaussian_splatting_cpu.py
 ```
 
-The default input is `outputs/gaussian_splatting_variant_comparison`; corrected
-results go to `outputs/gaussian_splatting_cpu_recovery` with the same
-category/object/views/variant/2dgs hierarchy. The original artifacts are retained.
+The default input is `outputs/gaussian_splatting_per_view_budget`; corrected
+results go to `outputs/gaussian_splatting_per_view_budget_cpu_recovery` with
+the same category/object/views/variant/2dgs hierarchy. The original artifacts
+are retained.
 No gsplat, extra dependencies, source RGB images, VGGT model, or reconstruction
 prediction caches are required. Each input needs `checkpoint.pt`, `summary.json`,
 `ground_truth.ply`, and the corresponding local `data/cache/visibility` entry.

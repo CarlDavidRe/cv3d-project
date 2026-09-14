@@ -498,8 +498,10 @@ def repair(source: Path, destination: Path, args) -> str:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-root", type=Path, default=ROOT / "outputs/gaussian_splatting_variant_comparison")
-    parser.add_argument("--output-root", type=Path, default=ROOT / "outputs/gaussian_splatting_alignment_repair")
+    parser.add_argument("--input-root", type=Path,
+                        default=ROOT / "outputs/gaussian_splatting_per_view_budget")
+    parser.add_argument("--output-root", type=Path,
+                        default=ROOT / "outputs/gaussian_splatting_per_view_budget_alignment_repair")
     parser.add_argument("--data-root", type=Path, default=ROOT / "data/NUM")
     parser.add_argument("--visibility-cache-root", type=Path, default=ROOT / "data/cache/visibility")
     parser.add_argument("--prediction-cache-root", type=Path, default=ROOT / "data/cache/reconstruction/predictions",

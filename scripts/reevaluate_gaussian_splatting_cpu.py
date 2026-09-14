@@ -177,8 +177,10 @@ def write_aggregate(root: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-root", type=Path, default=ROOT / "outputs/gaussian_splatting_variant_comparison")
-    parser.add_argument("--output-root", type=Path, default=ROOT / "outputs/gaussian_splatting_cpu_recovery")
+    parser.add_argument("--input-root", type=Path,
+                        default=ROOT / "outputs/gaussian_splatting_per_view_budget")
+    parser.add_argument("--output-root", type=Path,
+                        default=ROOT / "outputs/gaussian_splatting_per_view_budget_cpu_recovery")
     parser.add_argument("--visibility-cache-root", type=Path, default=ROOT / "data/cache/visibility")
     parser.add_argument("--object-id", help="Only this category/object")
     parser.add_argument("--variant", help="Only this folder, e.g. phase2_vggt")

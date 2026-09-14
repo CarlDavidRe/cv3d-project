@@ -35,8 +35,8 @@ roots and artifact filenames. Override roots if the files are elsewhere:
 
 ```bash
 python scripts/repair_gaussian_alignment_cpu.py \
-  --input-root outputs/gaussian_splatting_variant_comparison \
-  --output-root outputs/gaussian_splatting_alignment_repair \
+  --input-root outputs/gaussian_splatting_per_view_budget \
+  --output-root outputs/gaussian_splatting_per_view_budget_alignment_repair \
   --data-root data/NUM \
   --visibility-cache-root data/cache/visibility \
   --prediction-cache-root data/cache/reconstruction/predictions
@@ -119,8 +119,9 @@ truth, visibility cache, and prediction cache hashes were unchanged.
 
 ## Outputs and interpretation
 
-Results go to `outputs/gaussian_splatting_alignment_repair` using the existing
-`category/object/Nviews/variant/backend` hierarchy. The 2DGS outputs are:
+Results go to `outputs/gaussian_splatting_per_view_budget_alignment_repair`
+using the existing `category/object/Nviews/variant/backend` hierarchy. The
+2DGS outputs are:
 
 - transformed `checkpoint.pt`;
 - freshly extracted `surface.ply` and `metrics.csv`;
@@ -163,7 +164,7 @@ and gallery accept only artifacts trained with 1,500 iterations per view and
 repaired with `acquired_rendered_silhouette_sim3_v2`. The gallery indexes 2DGS
 and 3DGS independently, so either backend can appear while the other is still
 running. It shows repaired 3DGS RGB, unrepaired 2DGS from
-`gaussian_splatting_cpu_recovery`, and repaired 2DGS side by side.
+`gaussian_splatting_per_view_budget_cpu_recovery`, and repaired 2DGS side by side.
 Missing artifacts show an availability message. The unrepaired 2DGS column
 uses correct depth extraction at the original placement, not the older
 blue-channel-as-depth artifacts. Original files are preserved.
