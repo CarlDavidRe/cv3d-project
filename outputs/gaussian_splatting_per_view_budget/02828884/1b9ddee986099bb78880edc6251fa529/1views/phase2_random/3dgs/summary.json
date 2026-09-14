@@ -1,0 +1,201 @@
+{
+  "acquired_view_count": 1,
+  "alignment": {
+    "camera_center_rmse_normalized": 0.0,
+    "mode": "camera_rotation_center_and_target_diameter_scale_single_view",
+    "scale": 4.720022176791655
+  },
+  "backend": "3dgs",
+  "camera_source": "known_num_cameras",
+  "geometry_evaluation_enabled": false,
+  "ground_truth_cache": "/content/cv3d-project/data/cache/reconstruction/ground_truth/02828884/1b9ddee986099bb78880edc6251fa529/489dd6be8f2e49e3a672.npz",
+  "ground_truth_comparison": {
+    "held_out_view_ids": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47
+    ],
+    "interactive": "/content/cv3d-project/outputs/gaussian_splatting_per_view_budget/02828884/1b9ddee986099bb78880edc6251fa529/1views/phase2_random/3dgs/ground_truth_comparison.html",
+    "training_view_ids": [
+      0
+    ],
+    "type": "canonical_render_vs_corresponding_num_rgb"
+  },
+  "history_anchor_ids": [
+    0
+  ],
+  "initialization": "camera_aligned_vggt_filtered_point_map",
+  "metric_status": "disabled_by_contract_3dgs_is_qualitative_visualization_only",
+  "object_id": "02828884/1b9ddee986099bb78880edc6251fa529",
+  "policy": "random",
+  "prediction_cache": "/content/cv3d-project/data/cache/reconstruction/predictions/02828884/1b9ddee986099bb78880edc6251fa529/5749087548243d0594fddeb2.npz",
+  "schema_version": 1,
+  "settings": {
+    "alpha_threshold": 0.5,
+    "backend": "3dgs",
+    "distortion_loss_weight": 0.01,
+    "fscore_thresholds": [
+      0.01,
+      0.02,
+      0.1
+    ],
+    "iterations": 1500,
+    "learning_rate": 0.01,
+    "metric_chunk_size": 1024,
+    "normal_loss_weight": 0.05,
+    "opacity_loss_weight": 0.1,
+    "position_learning_rate": 0.0002,
+    "render_batch_size": 8,
+    "resolution": 256,
+    "seed": 0,
+    "surface_point_count": 10000
+  },
+  "training_budget": {
+    "iterations_per_view": 1500,
+    "total_iterations": 1500,
+    "view_count": 1
+  },
+  "training_history": [
+    {
+      "color_l1": 0.047809846699237823,
+      "iteration": 1.0,
+      "loss": 0.05868621915578842,
+      "opacity_l1": 0.10876372456550598
+    },
+    {
+      "color_l1": 0.029094655066728592,
+      "iteration": 100.0,
+      "loss": 0.03681408241391182,
+      "opacity_l1": 0.07719426602125168
+    },
+    {
+      "color_l1": 0.017529703676700592,
+      "iteration": 200.0,
+      "loss": 0.022399894893169403,
+      "opacity_l1": 0.04870191961526871
+    },
+    {
+      "color_l1": 0.01490972749888897,
+      "iteration": 300.0,
+      "loss": 0.019565124064683914,
+      "opacity_l1": 0.046553973108530045
+    },
+    {
+      "color_l1": 0.014949179254472256,
+      "iteration": 400.0,
+      "loss": 0.019523365423083305,
+      "opacity_l1": 0.04574185609817505
+    },
+    {
+      "color_l1": 0.013449410907924175,
+      "iteration": 500.0,
+      "loss": 0.01788429543375969,
+      "opacity_l1": 0.044348835945129395
+    },
+    {
+      "color_l1": 0.01325860433280468,
+      "iteration": 600.0,
+      "loss": 0.017568068578839302,
+      "opacity_l1": 0.04309464246034622
+    },
+    {
+      "color_l1": 0.01343393512070179,
+      "iteration": 700.0,
+      "loss": 0.01767011545598507,
+      "opacity_l1": 0.04236180707812309
+    },
+    {
+      "color_l1": 0.012919500470161438,
+      "iteration": 800.0,
+      "loss": 0.016952194273471832,
+      "opacity_l1": 0.04032692685723305
+    },
+    {
+      "color_l1": 0.012126194313168526,
+      "iteration": 900.0,
+      "loss": 0.016024954617023468,
+      "opacity_l1": 0.03898760303854942
+    },
+    {
+      "color_l1": 0.011907721869647503,
+      "iteration": 1000.0,
+      "loss": 0.015667537227272987,
+      "opacity_l1": 0.03759815916419029
+    },
+    {
+      "color_l1": 0.010974015109241009,
+      "iteration": 1100.0,
+      "loss": 0.014587804675102234,
+      "opacity_l1": 0.0361378937959671
+    },
+    {
+      "color_l1": 0.010199608281254768,
+      "iteration": 1200.0,
+      "loss": 0.013628039509057999,
+      "opacity_l1": 0.034284308552742004
+    },
+    {
+      "color_l1": 0.009582552127540112,
+      "iteration": 1300.0,
+      "loss": 0.012889517471194267,
+      "opacity_l1": 0.03306964784860611
+    },
+    {
+      "color_l1": 0.009176190942525864,
+      "iteration": 1400.0,
+      "loss": 0.012412487529218197,
+      "opacity_l1": 0.03236296400427818
+    },
+    {
+      "color_l1": 0.008132098242640495,
+      "iteration": 1500.0,
+      "loss": 0.011296547949314117,
+      "opacity_l1": 0.03164449706673622
+    }
+  ],
+  "turntable": "/content/cv3d-project/outputs/gaussian_splatting_per_view_budget/02828884/1b9ddee986099bb78880edc6251fa529/1views/phase2_random/3dgs/turntable.html"
+}
