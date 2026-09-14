@@ -48,6 +48,11 @@ already includes all mandatory dashboard inputs:
 - the compact Phase 1 prediction export;
 - saved Phase 1, Phase 2, and Phase 3 results and rollout replays.
 
+The [policy-variant guide](docs/policy_variants.md) explains the nine
+next-best-view variants shown in the reconstruction results. The companion
+[training and loss guide](docs/training_runs_and_losses.md) documents their
+training runs and the policy-head and Gaussian-fitting objectives.
+
 The large raw datasets are intentionally not required. Without them, the full
 dashboard still runs; only raw RGB previews and ShapeNet mesh overlays may show
 as unavailable.

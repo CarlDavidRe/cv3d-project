@@ -3,6 +3,11 @@
 Gaussian-splatting evaluation summaries are available for 23 objects across
 10 ShapeNet categories.
 
+See [the policy-variant guide](../docs/policy_variants.md) for what each of the
+nine policies does and how they form the 45 policy/view comparisons.
+See [the training and loss guide](../docs/training_runs_and_losses.md) for the
+policy-head runs and the separate 2DGS/3DGS fitting objectives.
+
 See [the two 2DGS CPU fixes](../docs/2dgs_cpu_fixes.md) for the difference between
 depth reevaluation and placement repair, their inputs/outputs, and execution order.
 
