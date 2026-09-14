@@ -319,13 +319,16 @@ The controlled evidence does not support H4: merely moving interaction inside fr
 
 ## Cross-phase synthesis
 
-![All-policy surface-coverage curves](outputs/all_policy_comparison/coverage_curves.svg)
-
-*Figure 1. Absolute `VisA` coverage for all five Phase 2 policies and all four distinct Phase 3 policies on the same 300-object test cohort.*
-
-![All-policy shared-VGGT reconstruction curves](outputs/all_policy_comparison/reconstruction_curves.svg)
-
-*Figure 2. Shared frozen-VGGT reconstruction metrics at 1, 2, 3, 5, and 10 views. The log-transformed Chamfer display retains the Farthest two-view alignment outlier.*
+<div style="display: flex; gap: 1rem; align-items: flex-start; max-width: 960px;">
+  <figure style="flex: 1 1 0; margin: 0;">
+    <img src="outputs/all_policy_comparison/coverage_curves.svg" alt="All-policy surface-coverage curves" style="width: 100%; height: auto;">
+    <figcaption><em>Figure 1. Absolute <code>VisA</code> coverage for all five Phase 2 policies and all four distinct Phase 3 policies on the same 300-object test cohort.</em></figcaption>
+  </figure>
+  <figure style="flex: 1 1 0; margin: 0;">
+    <img src="outputs/all_policy_comparison/reconstruction_curves.svg" alt="All-policy shared-VGGT reconstruction curves" style="width: 100%; height: auto;">
+    <figcaption><em>Figure 2. Shared frozen-VGGT reconstruction metrics at 1, 2, 3, 5, and 10 views. The log-transformed Chamfer display retains the Farthest two-view alignment outlier.</em></figcaption>
+  </figure>
+</div>
 
 ### Complete policy ordering
 
