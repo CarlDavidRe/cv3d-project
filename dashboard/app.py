@@ -49,8 +49,8 @@ GAUSSIAN_SPLATTING_REPAIR_ROOT = (
 GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT = (
     REPO_ROOT / "outputs" / "gaussian_splatting_per_view_budget_cpu_recovery"
 )
-NUM_ROOT = REPO_ROOT / "data" / "NUM"
-SHAPENET_ROOT = REPO_ROOT / "data" / "ShapeNetCore.v2"
+NUM_ROOT = REPO_ROOT / "dashboard_data" / "NUM"
+SHAPENET_ROOT = REPO_ROOT / "dashboard_data" / "ShapeNetCore.v2"
 SPLIT_MANIFEST = REPO_ROOT / "data" / "splits" / "num_v1.json"
 ANCHOR_PATH = REPO_ROOT / "src" / "nbv" / "geometry" / "anchors_v1.csv"
 PREDICTION_DATA = REPO_ROOT / "dashboard" / "data" / "phase1_test_predictions.npz"
@@ -405,13 +405,15 @@ def pretty_anchor(value: int | str) -> str:
 
 @st.cache_data(show_spinner=False)
 def load_dataset_index(path: str) -> pd.DataFrame:
-    """Load the frozen object-level split manifest with readable categories."""
+    """Load allowlisted dashboard objects from the frozen split manifest."""
     with Path(path).open(encoding="utf-8") as handle:
         manifest = json.load(handle)
 
     records = []
     for split, object_keys in manifest["splits"].items():
         for object_key in object_keys:
+            if object_key not in DASHBOARD_RENDERING_OBJECT_KEYS:
+                continue
             category_id, object_id = object_key.split("/", maxsplit=1)
             records.append(
                 {
@@ -1518,6 +1520,9 @@ def load_rollout_catalog(phase2_root: str, phase3_root: str) -> pd.DataFrame:
             policy, category_id, filename = relative.parts
             if included_policies is not None and policy not in included_policies:
                 continue
+            object_key = f"{category_id}/{Path(filename).stem}"
+            if object_key not in DASHBOARD_RENDERING_OBJECT_KEYS:
+                continue
             records.append(
                 {
                     "phase": phase,
@@ -1525,7 +1530,7 @@ def load_rollout_catalog(phase2_root: str, phase3_root: str) -> pd.DataFrame:
                     "policy_label": pretty_policy(policy),
                     "category_id": category_id,
                     "object_id": Path(filename).stem,
-                    "object_key": f"{category_id}/{Path(filename).stem}",
+                    "object_key": object_key,
                     "path": str(path),
                 }
             )
@@ -1837,9 +1842,9 @@ def render_dataset_page() -> None:
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<div class="hero-copy">The NUM dataset contains 13 ShapeNet categories observed '
-        'from 48 canonical camera anchors. Every object belongs exclusively to train, '
-        'validation, or test.</div>',
+        '<div class="hero-copy">This compact dashboard subset contains 20 NUM test '
+        'objects from 10 ShapeNet categories, each observed from 48 canonical camera '
+        'anchors.</div>',
         unsafe_allow_html=True,
     )
 
@@ -1920,7 +1925,7 @@ def render_dataset_page() -> None:
         else:
             st.info(
                 "The split and anchor explorer is available, but this rendered "
-                "view requires the local `data/NUM` dataset."
+                "view is missing from the bundled `dashboard_data/NUM` subset."
             )
         selected_row = anchors.loc[
             anchors["anchor_id"] == selected_anchor
@@ -2035,9 +2040,12 @@ def render_representation_page() -> None:
 
     prediction_data = load_prediction_maps(str(PREDICTION_DATA))
     object_keys = [str(value) for value in prediction_data["object_keys"]]
+    dashboard_object_keys = [
+        key for key in object_keys if key in DASHBOARD_RENDERING_OBJECT_KEYS
+    ]
     variant_names = [str(value) for value in prediction_data["variant_names"]]
     category_ids = sorted(
-        {key.split("/", maxsplit=1)[0] for key in object_keys},
+        {key.split("/", maxsplit=1)[0] for key in dashboard_object_keys},
         key=lambda value: CATEGORY_NAMES.get(value, value),
     )
 
@@ -2073,7 +2081,9 @@ def render_representation_page() -> None:
             format_func=lambda value: CATEGORY_NAMES.get(value, value),
         )
     category_object_keys = [
-        key for key in object_keys if key.startswith(f"{map_category_id}/")
+        key
+        for key in dashboard_object_keys
+        if key.startswith(f"{map_category_id}/")
     ]
     with map_control_b:
         map_object_key = st.selectbox(

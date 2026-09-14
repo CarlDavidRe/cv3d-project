@@ -1,12 +1,25 @@
 # Dashboard Rendering Objects
 
-Gaussian-splatting evaluation summaries are available for 23 objects across
-10 ShapeNet categories.
+This file is the dashboard's object allowlist. The minimal dashboard checkout
+contains the 20 test objects below: two objects from each of 10 ShapeNet
+categories. Dataset exploration, rollout image grids, mesh overlays, and
+reconstruction catalogs are all restricted to this list.
+
+The required raw assets are checked in under [`dashboard_data`](../dashboard_data/README.md):
+
+- `dashboard_data/NUM/<category_id>/<object_id>/images/` contains the 48 rendered
+  NUM observations used by the dashboard;
+- `dashboard_data/ShapeNetCore.v2/<category_id>/<object_id>/models/model_normalized.ply`
+  contains the corresponding display mesh.
+
+No full NUM or ShapeNet checkout is needed. Visibility-cache files are not part
+of this bundle because the dashboard reads saved rollout and reconstruction
+results and never loads those caches at runtime.
 
 See [the policy-variant guide](../docs/policy_variants.md) for what each of the
-nine policies does and how they form the 45 policy/view comparisons.
-See [the training and loss guide](../docs/training_runs_and_losses.md) for the
-policy-head runs and the separate 2DGS/3DGS fitting objectives.
+nine policies does and how they form the 45 policy/view comparisons. See [the
+training and loss guide](../docs/training_runs_and_losses.md) for the policy-head
+runs and the separate 2DGS/3DGS fitting objectives.
 
 See [the two 2DGS CPU fixes](../docs/2dgs_cpu_fixes.md) for the difference between
 depth reevaluation and placement repair, their inputs/outputs, and execution order.
@@ -63,6 +76,22 @@ depth reevaluation and placement repair, their inputs/outputs, and execution ord
 
 ## Evaluation status
 
-The first five airplane objects have complete manifests for all 45
-policy/view variants. The remaining objects currently have partial evaluation
-artifacts.
+The saved evaluation coverage varies by object and policy. The dashboard only
+offers combinations for which it finds complete display artifacts.
+
+## Minimal checkout
+
+Use the sparse-clone instructions in the repository's [dashboard
+README](../README.md#minimal-dashboard-checkout), then run `make dashboard`.
+Those instructions select only the source, compact data, documentation, and
+saved-result trees the dashboard reads.
+
+The checked-in `dashboard_data` directory is already complete for the objects
+above. It can also be archived directly for transfer:
+
+```bash
+tar -czf dashboard_data.tar.gz dashboard_data
+```
+
+Extract that archive at the repository root so the resulting path is
+`dashboard_data/NUM/...`.
