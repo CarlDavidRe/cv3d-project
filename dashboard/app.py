@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import math
+import os
 from pathlib import Path
 
 import altair as alt
@@ -15,47 +15,89 @@ from plotly.subplots import make_subplots
 import streamlit as st
 import streamlit.components.v1 as components
 
-from dashboard.gaussian_artifacts import (
-    is_current_gaussian_repair,
-    is_current_gaussian_training,
-    summary_file_matches,
-)
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PHASE1_ROOT = REPO_ROOT / "outputs" / "phase1" / "backbone_sweep"
+
+DASHBOARD_ROOT = Path(
+    os.environ.get("CV3D_DASHBOARD_ROOT", str(REPO_ROOT))
+).resolve()
+
+PHASE1_ROOT = DASHBOARD_ROOT / "outputs" / "phase1" / "backbone_sweep"
+
 PHASE2_CLOSED_LOOP_ROOT = (
-    REPO_ROOT / "outputs" / "phase2" / "phase2_closed_loop_reconstruction" / "seed_0"
+    DASHBOARD_ROOT
+    / "outputs"
+    / "phase2"
+    / "phase2_closed_loop_reconstruction"
+    / "seed_0"
 )
+
 PHASE3_CLOSED_LOOP_ROOT = (
-    REPO_ROOT
+    DASHBOARD_ROOT
     / "outputs"
     / "phase3"
     / "controlled_history_comparison_reconstruction"
     / "seed_0"
 )
+
 PHASE3_POSE_DEEPSETS_ROOT = (
-    REPO_ROOT / "outputs" / "phase3" / "controlled_pose_deepsets" / "seed_0"
+    DASHBOARD_ROOT
+    / "outputs"
+    / "phase3"
+    / "controlled_pose_deepsets"
+    / "seed_0"
 )
+
 PHASE3_TOKEN_ATTENTION_ROOT = (
-    REPO_ROOT / "outputs" / "phase3" / "controlled_token_attention" / "seed_0"
+    DASHBOARD_ROOT
+    / "outputs"
+    / "phase3"
+    / "controlled_token_attention"
+    / "seed_0"
 )
+
 GAUSSIAN_SPLATTING_ROOT = (
-    REPO_ROOT / "outputs" / "gaussian_splatting_per_view_budget"
+    DASHBOARD_ROOT
+    / "outputs"
+    / "gaussian_splatting_variant_comparison"
 )
-GAUSSIAN_SPLATTING_REPAIR_ROOT = (
-    REPO_ROOT / "outputs" / "gaussian_splatting_per_view_budget_alignment_repair"
-)
+
 GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT = (
-    REPO_ROOT / "outputs" / "gaussian_splatting_per_view_budget_cpu_recovery"
+    DASHBOARD_ROOT
+    / "outputs"
+    / "gaussian_splatting_cpu_recovery"
 )
-NUM_ROOT = REPO_ROOT / "data" / "NUM"
-SHAPENET_ROOT = REPO_ROOT / "data" / "ShapeNetCore.v2"
-SPLIT_MANIFEST = REPO_ROOT / "data" / "splits" / "num_v1.json"
-ANCHOR_PATH = REPO_ROOT / "src" / "nbv" / "geometry" / "anchors_v1.csv"
-PREDICTION_DATA = REPO_ROOT / "dashboard" / "data" / "phase1_test_predictions.npz"
+
+NUM_ROOT = DASHBOARD_ROOT / "data" / "NUM"
+
+SHAPENET_ROOT = DASHBOARD_ROOT / "data" / "ShapeNetCore.v2"
+
+SPLIT_MANIFEST = (
+    DASHBOARD_ROOT
+    / "data"
+    / "splits"
+    / "num_v1.json"
+)
+
+ANCHOR_PATH = (
+    DASHBOARD_ROOT
+    / "src"
+    / "nbv"
+    / "geometry"
+    / "anchors_v1.csv"
+)
+
+PREDICTION_DATA = (
+    DASHBOARD_ROOT
+    / "dashboard"
+    / "data"
+    / "phase1_test_predictions.npz"
+)
+
 DASHBOARD_RENDERING_OBJECTS_README = (
-    REPO_ROOT / "dashboard_rendering_objects" / "README.md"
+    DASHBOARD_ROOT
+    / "dashboard_rendering_objects"
+    / "README.md"
 )
 
 CATEGORY_NAMES = {
@@ -147,15 +189,15 @@ CLOSED_LOOP_POLICY_LABELS = {
 }
 
 CLOSED_LOOP_POLICY_COLORS = {
-    "Random": "#64748b",
+    "Random": "#94a3b8",
     "Farthest view": "#3b82f6",
-    "PUN": "#f59e0b",
+    "PUN": "#f97316",
     "VGGT · single image": "#8b5cf6",
     "Oracle": "#34d399",
-    "VGGT · independent history": "#06b6d4",
+    "VGGT · independent history": "#22d3ee",
     "VGGT · joint history": "#ec4899",
     "VGGT · pose DeepSets": "#ef4444",
-    "VGGT · token attention": "#84cc16",
+    "VGGT · token attention": "#facc15",
 }
 
 RECONSTRUCTION_METRICS = {
@@ -338,10 +380,7 @@ def load_object_mesh(path: str) -> tuple[np.ndarray, np.ndarray] | None:
     vertices -= vertices.mean(axis=0, keepdims=True)
     scale = float(np.linalg.norm(vertices, axis=1).max())
     if scale > 0:
-        # Keep the object prominent inside the camera sphere.  The previous
-        # scale left thin objects especially difficult to distinguish from the
-        # surrounding anchors and guide lines.
-        vertices *= 0.88 / scale
+        vertices *= 0.72 / scale
     return vertices, np.asarray(triangles, dtype=np.int32)
 
 
@@ -352,7 +391,7 @@ def build_anchor_sphere(
     figure = go.Figure()
     sphere_radius = 1.35
 
-    line_color = "rgba(100, 116, 139, .18)"
+    line_color = "rgba(100, 116, 139, .28)"
     longitude = np.linspace(0, 2 * math.pi, 100)
     for elevation in np.linspace(-math.pi / 3, math.pi / 3, 5):
         radius = sphere_radius * math.cos(elevation)
@@ -392,16 +431,9 @@ def build_anchor_sphere(
                 j=faces[:, 1],
                 k=faces[:, 2],
                 color="#22d3ee",
-                opacity=1.0,
+                opacity=0.86,
                 flatshading=False,
-                lighting={
-                    "ambient": 0.68,
-                    "diffuse": 0.82,
-                    "specular": 0.28,
-                    "roughness": 0.48,
-                    "fresnel": 0.12,
-                },
-                lightposition={"x": 100, "y": 140, "z": 180},
+                lighting={"ambient": 0.45, "diffuse": 0.75, "roughness": 0.65},
                 hoverinfo="skip",
                 name="Object",
             )
@@ -427,7 +459,6 @@ def build_anchor_sphere(
             marker={
                 "size": np.where(selected, 10, 5),
                 "color": np.where(selected, "#f59e0b", "#e2e8f0"),
-                "opacity": 0.72,
                 "line": {"color": "#07101f", "width": 1},
             },
             customdata=np.column_stack(
@@ -461,7 +492,7 @@ def build_anchor_sphere(
         margin={"l": 0, "r": 0, "t": 18, "b": 0},
         paper_bgcolor="rgba(0,0,0,0)",
         scene={
-            "bgcolor": "rgba(5,10,20,.9)",
+            "bgcolor": "rgba(0,0,0,0)",
             "aspectmode": "cube",
             "camera": {
                 "eye": {
@@ -863,62 +894,28 @@ def load_closed_loop_tables(
 
 
 @st.cache_data(show_spinner=False)
-def load_gaussian_splatting_metrics(
-    repaired_root: str, original_root: str
-) -> pd.DataFrame:
-    """Aggregate repaired 2DGS metrics plus the original one-view fallback."""
+def load_gaussian_splatting_metrics(root: str) -> pd.DataFrame:
+    """Aggregate verified CPU-recovered 2DGS evaluations by policy and view count."""
     frames: list[pd.DataFrame] = []
-    sources = (
-        (Path(repaired_root), True, "Silhouette-refined placement"),
-        (Path(original_root), False, "Original placement (one view)"),
-    )
-    for root, repaired, protocol in sources:
-        for path in sorted(root.glob("*/*/*views/phase*/2dgs/metrics.csv")):
-            summary_path = path.with_name("summary.json")
-            if not summary_path.is_file():
-                continue
-            try:
-                summary = json.loads(summary_path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                continue
-            try:
-                view_count = int(summary.get("acquired_view_count", 0))
-            except (TypeError, ValueError):
-                continue
-            if repaired:
-                valid = (
-                    "cpu_recovery" in summary
-                    and is_current_gaussian_repair(summary, "2dgs")
-                )
-            else:
-                valid = view_count == 1 and is_current_gaussian_training(
-                    summary, "2dgs"
-                )
-            if not valid:
-                continue
-            frame = pd.read_csv(path)
-            if frame.empty:
-                continue
-            variant = path.parents[1].name
-            frame["phase"] = (
-                "Phase 2" if variant.startswith("phase2_") else "Phase 3"
-            )
-            frame["policy_label"] = frame["policy"].map(pretty_policy)
-            frame["evaluation_protocol"] = protocol
-            frame["protocol_priority"] = int(repaired)
-            frames.append(frame)
+    for path in sorted(Path(root).glob("*/*/*views/phase*/2dgs/metrics.csv")):
+        summary_path = path.with_name("summary.json")
+        if not summary_path.is_file():
+            continue
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        if "cpu_recovery" not in summary:
+            continue
+        frame = pd.read_csv(path)
+        if frame.empty:
+            continue
+        variant = path.parents[1].name
+        frame["phase"] = "Phase 2" if variant.startswith("phase2_") else "Phase 3"
+        frame["policy_label"] = frame["policy"].map(pretty_policy)
+        frames.append(frame)
 
     if not frames:
         return pd.DataFrame()
 
     combined = pd.concat(frames, ignore_index=True)
-    combined = (
-        combined.sort_values("protocol_priority", ascending=False)
-        .drop_duplicates(
-            ["phase", "object_id", "policy", "acquired_view_count", "backend"],
-            keep="first",
-        )
-    )
     metric_columns = [
         column
         for column in combined.columns
@@ -927,7 +924,6 @@ def load_gaussian_splatting_metrics(
     ]
     aggregations = {column: "mean" for column in metric_columns}
     aggregations["object_id"] = "nunique"
-    aggregations["evaluation_protocol"] = "first"
     return (
         combined.groupby(
             ["phase", "policy", "policy_label", "acquired_view_count"],
@@ -939,58 +935,32 @@ def load_gaussian_splatting_metrics(
 
 
 @st.cache_data(show_spinner=False)
-def load_gaussian_render_catalog(
-    repaired_root: str, original_root: str
-) -> pd.DataFrame:
-    """Index repaired histories and original-placement one-view artifacts."""
-    records: dict[tuple[str, str, str, int], dict[str, object]] = {}
-    # Process the original fallback first so a repaired artifact wins any collision.
-    for root_path, repaired in (
-        (Path(original_root), False),
-        (Path(repaired_root), True),
+def load_3dgs_render_catalog(root: str) -> pd.DataFrame:
+    """Index 48-anchor 3DGS/ground-truth viewers by policy and view count."""
+    records: list[dict[str, object]] = []
+    root_path = Path(root)
+    for path in sorted(
+        root_path.glob("*/*/*views/phase*/3dgs/ground_truth_comparison.html")
     ):
-        summaries = sorted(root_path.glob("*/*/*views/phase*/*/summary.json"))
-        for summary_path in summaries:
-            relative = summary_path.relative_to(root_path)
-            category_id, object_id, view_directory, variant, backend, _ = relative.parts
-            if backend not in ("2dgs", "3dgs"):
-                continue
-            try:
-                summary = json.loads(summary_path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                continue
-            view_count = int(view_directory.removesuffix("views"))
-            valid = (
-                is_current_gaussian_repair(summary, backend)
-                if repaired
-                else view_count == 1
-                and is_current_gaussian_training(summary, backend)
-            )
-            if not valid:
-                continue
-            viewer = summary_path.with_name(
-                "comparison_interactive.html"
-                if backend == "2dgs" else "ground_truth_comparison.html"
-            )
-            if not viewer.is_file():
-                continue
-            object_key = f"{category_id}/{object_id}"
-            if object_key not in DASHBOARD_RENDERING_OBJECT_KEYS:
-                continue
-            phase_token, policy = variant.split("_", maxsplit=1)
-            key = category_id, object_id, policy, view_count
-            records[key] = {
+        relative = path.relative_to(root_path)
+        category_id, object_id, view_directory, variant, _, _ = relative.parts
+        object_key = f"{category_id}/{object_id}"
+        if object_key not in DASHBOARD_RENDERING_OBJECT_KEYS:
+            continue
+        phase_token, policy = variant.split("_", maxsplit=1)
+        records.append(
+            {
                 "phase": "Phase 2" if phase_token == "phase2" else "Phase 3",
                 "policy": policy,
                 "policy_label": pretty_policy(policy),
                 "category_id": category_id,
                 "object_id": object_id,
                 "object_key": object_key,
-                "acquired_view_count": view_count,
-                "path": str(summary_path.parent.parent),
-                "repaired": repaired,
+                "acquired_view_count": int(view_directory.removesuffix("views")),
+                "path": str(path),
             }
-    return pd.DataFrame.from_records(list(records.values()))
+        )
+    return pd.DataFrame.from_records(records)
 
 
 @st.cache_data(show_spinner=False)
@@ -1173,69 +1143,33 @@ def render_reconstruction_comparison_row(
 
     matching_3dgs = matching_rows(render_catalog)
     matching_vggt = matching_rows(vggt_render_catalog)
-    gaussian_history = (
+    comparison_3dgs_path = (
         Path(matching_3dgs["path"].iloc[0]) if not matching_3dgs.empty else None
-    )
-    history_is_repaired = (
-        bool(matching_3dgs["repaired"].iloc[0]) if not matching_3dgs.empty else False
     )
     comparison_vggt_path = (
         Path(matching_vggt["path"].iloc[0]) if not matching_vggt.empty else None
     )
     comparison_2dgs_path = None
-    original_2dgs_path = None
-    comparison_3dgs_path = None
-    if gaussian_history is not None and history_is_repaired:
-        relative_history = gaussian_history.relative_to(GAUSSIAN_SPLATTING_REPAIR_ROOT)
-        original_2dgs_path = GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT / relative_history / (
-            "2dgs/comparison_interactive.html"
+    if comparison_3dgs_path is not None:
+        comparison_2dgs_path = (
+            GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT
+            / comparison_3dgs_path.parent.parent.relative_to(GAUSSIAN_SPLATTING_ROOT)
+            / "2dgs"
+            / "comparison_interactive.html"
         )
-        comparison_2dgs_path = gaussian_history / "2dgs/comparison_interactive.html"
-        repaired_3dgs_path = gaussian_history / "3dgs/ground_truth_comparison.html"
-        if not summary_file_matches(
-            original_2dgs_path.with_name("summary.json"),
-            backend="2dgs", repaired=False,
-        ):
-            original_2dgs_path = None
-        if not summary_file_matches(
-            comparison_2dgs_path.with_name("summary.json"),
-            backend="2dgs", repaired=True,
-        ):
-            comparison_2dgs_path = None
-        if summary_file_matches(
-            repaired_3dgs_path.with_name("summary.json"),
-            backend="3dgs", repaired=True,
-        ):
-            comparison_3dgs_path = repaired_3dgs_path
-    elif gaussian_history is not None:
-        original_2dgs_path = gaussian_history / "2dgs/comparison_interactive.html"
-        original_3dgs_path = gaussian_history / "3dgs/ground_truth_comparison.html"
-        if not summary_file_matches(
-            original_2dgs_path.with_name("summary.json"),
-            backend="2dgs", repaired=False,
-        ):
-            original_2dgs_path = None
-        if summary_file_matches(
-            original_3dgs_path.with_name("summary.json"),
-            backend="3dgs", repaired=False,
-        ):
-            comparison_3dgs_path = original_3dgs_path
     ground_truth_cloud_path = comparison_vggt_path
     if ground_truth_cloud_path is None and (
         comparison_2dgs_path is not None and comparison_2dgs_path.is_file()
     ):
         ground_truth_cloud_path = comparison_2dgs_path
-    if ground_truth_cloud_path is None and original_2dgs_path is not None and original_2dgs_path.is_file():
-        ground_truth_cloud_path = original_2dgs_path
 
     (
         policy_column,
         render_3dgs_column,
-        original_2dgs_column,
         surface_2dgs_column,
         vggt_column,
         ground_truth_column,
-    ) = st.columns([0.9, 1, 1, 1, 1, 1], gap="small", vertical_alignment="center")
+    ) = st.columns([0.9, 1, 1, 1, 1], gap="small", vertical_alignment="center")
     with policy_column:
         st.markdown(
             f'<div class="matrix-row-label">{pretty_policy(policy)}</div>',
@@ -1243,7 +1177,7 @@ def render_reconstruction_comparison_row(
         )
     with render_3dgs_column:
         if comparison_3dgs_path is None:
-            st.info("Repaired 3DGS not available for this selection yet.")
+            st.info("Not available.")
         else:
             components.html(
                 make_compact_3dgs_view(
@@ -1252,18 +1186,9 @@ def render_reconstruction_comparison_row(
                 height=240,
                 scrolling=False,
             )
-    with original_2dgs_column:
-        if original_2dgs_path is None or not original_2dgs_path.is_file():
-            st.info("Unrepaired 2DGS not available for this selection yet.")
-        else:
-            components.html(
-                make_compact_point_cloud_view(
-                    original_2dgs_path.read_text(encoding="utf-8"), ground_truth=False,
-                ), height=240, scrolling=False,
-            )
     with surface_2dgs_column:
         if comparison_2dgs_path is None or not comparison_2dgs_path.is_file():
-            st.info("Repaired 2DGS not available for this selection yet.")
+            st.info("Not available.")
         else:
             components.html(
                 make_compact_point_cloud_view(
@@ -1354,38 +1279,6 @@ def load_dashboard_rollout(path: str) -> dict[str, object]:
         }
 
 
-@st.cache_data(show_spinner=False)
-def load_observation_data_uri(path: str) -> str | None:
-    """Encode one local rollout observation for a compact HTML matrix cell."""
-    source = Path(path)
-    if not source.is_file():
-        return None
-    encoded = base64.b64encode(source.read_bytes()).decode("ascii")
-    return f"data:image/png;base64,{encoded}"
-
-
-def render_rollout_matrix_cell(
-    observation_path: Path,
-    *,
-    view_number: int,
-    anchor_id: int,
-) -> None:
-    """Render one small acquired-view cell with its anchor label."""
-    data_uri = load_observation_data_uri(str(observation_path))
-    image = (
-        f'<img src="{data_uri}" alt="Observation from anchor {anchor_id}">'
-        if data_uri is not None
-        else '<div class="rollout-cell-missing">Image unavailable</div>'
-    )
-    st.markdown(
-        '<div class="rollout-matrix-cell">'
-        f"{image}"
-        f'<div class="rollout-cell-anchor">View {view_number} · Anchor {anchor_id}</div>'
-        "</div>",
-        unsafe_allow_html=True,
-    )
-
-
 def build_closed_loop_curve(
     data: pd.DataFrame,
     *,
@@ -1462,7 +1355,16 @@ def build_reconstruction_comparison_chart(
     y_domain: tuple[float, float],
 ) -> alt.FacetChart:
     """Draw separate VGGT and 2DGS plots with one shared policy legend."""
-    method_order = ["VGGT reconstruction", "2DGS reconstruction"]
+    direction_symbol = (
+        "↓" if y_title.endswith("↓")
+        else "↑" if y_title.endswith("↑")
+        else ""
+    )
+
+    method_order = [
+        f"VGGT reconstruction {direction_symbol}",
+        f"2D Gaussian Splatting {direction_symbol}",
+    ]
     frames: list[pd.DataFrame] = []
     for data, metric, method in (
         (vggt_data, vggt_metric, method_order[0]),
@@ -1499,7 +1401,7 @@ def build_reconstruction_comparison_chart(
                 domain=domain,
                 range=[CLOSED_LOOP_POLICY_COLORS[label] for label in domain],
             ),
-            legend=alt.Legend(orient="top", direction="horizontal", columns=4),
+            legend=None,
         ),
         "strokeDash": alt.StrokeDash(
             "phase:N",
@@ -1514,7 +1416,6 @@ def build_reconstruction_comparison_chart(
             alt.Tooltip("acquired_view_count:Q", title="Acquired views"),
             alt.Tooltip("metric_value:Q", title=y_title, format=".4f"),
             alt.Tooltip("object_count:Q", title="Objects"),
-            alt.Tooltip("evaluation_protocol:N", title="2DGS protocol"),
         ],
     }
     line = alt.Chart(combined).mark_line(point=False, strokeWidth=3).encode(**encoding)
@@ -1546,9 +1447,6 @@ def build_rollout_trajectory(
     anchors: pd.DataFrame,
     acquired_anchor_ids: np.ndarray,
     mesh: tuple[np.ndarray, np.ndarray] | None,
-    *,
-    height: int = 560,
-    view_revision: int = 0,
 ) -> go.Figure:
     """Show the ordered camera trajectory around the selected object."""
     figure = build_anchor_sphere(anchors, int(acquired_anchor_ids[-1]), mesh)
@@ -1563,8 +1461,8 @@ def build_rollout_trajectory(
             y=y,
             z=z,
             mode="lines+markers+text",
-            line={"color": "#f472b6", "width": 7},
-            marker={"color": "#f472b6", "size": 7},
+            line={"color": "#22d3ee", "width": 7},
+            marker={"color": "#22d3ee", "size": 7},
             text=[str(index + 1) for index in range(len(x))],
             textposition="top center",
             textfont={"color": "#f8fafc", "size": 12},
@@ -1576,15 +1474,10 @@ def build_rollout_trajectory(
         )
     )
     figure.update_layout(
-        height=height,
-        showlegend=False,
-        uirevision=f"rollout-camera-{view_revision}",
-        scene_camera={
-            "eye": {"x": 1.55, "y": 1.55, "z": 1.15},
-            "center": {"x": 0.0, "y": 0.0, "z": 0.0},
-            "up": {"x": 0.0, "y": 0.0, "z": 1.0},
-        },
-    )
+        height=560, 
+        showlegend=False, 
+        margin={"l": 0, "r": 0, "t": 10, "b": 0},
+        )
     return figure
 
 
@@ -1599,11 +1492,199 @@ st.markdown(
     """
     <style>
       .stApp { background: #07101f; color: #e2e8f0; }
-      [data-testid="stHeader"] { background: rgba(7, 16, 31, .82); }
-      .block-container { max-width: 1480px; padding-top: 2.2rem; padding-bottom: 4rem; }
+      [data-testid="stHeader"] { background: rgba(7, 16, 31, .82); backdrop-filter: blur(14px); border-bottom: 1px solid rgba(148, 163, 184, 0.12);}
+      [data-testid="stMainBlockContainer"],
+      .block-container {
+            width: 100% !important;
+            max-width: none !important;
+            padding-top: 4rem !important;
+            padding-bottom: 4rem !important;
+            padding-left: 3rem !important;
+            padding-right: 3rem !important;
+            }
+      @media (max-width: 900px) {
+        [data-testid="stMainBlockContainer"],
+        .block-container {
+            padding-left: 1.25rem !important;
+            padding-right: 1.25rem !important;
+        }
+}
       .eyebrow { color: #22d3ee; font-size: .72rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
       .hero-title { color: #f8fafc; font-size: clamp(2.2rem, 5vw, 4.2rem); font-weight: 680; line-height: .98; letter-spacing: -.055em; margin: .65rem 0 .8rem; }
       .hero-copy { color: #94a3b8; font-size: 1rem; max-width: 680px; line-height: 1.65; }
+      .rollout-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 2rem;
+            padding: 0 0 1.25rem;
+            margin-bottom: 1.35rem;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        }
+
+        .rollout-header-main {
+            max-width: 820px;
+        }
+
+        .rollout-title {
+            color: #f8fafc;
+            font-size: clamp(2rem, 2.8vw, 2.9rem);
+            font-weight: 680;
+            line-height: 1.03;
+            letter-spacing: -0.045em;
+            margin: 0.45rem 0 0.7rem;
+        }
+
+        .rollout-copy {
+            color: #94a3b8;
+            font-size: 1rem;
+            line-height: 1.6;
+            max-width: 760px;
+            margin: 0;
+        }
+
+        .panel-label {
+            color: #64748b;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.13em;
+            text-transform: uppercase;
+            margin: 0 0 0.55rem;
+        }
+
+        .viz-title {
+            color: #f8fafc;
+            font-size: 1rem;
+            font-weight: 650;
+            letter-spacing: -.015em;
+            margin-bottom: .2rem;
+        }
+
+        .viz-copy {
+            color: #64748b;
+            font-size: .8rem;
+            line-height: 1.5;
+            margin-bottom: .65rem;
+        }
+
+        .observation-empty {
+            min-height: 350px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .observation-empty-icon {
+            color: #22d3ee;
+            font-size: 2rem;
+            margin-bottom: .9rem;
+        }
+
+        .observation-empty-title {
+            color: #e2e8f0;
+            font-size: .95rem;
+            font-weight: 650;
+            margin-bottom: .45rem;
+        }
+
+        .observation-empty-copy {
+            color: #64748b;
+            font-size: .8rem;
+            line-height: 1.6;
+            max-width: 260px;
+        }
+        .research-kpi {
+            position: relative;
+            min-height: 118px;
+            padding: 1rem 1.15rem;
+            background:
+                linear-gradient(135deg, rgba(34,211,238,.045), transparent 55%),
+                rgba(15, 23, 42, .72);
+            border: 1px solid #1e293b;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .research-kpi::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 18px;
+            bottom: 18px;
+            width: 3px;
+            border-radius: 3px;
+            background: #22d3ee;
+        }
+
+        .research-kpi-label {
+            color: #94a3b8;
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .10em;
+            text-transform: uppercase;
+            margin-bottom: .6rem;
+        }
+
+        .research-kpi-value {
+            color: #f8fafc;
+            font-size: 1.8rem;
+            font-weight: 650;
+            line-height: 1;
+            letter-spacing: -.035em;
+        }
+
+        .research-kpi-value span {
+            color: #64748b;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .research-kpi-meta {
+            color: #64748b;
+            font-size: .78rem;
+            margin-top: .55rem;
+        }
+
+        .dataset-kpi {
+            position: relative;
+            min-height: 118px;
+            padding: 1rem 1.15rem;
+            background:
+                linear-gradient(135deg, rgba(34,211,238,.035), transparent 55%),
+                rgba(15, 23, 42, .72);
+            border: 1px solid #1e293b;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .dataset-kpi::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 18px;
+            bottom: 18px;
+            width: 3px;
+            border-radius: 3px;
+            background: var(--accent, #22d3ee);
+        }
+
+    [data-testid="stVerticalBlockBorderWrapper"] {
+        background: rgba(15, 23, 42, .38);
+        border-color: #1e293b !important;
+        border-radius: 16px !important;
+    }
+
+
+        
+        @media (max-width: 900px) {
+            .rollout-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
       .run-pill { display: inline-flex; align-items: center; gap: .5rem; color: #a7f3d0; background: rgba(16,185,129,.1); border: 1px solid rgba(52,211,153,.24); border-radius: 999px; padding: .38rem .7rem; font-size: .75rem; }
       .run-dot { width: 7px; height: 7px; border-radius: 50%; background: #34d399; box-shadow: 0 0 12px #34d399; }
       .section-kicker { color: #64748b; font-size: .72rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; margin-top: 2rem; }
@@ -1611,10 +1692,6 @@ st.markdown(
       .matrix-header { color: #94a3b8; border-bottom: 1px solid #334155; padding: .7rem .25rem .55rem; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-align: center; text-transform: uppercase; }
       .matrix-row-label { color: #f8fafc; font-size: .9rem; font-weight: 650; line-height: 1.35; padding-right: .65rem; }
       .matrix-footer { color: #94a3b8; border-top: 1px solid #334155; margin-top: .15rem; padding: .7rem .25rem 0; font-size: .78rem; line-height: 1.55; }
-      .rollout-matrix-cell { max-width: 88px; margin: .25rem auto .4rem; text-align: center; }
-      .rollout-matrix-cell img, .rollout-cell-missing { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border: 1px solid #334155; border-radius: 9px; background: rgba(15,23,42,.7); }
-      .rollout-cell-missing { display: grid; place-items: center; color: #64748b; font-size: .68rem; padding: .5rem; }
-      .rollout-cell-anchor { color: #e2e8f0; font-size: .72rem; font-weight: 650; margin-top: .38rem; }
       .metric-note { color: #94a3b8; font-size: .84rem; padding-top: .25rem; }
       .split-badge { display: inline-flex; align-items: center; gap: .45rem; border: 1px solid currentColor; border-radius: 999px; padding: .28rem .62rem; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
       .split-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
@@ -1637,58 +1714,92 @@ def render_dataset_page() -> None:
     anchors = load_anchor_directions(str(ANCHOR_PATH))
 
     st.markdown(
-        '<div class="eyebrow">CV3D / dataset</div>', unsafe_allow_html=True
-    )
-    st.markdown(
-        '<div class="hero-title">Explore the objects<br>and camera sphere.</div>',
+        f"""<div class="rollout-header">
+<div class="rollout-header-main">
+<div class="eyebrow">CV3D / DATASET EXPLORER</div>
+<div class="rollout-title">Explore the observation space.</div>
+<p class="rollout-copy">Inspect ShapeNet objects across the 48 canonical camera anchors used throughout the next-best-view experiments.</p>
+</div>
+<div class="run-pill"><span class="run-dot"></span>{len(dataset):,} objects · {len(anchors)} anchors</div>
+</div>""",
         unsafe_allow_html=True,
     )
+
     st.markdown(
-        '<div class="hero-copy">The NUM dataset contains 13 ShapeNet categories observed '
-        'from 48 canonical camera anchors. Every object belongs exclusively to train, '
-        'validation, or test.</div>',
+        '<div class="panel-label">Dataset overview</div>',
         unsafe_allow_html=True,
     )
 
     split_columns = st.columns(3)
+
+    split_descriptions = {
+        "train": "training split",
+        "val": "model selection",
+        "test": "held-out evaluation",
+    }
+
     for column, split_name in zip(
         split_columns, ("train", "val", "test"), strict=True
     ):
         split_count = int((dataset["split"] == split_name).sum())
+        split_color = SPLIT_COLORS[split_name]
+
         with column:
-            st.metric(f"{SPLIT_LABELS[split_name]} objects", f"{split_count:,}")
+            st.markdown(
+                f'<div class="dataset-kpi" style="--accent:{split_color};">'
+                f'<div class="research-kpi-label">{SPLIT_LABELS[split_name]} objects</div>'
+                f'<div class="research-kpi-value">{split_count:,}</div>'
+                f'<div class="research-kpi-meta">{split_descriptions[split_name]}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-    category_options = sorted(dataset["category"].unique())
-    selector_a, selector_b, selector_c, selector_d = st.columns([1.1, 1, 2.2, 1])
-    with selector_a:
-        selected_category = st.selectbox("Category", category_options)
-
-    category_rows = dataset[dataset["category"] == selected_category]
-    available_splits = [
-        split_name
-        for split_name in ("train", "val", "test")
-        if split_name in set(category_rows["split"])
-    ]
-    with selector_b:
-        selected_split = st.selectbox(
-            "Object split",
-            available_splits,
-            format_func=lambda value: SPLIT_LABELS[value],
-        )
-
-    object_options = sorted(
-        category_rows.loc[
-            category_rows["split"] == selected_split, "object_id"
-        ].tolist()
+    st.markdown(
+        '<div class="panel-label" style="margin-top:1.4rem;">Explore an object</div>',
+        unsafe_allow_html=True,
     )
-    with selector_c:
-        selected_object = st.selectbox("Object", object_options)
-    with selector_d:
-        selected_anchor = st.selectbox(
-            "Camera anchor",
-            anchors["anchor_id"].astype(int).tolist(),
-            format_func=pretty_anchor,
+
+    with st.container(border=True):
+        category_options = sorted(dataset["category"].unique())
+        selector_a, selector_b, selector_c, selector_d = st.columns([1.1, 1, 2.2, 1])
+
+        with selector_a:
+            selected_category = st.selectbox("Category", category_options)
+
+        category_rows = dataset[dataset["category"] == selected_category]
+
+        available_splits = [
+            split_name
+            for split_name in ("train", "val", "test")
+            if split_name in set(category_rows["split"])
+        ]
+
+        with selector_b:
+            selected_split = st.selectbox(
+                "Object split",
+                available_splits,
+                format_func=lambda value: SPLIT_LABELS[value],
+            )
+
+        object_options = sorted(
+            category_rows.loc[
+                category_rows["split"] == selected_split,
+                "object_id",
+            ].tolist()
         )
+
+        with selector_c:
+            selected_object = st.selectbox(
+                "Object",
+                object_options,
+            )
+
+        with selector_d:
+            selected_anchor = st.selectbox(
+                "Camera anchor",
+                anchors["anchor_id"].astype(int).tolist(),
+                format_func=pretty_anchor,
+            )
 
     category_id = str(category_rows.iloc[0]["category_id"])
     object_key = f"{category_id}/{selected_object}"
@@ -1701,77 +1812,112 @@ def render_dataset_page() -> None:
     )
     mesh = load_object_mesh(str(mesh_path))
 
-    sphere_column, preview_column = st.columns(
-        [2.15, 1], vertical_alignment="center"
+    
+    selected_row = anchors.loc[
+        anchors["anchor_id"] == selected_anchor
+    ].iloc[0]
+
+    st.markdown(
+        '<div class="panel-label" style="margin-top:1.5rem;">Object inspection</div>',
+        unsafe_allow_html=True,
     )
+
+    sphere_column, preview_column = st.columns(
+        [2.1, 1],
+        vertical_alignment="top",
+    )
+
     with sphere_column:
-        st.plotly_chart(
-            build_anchor_sphere(anchors, selected_anchor, mesh),
-            width="stretch",
-            config={"displayModeBar": False, "scrollZoom": False},
-        )
-    with preview_column:
-        split_color = SPLIT_COLORS[selected_split]
         st.markdown(
-            f'<div class="split-badge" style="color:{split_color}">'
-            f'<span class="split-dot"></span>{SPLIT_LABELS[selected_split]}</div>'
-            f'<div class="object-id">{object_key}</div>',
+            '<div class="viz-title">Camera geometry</div>'
+            '<div class="viz-copy">Orbit the object and inspect the 48 canonical camera anchors.</div>',
             unsafe_allow_html=True,
         )
-        if image_path.is_file():
-            st.image(
-                str(image_path),
-                caption=f"Rendered observation from anchor {selected_anchor}",
+
+        with st.container(border=True):
+            st.plotly_chart(
+                build_anchor_sphere(
+                    anchors,
+                    selected_anchor,
+                    mesh,
+                ),
                 width="stretch",
+                config={"displayModeBar": False, "scrollZoom": False},
             )
-        else:
-            st.info(
-                "The split and anchor explorer is available, but this rendered "
-                "view requires the local `data/NUM` dataset."
-            )
-        selected_row = anchors.loc[
-            anchors["anchor_id"] == selected_anchor
-        ].iloc[0]
+
+    with preview_column:
         st.markdown(
-            f'<div class="metric-note"><strong>Selected camera</strong><br>'
-            f'Azimuth {math.degrees(float(selected_row["azimuth_rad"])):.1f}° · '
-            f'Elevation {math.degrees(float(selected_row["elevation_rad"])):.1f}°'
-            '<br><br>Selecting an anchor aligns the camera to its view. Drag the '
-            'sphere to orbit; hover over a marker to inspect its anchor ID and pose.</div>',
+            '<div class="viz-title">Rendered observation</div>'
+            f'<div class="viz-copy">Anchor {selected_anchor} · '
+            f'{CATEGORY_NAMES.get(category_id, category_id)}</div>',
             unsafe_allow_html=True,
         )
+
+        with st.container(border=True):
+            split_color = SPLIT_COLORS[selected_split]
+
+            st.markdown(
+                f'<div class="split-badge" style="color:{split_color}">'
+                f'<span class="split-dot"></span>{SPLIT_LABELS[selected_split]}</div>'
+                f'<div class="object-id">{object_key}</div>',
+                unsafe_allow_html=True,
+            )
+
+            if image_path.is_file():
+                st.image(
+                    str(image_path),
+                    caption=f"Rendered observation from anchor {selected_anchor}",
+                    width="stretch",
+                )
+            else:
+                st.markdown(
+                    '<div class="observation-empty">'
+                    '<div class="observation-empty-icon">◈</div>'
+                    '<div class="observation-empty-title">Observation preview unavailable</div>'
+                    '<div class="observation-empty-copy">'
+                    'The lightweight dashboard keeps dataset metadata and camera geometry '
+                    'but omits the large NUM image dataset.'
+                    '</div>'
+                    '</div>',
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown(
+                f'<div class="metric-note">'
+                f'<strong>Selected camera</strong><br>'
+                f'Azimuth {math.degrees(float(selected_row["azimuth_rad"])):.1f}° · '
+                f'Elevation {math.degrees(float(selected_row["elevation_rad"])):.1f}°'
+                '</div>',
+                unsafe_allow_html=True,
+            )
 
 
 def render_representation_page() -> None:
     """Render the Phase 1 representation-comparison page."""
     results = load_phase1_results(str(PHASE1_ROOT))
-    header_left, header_right = st.columns([4, 1], vertical_alignment="center")
-    with header_left:
-        st.markdown(
-            '<div class="eyebrow">CV3D / representation sweep</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<div class="hero-title">See what predicts<br>view uncertainty.</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<div class="hero-copy">Compare frozen feature probes and baselines on '
-            'single-image prediction of the Neural Uncertainty Map across 48 candidate '
-            'views.</div>',
-            unsafe_allow_html=True,
-        )
-    with header_right:
-        seed_count = results["seed"].nunique() if not results.empty else 0
-        st.markdown(
-            f'<div class="run-pill"><span class="run-dot"></span>{seed_count} seeds '
-            'loaded · live outputs</div>',
-            unsafe_allow_html=True,
-        )
+    seed_count = results["seed"].nunique() if not results.empty else 0
+    variant_count = results["variant"].nunique() if not results.empty else 0
+
+    st.markdown(
+        f"""<div class="rollout-header">
+<div class="rollout-header-main">
+<div class="eyebrow">CV3D / PHASE 1 · REPRESENTATION SWEEP</div>
+<div class="rollout-title">Which frozen representation predicts the next view best?</div>
+<p class="rollout-copy">Compare frozen feature probes and baselines on single-image prediction of view uncertainty across the 48 candidate camera anchors.</p>
+</div>
+<div class="run-pill"><span class="run-dot"></span>{variant_count} variants · {seed_count} seeds</div>
+</div>""",
+        unsafe_allow_html=True,
+    )
 
     if results.empty:
         st.error(f"No Phase 1 summaries found under `{PHASE1_ROOT}`.")
         return
+
+    st.markdown(
+        '<div class="panel-label">Representation comparison</div>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown(
         '<div class="section-title">How well does each representation predict view '
@@ -1779,28 +1925,40 @@ def render_representation_page() -> None:
         unsafe_allow_html=True,
     )
 
-    control_a, control_b, control_c = st.columns([1.15, 1.7, 2.6])
-    with control_a:
-        split = st.selectbox(
-            "Evaluation split", ["test", "validation"], format_func=str.title
-        )
-    with control_b:
-        metric = st.selectbox(
-            "Metric",
-            list(METRICS),
-            format_func=lambda value: METRICS[value]["label"],
-        )
-    with control_c:
-        available_backbones = [
-            label
-            for label in BACKBONE_COLORS
-            if label in set(results["backbone_label"])
-        ]
-        selected_backbones = st.multiselect(
-            "Backbone families",
-            available_backbones,
-            default=available_backbones,
-        )
+    st.markdown(
+        '<div class="panel-label" style="margin-top:1.1rem;">Compare representations</div>',
+        unsafe_allow_html=True,
+    )
+
+    with st.container(border=True):
+        control_a, control_b, control_c = st.columns([1.15, 1.7, 2.6])
+
+        with control_a:
+            split = st.selectbox(
+                "Evaluation split",
+                ["test", "validation"],
+                format_func=str.title,
+            )
+
+        with control_b:
+            metric = st.selectbox(
+                "Metric",
+                list(METRICS),
+                format_func=lambda value: METRICS[value]["label"],
+            )
+
+        with control_c:
+            available_backbones = [
+                label
+                for label in BACKBONE_COLORS
+                if label in set(results["backbone_label"])
+            ]
+
+            selected_backbones = st.multiselect(
+                "Backbone families",
+                available_backbones,
+                default=available_backbones,
+            )
 
     filtered = results[
         (results["split"] == split)
@@ -1821,9 +1979,41 @@ def render_representation_page() -> None:
     )
     _, best_label = best_index
 
-    kpi_a, kpi_d = st.columns(2)
-    kpi_a.metric("Leading variant", best_label)
-    kpi_d.metric("Variants in view", filtered["variant"].nunique())
+    best_value = float(variant_means.loc[best_index])
+
+    kpi_variant, kpi_score, kpi_count = st.columns(3)
+
+    with kpi_variant:
+        st.markdown(
+            f'<div class="research-kpi">'
+            f'<div class="research-kpi-label">Leading variant</div>'
+            f'<div class="research-kpi-value" style="font-size:1.45rem;">{best_label}</div>'
+            f'<div class="research-kpi-meta">{split.title()} split</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    with kpi_score:
+        st.markdown(
+            f'<div class="research-kpi">'
+            f'<div class="research-kpi-label">{metric_meta["short"]}</div>'
+            f'<div class="research-kpi-value">{best_value:.4f}</div>'
+            f'<div class="research-kpi-meta">'
+            f'{"lower is better ↓" if metric_meta["direction"] == "lower" else "higher is better ↑"}'
+            f'</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    with kpi_count:
+        st.markdown(
+            f'<div class="research-kpi">'
+            f'<div class="research-kpi-label">Variants in view</div>'
+            f'<div class="research-kpi-value">{filtered["variant"].nunique()}</div>'
+            f'<div class="research-kpi-meta">filtered comparison</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
     direction_symbol = (
         "↓ lower is better"
@@ -1857,56 +2047,83 @@ def render_representation_page() -> None:
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<div class="metric-note">Choose a test object, input anchor, and Phase 1 variant. '
-        'Each map is rotated into source-relative coordinates, making the selected input view '
-        'local +Z. The sphere is then flattened with an azimuthal-equidistant projection: +Z '
-        'is at the center, the equator is halfway to the rim, −Z is at the rim, and azimuth '
-        'determines the direction around the circle. Each colored region belongs to its nearest anchor. '
-        'Purple means low uncertainty and yellow means high uncertainty; white dots mark all '
-        '48 anchors, the center × is the excluded source view, and the orange diamond marks '
-        'the predicted most-uncertain anchor.</div>',
+        '<div class="metric-note">'
+        'Compare the ground-truth uncertainty map with the prediction from a frozen '
+        'representation. Brighter regions indicate more uncertain candidate views.'
+        '</div>',
         unsafe_allow_html=True,
     )
 
-    map_control_a, map_control_b, map_control_c, map_control_d = st.columns(
-        [1.1, 2.2, 1.8, 1.1]
-    )
-    with map_control_a:
-        map_category_id = st.selectbox(
-            "Test category",
-            category_ids,
-            format_func=lambda value: CATEGORY_NAMES.get(value, value),
-        )
-    category_object_keys = [
-        key for key in object_keys if key.startswith(f"{map_category_id}/")
-    ]
-    with map_control_b:
-        map_object_key = st.selectbox(
-            "Test object",
-            category_object_keys,
-            format_func=lambda value: value.split("/", maxsplit=1)[1],
-        )
-    with map_control_c:
-        map_variant = st.selectbox(
-            "Prediction variant", variant_names, format_func=pretty_variant
+    with st.expander("How to read the uncertainty maps"):
+        st.markdown(
+            """
+Each map is expressed in **source-relative coordinates**:
+
+- the selected input view is local **+Z** at the center;
+- the equator lies halfway to the rim;
+- **−Z** lies at the outer rim;
+- each colored region corresponds to its nearest camera anchor;
+- purple indicates lower uncertainty and yellow indicates higher uncertainty;
+- white dots mark the 48 canonical anchors;
+- the center **×** marks the excluded source view;
+- the orange diamond marks the predicted most-uncertain anchor.
+"""
         )
 
-    object_index = object_keys.index(map_object_key)
-    variant_index = variant_names.index(map_variant)
-    available_source_anchors = np.flatnonzero(
-        prediction_data["available_source_anchors"][variant_index]
-    ).tolist()
-    with map_control_d:
-        source_anchor = st.selectbox(
-            "Input anchor",
-            available_source_anchors,
-            format_func=pretty_anchor,
+    st.markdown(
+        '<div class="panel-label" style="margin-top:1.1rem;">Inspect a prediction</div>',
+        unsafe_allow_html=True,
+    )
+
+    with st.container(border=True):
+        map_control_a, map_control_b, map_control_c, map_control_d = st.columns(
+            [1.1, 2.2, 1.8, 1.1]
         )
-    if len(available_source_anchors) == 1:
-        st.caption(
-            "Only source anchor 0 was retained for the official PUN baseline; the locally "
-            "trained probes support all 48 input anchors."
-        )
+
+        with map_control_a:
+            map_category_id = st.selectbox(
+                "Test category",
+                category_ids,
+                format_func=lambda value: CATEGORY_NAMES.get(value, value),
+            )
+
+        category_object_keys = [
+            key for key in object_keys if key.startswith(f"{map_category_id}/")
+        ]
+
+        with map_control_b:
+            map_object_key = st.selectbox(
+                "Test object",
+                category_object_keys,
+                format_func=lambda value: value.split("/", maxsplit=1)[1],
+            )
+
+        with map_control_c:
+            map_variant = st.selectbox(
+                "Prediction variant",
+                variant_names,
+                format_func=pretty_variant,
+            )
+
+        object_index = object_keys.index(map_object_key)
+        variant_index = variant_names.index(map_variant)
+
+        available_source_anchors = np.flatnonzero(
+            prediction_data["available_source_anchors"][variant_index]
+        ).tolist()
+
+        with map_control_d:
+            source_anchor = st.selectbox(
+                "Input anchor",
+                available_source_anchors,
+                format_func=pretty_anchor,
+            )
+
+        if len(available_source_anchors) == 1:
+            st.caption(
+                "Only source anchor 0 was retained for the official PUN baseline; "
+                "the locally trained probes support all 48 input anchors."
+            )
 
     target_map = prediction_data["targets"][object_index, source_anchor]
     predicted_map = prediction_data["predictions"][
@@ -1993,29 +2210,19 @@ def render_closed_loop_page() -> None:
     )
     comparison = tables["comparison"]
 
-    header_left, header_right = st.columns([4, 1], vertical_alignment="center")
-    with header_left:
-        st.markdown(
-            '<div class="eyebrow">CV3D / closed-loop evaluation</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<div class="hero-title">Follow the policy<br>around the object.</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<div class="hero-copy">Phase 2 compares single-image policies and geometric '
-            'baselines. Phase 3 tests whether independent or joint observation histories '
-            'make better next-view decisions over the same ten-view test protocol.</div>',
-            unsafe_allow_html=True,
-        )
-    with header_right:
-        policy_count = comparison["policy"].nunique() if not comparison.empty else 0
-        st.markdown(
-            f'<div class="run-pill"><span class="run-dot"></span>{policy_count} policies '
-            'loaded · 2 phases</div>',
-            unsafe_allow_html=True,
-        )
+    policy_count = comparison["policy"].nunique() if not comparison.empty else 0
+
+    st.markdown(
+        f"""<div class="rollout-header">
+<div class="rollout-header-main">
+<div class="eyebrow">CV3D / PHASE 2–3 · CLOSED-LOOP EVALUATION</div>
+<div class="rollout-title">Which policy explores the object most effectively?</div>
+<p class="rollout-copy">Compare single-image baselines and history-conditioned policies over the same ten-view closed-loop evaluation protocol.</p>
+</div>
+<div class="run-pill"><span class="run-dot"></span>{policy_count} policies · 2 phases</div>
+</div>""",
+        unsafe_allow_html=True,
+    )
 
     if comparison.empty or tables["coverage"].empty:
         st.error(
@@ -2023,6 +2230,11 @@ def render_closed_loop_page() -> None:
             "Phase 3 output directories."
         )
         return
+
+    st.markdown(
+        '<div class="panel-label">Policy comparison</div>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown(
         '<div class="section-title">Which policy leaves the most surface observed?</div>',
@@ -2035,22 +2247,78 @@ def render_closed_loop_page() -> None:
         "ndcg_at_5_mean": ("Mean NDCG @ 5", "↑ higher is better"),
         "median_policy_ms": ("Median decision time (ms)", "↓ lower is better"),
     }
-    summary_metric = st.selectbox(
-        "Policy summary metric",
-        list(summary_metrics),
-        format_func=lambda value: summary_metrics[value][0],
+    st.markdown(
+        '<div class="panel-label" style="margin-top:1rem;">Evaluation metric</div>',
+        unsafe_allow_html=True,
     )
 
+    with st.container(border=True):
+        summary_metric = st.selectbox(
+            "Policy summary metric",
+            list(summary_metrics),
+            format_func=lambda value: summary_metrics[value][0],
+            label_visibility="collapsed",
+        )
+
     metric_label, direction = summary_metrics[summary_metric]
-    leading_row = comparison.loc[
-        comparison[summary_metric].idxmin()
+
+    oracle_rows = comparison[comparison["policy"] == "oracle"]
+    non_oracle = comparison[comparison["policy"] != "oracle"]
+
+    oracle_row = oracle_rows.iloc[0]
+
+    best_non_oracle_row = non_oracle.loc[
+        non_oracle[summary_metric].idxmin()
         if direction.startswith("↓")
-        else comparison[summary_metric].idxmax()
+        else non_oracle[summary_metric].idxmax()
     ]
-    best_a, best_b, best_c = st.columns(3)
-    best_a.metric("Leading policy", leading_row["policy_label"])
-    best_b.metric(metric_label, f'{float(leading_row[summary_metric]):.4f}')
-    best_c.metric("Evaluation cohort", f'{int(leading_row["object_count"]):,} objects')
+
+    oracle_value = float(oracle_row[summary_metric])
+    best_non_oracle_value = float(best_non_oracle_row[summary_metric])
+
+    if summary_metric == "final_coverage_mean":
+        gap_value = abs(oracle_value - best_non_oracle_value) * 100.0
+        oracle_display = f"{oracle_value * 100:.1f}%"
+        best_display = f"{best_non_oracle_value * 100:.1f}%"
+        gap_display = f"{gap_value:.1f} pp"
+    else:
+        gap_value = abs(oracle_value - best_non_oracle_value)
+        oracle_display = f"{oracle_value:.4f}"
+        best_display = f"{best_non_oracle_value:.4f}"
+        gap_display = f"{gap_value:.4f}"
+
+    kpi_oracle, kpi_policy, kpi_gap = st.columns(3)
+
+    with kpi_oracle:
+        st.markdown(
+            f'<div class="research-kpi">'
+            f'<div class="research-kpi-label">Oracle reference</div>'
+            f'<div class="research-kpi-value">{oracle_display}</div>'
+            f'<div class="research-kpi-meta">{metric_label}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    with kpi_policy:
+        st.markdown(
+            f'<div class="research-kpi">'
+            f'<div class="research-kpi-label">Best non-oracle policy</div>'
+            f'<div class="research-kpi-value" style="font-size:1.35rem;">'
+            f'{best_non_oracle_row["policy_label"]}</div>'
+            f'<div class="research-kpi-meta">{best_display} · {metric_label}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    with kpi_gap:
+        st.markdown(
+            f'<div class="research-kpi">'
+            f'<div class="research-kpi-label">Gap to oracle</div>'
+            f'<div class="research-kpi-value">{gap_display}</div>'
+            f'<div class="research-kpi-meta">best non-oracle vs oracle</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
     st.markdown(
         f'<div class="metric-note"><strong>{direction}</strong> · Solid lines are Phase 2; '
         'dashed lines are Phase 3. Select a policy in the legend to isolate it.</div>',
@@ -2068,7 +2336,7 @@ def render_closed_loop_page() -> None:
     )
     vggt_reconstruction = tables["vggt_reconstruction"]
     gaussian_splatting = load_gaussian_splatting_metrics(
-        str(GAUSSIAN_SPLATTING_REPAIR_ROOT), str(GAUSSIAN_SPLATTING_ROOT)
+        str(GAUSSIAN_SPLATTING_CPU_RECOVERY_ROOT)
     )
     available_reconstruction_metrics = [
         metric
@@ -2095,19 +2363,42 @@ def render_closed_loop_page() -> None:
     ]
 
     policy_control, reconstruction_metric_control = st.columns(2)
-    with policy_control:
+    st.markdown(
+        '<div class="panel-label" style="margin-top:1rem;">Compare coverage and reconstruction</div>',
+        unsafe_allow_html=True,
+    )
+
+    with st.container(border=True):
+        policy_control, reconstruction_metric_control = st.columns([2.2, 1.4])
+
+        default_policy_labels = [
+            "Oracle",
+            "Farthest view",
+            "VGGT · single image",
+            "VGGT · independent history",
+            "VGGT · token attention",
+        ]
+
+        default_selected_policies = [
+            label
+            for label in default_policy_labels
+            if label in comparable_policies
+        ]
+
         selected_policies = st.multiselect(
             "Policies to compare",
             comparable_policies,
-            default=comparable_policies,
+            default=default_selected_policies,
+            key="closed_loop_policy_comparison_v2",
         )
-    with reconstruction_metric_control:
-        reconstruction_metric = st.selectbox(
-            "Reconstruction evaluation metric",
-            available_reconstruction_metrics,
-            format_func=lambda value: RECONSTRUCTION_METRICS[value],
-            disabled=not available_reconstruction_metrics,
-        )
+
+        with reconstruction_metric_control:
+            reconstruction_metric = st.selectbox(
+                "Reconstruction metric",
+                available_reconstruction_metrics,
+                format_func=lambda value: RECONSTRUCTION_METRICS[value],
+                disabled=not available_reconstruction_metrics,
+            )
 
     if not selected_policies:
         st.info("Select at least one policy to draw the comparison graphs.")
@@ -2158,7 +2449,13 @@ def render_closed_loop_page() -> None:
             reconstruction_max * 1.05 if reconstruction_max > 0 else 1.0,
         )
 
-        st.markdown("#### Absolute surface coverage")
+        st.markdown(
+            '<div class="viz-title">Surface coverage ↑</div>'
+            '<div class="viz-copy">'
+            'More acquired views should reveal more of the object · higher is better.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
         st.altair_chart(
             build_closed_loop_curve(
                 coverage_for_chart,
@@ -2171,12 +2468,34 @@ def render_closed_loop_page() -> None:
             width="stretch",
         )
 
-        if vggt_for_chart.empty or not reconstruction_metric:
-            st.info("No completed VGGT reconstruction evaluations were found.")
-        elif gs_for_chart.empty:
-            st.info("No completed repaired 2DGS evaluations were found.")
-        else:
-            st.altair_chart(
+    if vggt_for_chart.empty or not reconstruction_metric:
+        st.info("No completed VGGT reconstruction evaluations were found.")
+    elif gs_for_chart.empty:
+        st.info("No completed 2DGS evaluations were found.")
+    else:
+        reconstruction_label = RECONSTRUCTION_METRICS[reconstruction_metric]
+        reconstruction_lower_is_better = reconstruction_label.endswith("↓")
+
+        reconstruction_direction = (
+            "lower is better"
+            if reconstruction_lower_is_better
+            else "higher is better"
+        )
+
+        st.markdown(
+            '<div class="viz-title" style="margin-top:1.3rem;">'
+            'Reconstruction quality'
+            '</div>'
+            f'<div class="viz-copy">'
+            f'As more views are acquired, we test whether reconstruction improves. '
+            f'The selected metric is <strong>{reconstruction_label}</strong> · '
+            f'{reconstruction_direction}.'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        
+        st.altair_chart(
                 build_reconstruction_comparison_chart(
                     vggt_for_chart,
                     gs_for_chart,
@@ -2195,10 +2514,7 @@ def render_closed_loop_page() -> None:
         "the same scale. The anomalous Phase 2 farthest-view VGGT point at two inputs "
         "is omitted from these plots and their y-axis range only; source metrics remain "
         "unchanged. Coverage and VGGT reconstruction use the full 300-object test cohort; "
-        "2DGS means use runs trained with 1,500 iterations per view. The one-view point "
-        "uses the original placement because depth and scale are underconstrained; points "
-        "from two views onward require the v2 silhouette repair. A repair candidate is "
-        "accepted only when rendered mask IoU improves."
+        "2DGS means use only the completed runs currently available."
     )
 
     st.markdown(
@@ -2214,11 +2530,18 @@ def render_closed_loop_page() -> None:
         "spearman": "Spearman correlation ↑",
         "ndcg_at_5": "NDCG @ 5 ↑",
     }
-    quality_metric = st.selectbox(
-        "Per-decision metric",
-        list(quality_metrics),
-        format_func=lambda value: quality_metrics[value],
+    st.markdown(
+        '<div class="panel-label" style="margin-top:1rem;">Decision metric</div>',
+        unsafe_allow_html=True,
     )
+
+    with st.container(border=True):
+        quality_metric = st.selectbox(
+            "Per-decision metric",
+            list(quality_metrics),
+            format_func=lambda value: quality_metrics[value],
+            label_visibility="collapsed",
+        )
     quality = tables["per_step"].dropna(subset=[quality_metric]).copy()
     quality["decision_number"] = quality["step_index"].astype(int) + 1
     quality = (
@@ -2227,6 +2550,14 @@ def render_closed_loop_page() -> None:
         )[quality_metric]
         .mean()
     )
+
+    st.markdown(
+        '<div class="viz-title">Decision quality across the rollout</div>'
+        '<div class="viz-copy">'
+        'Track how policy ranking quality changes as more observations are acquired.'
+        '</div>',
+        unsafe_allow_html=True,
+        )
     st.altair_chart(
         build_closed_loop_curve(
             quality,
@@ -2260,206 +2591,357 @@ def render_closed_loop_page() -> None:
 def render_rollout_inspection_page() -> None:
     """Render object-level, view-by-view closed-loop rollout inspection."""
     catalog = load_rollout_catalog(
-        str(PHASE2_CLOSED_LOOP_ROOT), str(PHASE3_CLOSED_LOOP_ROOT)
+        str(PHASE2_CLOSED_LOOP_ROOT),
+        str(PHASE3_CLOSED_LOOP_ROOT),
     )
 
-    header_left, header_right = st.columns([4, 1], vertical_alignment="center")
-    with header_left:
-        st.markdown(
-            '<div class="eyebrow">CV3D / rollout inspection</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<div class="hero-title">Inspect a policy<br>view by view.</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<div class="hero-copy">Choose a policy and object to follow its camera '
-            'trajectory and compare acquired observations through the acquisition '
-            'sequence.</div>',
-            unsafe_allow_html=True,
-        )
-    with header_right:
-        st.markdown(
-            f'<div class="run-pill"><span class="run-dot"></span>{len(catalog):,} rollouts '
-            'loaded</div>',
-            unsafe_allow_html=True,
-        )
+    st.markdown(
+        f"""<div class="rollout-header">
+<div class="rollout-header-main">
+<div class="eyebrow">CV3D / POLICY ROLLOUT EXPLORER</div>
+<div class="rollout-title">Follow the policy, one view at a time.</div>
+<p class="rollout-copy">Explore how a next-best-view policy moves around an object, acquires observations, and increases visible surface coverage.</p>
+</div>
+<div class="run-pill"><span class="run-dot"></span>{len(catalog):,} rollouts loaded</div>
+</div>""",
+        unsafe_allow_html=True,
+    )
 
     if catalog.empty:
         st.info("No replayable rollout files are available for object-level inspection.")
         return
 
     st.markdown(
-        '<div class="section-kicker">Rollout comparisons</div>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<div class="section-title">Compare the acquired views of each policy '
-        'step by step.</div>',
+        '<div class="panel-label">Explore a rollout</div>',
         unsafe_allow_html=True,
     )
 
-    rollout_a, rollout_b, rollout_c = st.columns([2.2, 1.25, 2.1])
-    with rollout_a:
-        rollout_policies = sorted(catalog["policy"].unique(), key=pretty_policy)
-        selected_rollout_policies = st.multiselect(
-            "Rollout policies",
-            rollout_policies,
-            default=[rollout_policies[0]],
-            format_func=pretty_policy,
-        )
-    policy_catalog = catalog[catalog["policy"].isin(selected_rollout_policies)]
-    category_options = sorted(
-        policy_catalog["category_id"].unique(),
-        key=lambda value: CATEGORY_NAMES.get(value, value),
-    )
-    with rollout_b:
-        rollout_category = st.selectbox(
-            "Rollout category",
-            category_options,
-            format_func=lambda value: CATEGORY_NAMES.get(value, value),
-            disabled=not category_options,
-        )
-    category_catalog = (
-        policy_catalog[policy_catalog["category_id"] == rollout_category]
-        if rollout_category is not None
-        else pd.DataFrame()
-    )
-    object_options = (
-        sorted(category_catalog["object_id"].unique())
-        if "object_id" in category_catalog
-        else []
-    )
-    with rollout_c:
-        rollout_object = st.selectbox(
-            "Rollout object", object_options, disabled=not object_options
-        )
+    with st.container(border=True):
+        rollout_a, rollout_b, rollout_c = st.columns([1.5, 1.05, 1.8])
 
-    if not selected_rollout_policies:
-        st.info("Select at least one rollout policy to display its row.")
-        return
-
-    object_catalog = category_catalog[category_catalog["object_id"] == rollout_object]
-    loaded_rollouts = {
-        str(row.policy): load_dashboard_rollout(str(row.path))
-        for row in object_catalog.itertuples()
-    }
-    if not loaded_rollouts:
-        st.info("No rollout is available for this object and policy selection.")
-        return
-
-    maximum_view_count = max(
-        len(np.asarray(rollout["acquired_anchor_ids"]))
-        for rollout in loaded_rollouts.values()
-    )
-    displayed_view_count = st.segmented_control(
-        "Acquisition steps shown",
-        options=list(range(1, maximum_view_count + 1)),
-        default=maximum_view_count,
-        required=True,
-        width="stretch",
-    )
-    displayed_view_count = int(displayed_view_count)
-
-    if "rollout_camera_revision" not in st.session_state:
-        st.session_state.rollout_camera_revision = 0
-    if st.button("Reset all 3D views", width="content"):
-        st.session_state.rollout_camera_revision += 1
-    camera_revision = int(st.session_state.rollout_camera_revision)
-
-    matrix_widths = [1.0, 3.55, 4.45]
-    headers = st.columns(
-        matrix_widths,
-        gap="small",
-        vertical_alignment="bottom",
-    )
-    labels = ["Policy", "3D trajectory", "Acquired views"]
-    for column, label in zip(headers, labels):
-        with column:
-            st.markdown(
-                f'<div class="matrix-header">{label}</div>',
-                unsafe_allow_html=True,
+        with rollout_a:
+            rollout_policy = st.selectbox(
+                "Policy",
+                sorted(catalog["policy"].unique(), key=pretty_policy),
+                format_func=pretty_policy,
             )
 
-    object_key = f"{rollout_category}/{rollout_object}"
-    mesh_path = SHAPENET_ROOT / object_key / "models" / "model_normalized.ply"
-    mesh = load_object_mesh(str(mesh_path))
-    anchors = load_anchor_directions(str(ANCHOR_PATH))
-    for policy in selected_rollout_policies:
-        row_columns = st.columns(
-            matrix_widths,
-            gap="small",
-            vertical_alignment="center",
+        policy_catalog = catalog[catalog["policy"] == rollout_policy]
+
+        category_options = sorted(
+            policy_catalog["category_id"].unique(),
+            key=lambda value: CATEGORY_NAMES.get(value, value),
         )
-        with row_columns[0]:
-            st.markdown(
-                f'<div class="matrix-row-label">{pretty_policy(policy)}</div>',
-                unsafe_allow_html=True,
+
+        with rollout_b:
+            rollout_category = st.selectbox(
+                "Category",
+                category_options,
+                format_func=lambda value: CATEGORY_NAMES.get(value, value),
             )
-        rollout = loaded_rollouts.get(policy)
-        if rollout is None:
-            with row_columns[1]:
-                st.info("Not available.")
-            continue
+
+        category_catalog = policy_catalog[
+            policy_catalog["category_id"] == rollout_category
+        ]
+        object_options = sorted(category_catalog["object_id"].unique())
+
+        with rollout_c:
+            rollout_object = st.selectbox(
+                "Object",
+                object_options,
+            )
+
+        object_catalog = category_catalog[
+            category_catalog["object_id"] == rollout_object
+        ]
+        rollout_path = object_catalog["path"].iloc[0]
+        rollout = load_dashboard_rollout(str(rollout_path))
+
         acquired = np.asarray(rollout["acquired_anchor_ids"], dtype=int)
-        with row_columns[1]:
+        counts = np.asarray(rollout["acquired_view_counts"], dtype=int)
+        coverage = np.asarray(rollout["coverage"], dtype=float)
+        steps = rollout["steps"]
+
+        st.markdown(
+            '<div class="panel-label" style="margin-top:.7rem;">Acquisition progress</div>',
+            unsafe_allow_html=True,
+        )
+
+        acquired_count = st.segmented_control(
+            "Views acquired",
+            options=counts.astype(int).tolist(),
+            default=int(counts[-1]),
+            required=True,
+            width="stretch",
+            label_visibility="collapsed",
+        )
+
+    current_index = int(np.flatnonzero(counts == acquired_count)[0])
+    current_anchor = int(acquired[current_index])
+    current_step = steps[current_index - 1] if current_index > 0 else None
+    object_key = f"{rollout_category}/{rollout_object}"
+
+    coverage_percent = coverage[current_index] * 100.0
+
+    if current_index > 0:
+        coverage_gain_pp = (
+            coverage[current_index] - coverage[current_index - 1]
+        ) * 100.0
+        coverage_gain_label = f"{coverage_gain_pp:+.1f} pp"
+        coverage_gain_meta = "from previous view"
+    else:
+        coverage_gain_label = "—"
+        coverage_gain_meta = "initial observation"
+
+    regret_label = (
+        f'{float(current_step["normalized_regret"]):.3f}'
+        if current_step and current_step.get("normalized_regret") is not None
+        else "—"
+    )
+
+    st.markdown(
+        '<div class="panel-label" style="margin-top:1.4rem;">Current state</div>',
+        unsafe_allow_html=True,
+    )
+
+    kpi_view, kpi_coverage, kpi_gain, kpi_regret = st.columns(4)
+
+    with kpi_view:
+        st.markdown(
+            f'<div class="research-kpi">'
+            f'<div class="research-kpi-label">Current view</div>'
+            f'<div class="research-kpi-value">{int(acquired_count)} '
+            f'<span>/ {int(counts[-1])}</span></div>'
+            f'<div class="research-kpi-meta">Anchor {current_anchor}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    with kpi_coverage:
+        st.markdown(
+            f'<div class="research-kpi">'
+            f'<div class="research-kpi-label">Surface coverage</div>'
+            f'<div class="research-kpi-value">{coverage_percent:.1f}%</div>'
+            f'<div class="research-kpi-meta">visible surface</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    with kpi_gain:
+        st.markdown(
+            f'<div class="research-kpi">'
+            f'<div class="research-kpi-label">Coverage gain</div>'
+            f'<div class="research-kpi-value">{coverage_gain_label}</div>'
+            f'<div class="research-kpi-meta">{coverage_gain_meta}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    with kpi_regret:
+        st.markdown(
+            f'<div class="research-kpi">'
+            f'<div class="research-kpi-label">Decision regret</div>'
+            f'<div class="research-kpi-value">{regret_label}</div>'
+            f'<div class="research-kpi-meta">lower is better ↓</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    mesh_path = SHAPENET_ROOT / object_key / "models" / "model_normalized.ply"
+
+    st.markdown(
+        '<div class="panel-label" style="margin-top:1.5rem;">Rollout inspection</div>',
+        unsafe_allow_html=True,
+    )
+
+    trajectory_column, observation_column = st.columns(
+        [2.1, 1],
+        vertical_alignment="top",
+    )
+
+    with trajectory_column:
+        st.markdown(
+            '<div class="viz-title">Camera trajectory</div>'
+            '<div class="viz-copy">Acquisition order across the 48 canonical camera anchors.</div>',
+            unsafe_allow_html=True,
+        )
+
+        with st.container(border=True):
             st.plotly_chart(
                 build_rollout_trajectory(
-                    anchors,
-                    acquired[:displayed_view_count],
-                    mesh,
-                    height=420,
-                    view_revision=camera_revision,
+                    load_anchor_directions(str(ANCHOR_PATH)),
+                    acquired[: current_index + 1],
+                    load_object_mesh(str(mesh_path)),
                 ),
                 width="stretch",
                 config={"displayModeBar": False, "scrollZoom": False},
-                key=(
-                    f"rollout-trajectory-{policy}-{rollout_category}-{rollout_object}"
-                ),
             )
-        with row_columns[2]:
-            views_per_row = min(displayed_view_count, 4)
-            for row_start in range(0, displayed_view_count, views_per_row):
-                view_columns = st.columns(views_per_row, gap="small")
-                for offset, column in enumerate(view_columns):
-                    view_index = row_start + offset
-                    if view_index >= displayed_view_count:
-                        continue
-                    with column:
-                        if view_index >= len(acquired):
-                            st.markdown(
-                                '<div class="rollout-cell-missing">Not acquired</div>',
-                                unsafe_allow_html=True,
-                            )
-                            continue
-                        anchor_id = int(acquired[view_index])
-                        render_rollout_matrix_cell(
-                            NUM_ROOT
-                            / object_key
-                            / "images"
-                            / f"viewpoint_{anchor_id}_offset_phi_0.png",
-                            view_number=view_index + 1,
-                            anchor_id=anchor_id,
-                        )
 
-    selection_label = (
-        f"{CATEGORY_NAMES.get(rollout_category, rollout_category)} / "
-        f"{rollout_object} · first {displayed_view_count} acquired views"
-    )
+    with observation_column:
+        st.markdown(
+            '<div class="viz-title">Current observation</div>'
+            f'<div class="viz-copy">View {int(acquired_count)} · anchor {current_anchor}</div>',
+            unsafe_allow_html=True,
+        )
+
+        with st.container(border=True):
+            observation_path = (
+                NUM_ROOT
+                / object_key
+                / "images"
+                / f"viewpoint_{current_anchor}_offset_phi_0.png"
+            )
+
+            if observation_path.is_file():
+                st.image(
+                    str(observation_path),
+                    caption=f"{pretty_policy(rollout_policy)} · anchor {current_anchor}",
+                    width="stretch",
+                )
+            else:
+                st.markdown(
+                    '<div class="observation-empty">'
+                    '<div class="observation-empty-icon">◈</div>'
+                    '<div class="observation-empty-title">Observation preview unavailable</div>'
+                    '<div class="observation-empty-copy">'
+                    'The lightweight dashboard keeps rollout metrics but omits the large '
+                    'NUM image dataset.'
+                    '</div>'
+                    '</div>',
+                    unsafe_allow_html=True,
+                )
+
+    trajectory = pd.DataFrame(
+        {
+            "Acquired views": counts[: current_index + 1],
+            "Absolute coverage": coverage[: current_index + 1],
+        }
+    ).set_index("Acquired views")
+
     st.markdown(
-        f'<div class="matrix-footer"><strong>{selection_label}</strong> · '
-        "Each row is one policy with its own rotatable 3D trajectory; image cells "
-        "follow acquisition order.</div>",
+        '<div class="viz-title" style="margin-top:1.2rem;">Coverage progression</div>'
+        '<div class="viz-copy">Visible surface accumulated after each acquired view.</div>',
         unsafe_allow_html=True,
+    )
+
+    coverage_chart_data = trajectory.reset_index().copy()
+    coverage_chart_data["Coverage (%)"] = (
+        coverage_chart_data["Absolute coverage"] * 100.0
+    )
+
+    coverage_line = (
+        alt.Chart(coverage_chart_data)
+        .mark_line(
+            color="#38bdf8",
+            strokeWidth=3,
+        )
+        .encode(
+            x=alt.X(
+                "Acquired views:Q",
+                title="Acquired views",
+                axis=alt.Axis(
+                    tickMinStep=1,
+                    grid=False,
+                ),
+                scale=alt.Scale(domain=[1, int(counts[-1])]),
+            ),
+            y=alt.Y(
+                "Coverage (%):Q",
+                title="Visible surface",
+                scale=alt.Scale(domain=[0, 100]),
+                axis=alt.Axis(format=".0f"),
+            ),
+            tooltip=[
+                alt.Tooltip("Acquired views:Q", title="View", format=".0f"),
+                alt.Tooltip("Coverage (%):Q", title="Coverage", format=".1f"),
+            ],
+        )
+    )
+
+    coverage_area = (
+        alt.Chart(coverage_chart_data)
+        .mark_area(
+            color="#38bdf8",
+            opacity=0.08,
+        )
+        .encode(
+            x="Acquired views:Q",
+            y=alt.Y(
+                "Coverage (%):Q",
+                scale=alt.Scale(domain=[0, 100]),
+            ),
+        )
+    )
+
+    coverage_points = (
+        alt.Chart(coverage_chart_data)
+        .mark_circle(
+            size=65,
+            color="#38bdf8",
+            stroke="#07101f",
+            strokeWidth=1.5,
+        )
+        .encode(
+            x="Acquired views:Q",
+            y=alt.Y(
+                "Coverage (%):Q",
+                scale=alt.Scale(domain=[0, 100]),
+            ),
+            tooltip=[
+                alt.Tooltip("Acquired views:Q", title="View", format=".0f"),
+                alt.Tooltip("Coverage (%):Q", title="Coverage", format=".1f"),
+            ],
+        )
+    )
+
+    current_chart_data = coverage_chart_data[
+        coverage_chart_data["Acquired views"] == acquired_count
+    ]
+
+    current_point = (
+        alt.Chart(current_chart_data)
+        .mark_circle(
+            size=180,
+            color="#22d3ee",
+            stroke="#f8fafc",
+            strokeWidth=2,
+        )
+        .encode(
+            x="Acquired views:Q",
+            y=alt.Y(
+                "Coverage (%):Q",
+                scale=alt.Scale(domain=[0, 100]),
+            ),
+        )
+    )
+
+    coverage_chart = (
+        alt.layer(
+            coverage_area,
+            coverage_line,
+            coverage_points,
+            current_point,
+        )
+        .properties(height=260)
+        .configure_view(strokeWidth=0)
+        .configure_axis(
+            labelColor="#94a3b8",
+            titleColor="#94a3b8",
+            gridColor="#1e293b",
+            domainColor="#334155",
+            tickColor="#334155",
+        )
+    )
+
+    st.altair_chart(
+        coverage_chart,
+        width="stretch",
     )
 
 
 def render_reconstruction_gallery_page() -> None:
     """Render object-level comparisons across reconstruction methods."""
-    render_catalog = load_gaussian_render_catalog(
-        str(GAUSSIAN_SPLATTING_REPAIR_ROOT), str(GAUSSIAN_SPLATTING_ROOT)
-    )
+    render_catalog = load_3dgs_render_catalog(str(GAUSSIAN_SPLATTING_ROOT))
     vggt_render_catalog = load_vggt_render_catalog(
         str(PHASE2_CLOSED_LOOP_ROOT), str(PHASE3_CLOSED_LOOP_ROOT)
     )
@@ -2486,8 +2968,7 @@ def render_reconstruction_gallery_page() -> None:
         )
         st.markdown(
             '<div class="hero-copy">Inspect VGGT point clouds, 3DGS novel-view renders, '
-            'and 2DGS surfaces alongside ground truth. One-view GS uses its original '
-            'placement; later view counts use repaired placement.</div>',
+            'and reconstructed 2DGS surfaces alongside ground truth.</div>',
             unsafe_allow_html=True,
         )
     with header_right:
@@ -2503,7 +2984,7 @@ def render_reconstruction_gallery_page() -> None:
     )
     st.markdown(
         '<div class="section-title">Inspect VGGT point clouds, 3DGS renders, and the '
-        '2DGS surface against ground truth.</div>',
+        'reconstructed 2DGS surface against ground truth.</div>',
         unsafe_allow_html=True,
     )
     if not available_catalogs:
@@ -2567,18 +3048,11 @@ def render_reconstruction_gallery_page() -> None:
                 width="stretch",
             )
             matrix_headers = st.columns(
-                [0.9, 1, 1, 1, 1, 1], gap="small", vertical_alignment="bottom"
+                [0.9, 1, 1, 1, 1], gap="small", vertical_alignment="bottom"
             )
             for column, label in zip(
                 matrix_headers,
-                (
-                    "Policy",
-                    "3DGS",
-                    "Original 2DGS",
-                    "Repaired 2DGS",
-                    "VGGT cloud",
-                    "Ground truth",
-                ),
+                ("Policy", "3DGS render", "2DGS surface", "VGGT cloud", "Ground truth"),
             ):
                 with column:
                     st.markdown(
@@ -2594,12 +3068,6 @@ def render_reconstruction_gallery_page() -> None:
                     render_catalog,
                     vggt_render_catalog,
                 )
-            st.caption(
-                "At one view, 2DGS and 3DGS use the original placement because similarity "
-                "repair is underconstrained. From two views onward, repaired 2DGS and "
-                "3DGS accept a silhouette-fitted placement only when rendered mask IoU "
-                "improves; the Original 2DGS column shows the pre-repair CPU recovery."
-            )
             selection_label = (
                 f"{CATEGORY_NAMES.get(render_category, render_category)} / "
                 f"{render_object} · {render_view_count} acquired views"
@@ -2618,22 +3086,22 @@ navigation = st.navigation(
         st.Page(render_dataset_page, title="Dataset", url_path="dataset", default=True),
         st.Page(
             render_representation_page,
-            title="Representation sweep",
+            title="Phase 1 · Representations",
             url_path="representations",
         ),
         st.Page(
             render_closed_loop_page,
-            title="Closed-loop evaluation",
+            title="Phase 2–3 · Closed loop",
             url_path="closed-loop",
         ),
         st.Page(
             render_rollout_inspection_page,
-            title="Rollout inspection",
+            title="Policy rollouts",
             url_path="rollout-inspection",
         ),
         st.Page(
             render_reconstruction_gallery_page,
-            title="Reconstruction gallery",
+            title="3D reconstruction",
             url_path="reconstruction-gallery",
         ),
     ],
