@@ -1,0 +1,412 @@
+{
+  "acquired_view_count": 2,
+  "alignment": {
+    "camera_center_rmse_normalized": 0.0351693787064454,
+    "mode": "camera_pose_sim3",
+    "scale": 2.3907491879796083
+  },
+  "backend": "2dgs",
+  "camera_source": "known_num_cameras",
+  "cpu_recovery": {
+    "cuda_parity_verified": false,
+    "elapsed_seconds": 83.60180694400333,
+    "identity": {
+      "inputs": {
+        "checkpoint": "04930dada9c52007425cd85ff6c81bb1a99bbd27e03214431c1f435d589e8f85",
+        "ground_truth": "5eda41ae1e38e0d0bccaec1fbe44c2aef824ab03ca0548bf1f1459c4e7e93494",
+        "summary": "1b4f2bf21daa930c1c43bfc43f722567e7d1edaadc0bd3c1bcce1919914a0c0a",
+        "visibility": "ebbf9bb699b6725c40e85cd7bb9fff87f30cd08f92efd785a5411e19d41354e0"
+      },
+      "renderer": "numpy_2dgs_median_v1"
+    },
+    "source": "/home/reese/computer_vision/cv3d-project/outputs/gaussian_splatting_per_view_budget/02933112/18d94e539b0ed30d105e720ebc569399/2views/phase3_vggt_joint_token_attention/2dgs",
+    "checkpoint_used": "/home/reese/computer_vision/cv3d-project/outputs/gaussian_splatting_per_view_budget_alignment_repair/02933112/18d94e539b0ed30d105e720ebc569399/2views/phase3_vggt_joint_token_attention/2dgs/checkpoint.pt"
+  },
+  "geometry_evaluation_enabled": true,
+  "ground_truth_cache": "/content/cv3d-project/data/cache/reconstruction/ground_truth/02933112/18d94e539b0ed30d105e720ebc569399/fff8eaae4633d78038c6.npz",
+  "ground_truth_comparison": {
+    "colors": {
+      "ground_truth": [
+        37,
+        99,
+        235
+      ],
+      "surface": [
+        234,
+        88,
+        12
+      ]
+    },
+    "combined_point_cloud": "/home/reese/computer_vision/cv3d-project/outputs/gaussian_splatting_per_view_budget_alignment_repair/02933112/18d94e539b0ed30d105e720ebc569399/2views/phase3_vggt_joint_token_attention/2dgs/comparison.ply",
+    "interactive": "/home/reese/computer_vision/cv3d-project/outputs/gaussian_splatting_per_view_budget_alignment_repair/02933112/18d94e539b0ed30d105e720ebc569399/2views/phase3_vggt_joint_token_attention/2dgs/comparison_interactive.html",
+    "static": "/home/reese/computer_vision/cv3d-project/outputs/gaussian_splatting_per_view_budget_alignment_repair/02933112/18d94e539b0ed30d105e720ebc569399/2views/phase3_vggt_joint_token_attention/2dgs/comparison.png"
+  },
+  "history_anchor_ids": [
+    0,
+    44
+  ],
+  "initialization": "camera_aligned_vggt_filtered_point_map",
+  "metric_status": "silhouette_refined_saved_checkpoint_separate_protocol",
+  "metrics": {
+    "accuracy_normalized": 0.10581454634666443,
+    "chamfer_l1_normalized": 0.06798108946532011,
+    "completeness_normalized": 0.030147632583975792,
+    "fscore_10pct": 0.7379912002049444,
+    "fscore_1pct": 0.07243841661258922,
+    "fscore_2pct": 0.23206836581709145,
+    "ground_truth_diameter": 1.9962585681830096,
+    "precision_10pct": 0.5981,
+    "precision_1pct": 0.0582,
+    "precision_2pct": 0.1572,
+    "recall_10pct": 0.9633,
+    "recall_1pct": 0.0959,
+    "recall_2pct": 0.4431
+  },
+  "object_id": "02933112/18d94e539b0ed30d105e720ebc569399",
+  "policy": "vggt_joint_token_attention",
+  "prediction_cache": "/content/cv3d-project/data/cache/reconstruction/predictions/02933112/18d94e539b0ed30d105e720ebc569399/c3e40b0da1d74d7d10a2a4d2.npz",
+  "schema_version": 1,
+  "settings": {
+    "alpha_threshold": 0.5,
+    "backend": "2dgs",
+    "distortion_loss_weight": 0.01,
+    "fscore_thresholds": [
+      0.01,
+      0.02,
+      0.1
+    ],
+    "iterations": 3000,
+    "learning_rate": 0.01,
+    "metric_chunk_size": 1024,
+    "normal_loss_weight": 0.05,
+    "opacity_loss_weight": 0.1,
+    "position_learning_rate": 0.0002,
+    "render_batch_size": 8,
+    "resolution": 256,
+    "seed": 0,
+    "surface_point_count": 10000
+  },
+  "surface_extraction": "CPU 2DGS median center-z depth from all canonical NUM cameras; alpha filtered and voxel fused",
+  "surface_point_count": 10000,
+  "training_budget": {
+    "iterations_per_view": 1500,
+    "total_iterations": 3000,
+    "view_count": 2
+  },
+  "training_history": [
+    {
+      "color_l1": 0.09191595762968063,
+      "iteration": 1.0,
+      "loss": 0.11669709533452988,
+      "opacity_l1": 0.2339378297328949
+    },
+    {
+      "color_l1": 0.11797979474067688,
+      "iteration": 100.0,
+      "loss": 0.14445413649082184,
+      "opacity_l1": 0.24645760655403137
+    },
+    {
+      "color_l1": 0.04691430926322937,
+      "iteration": 200.0,
+      "loss": 0.0629706010222435,
+      "opacity_l1": 0.12385932356119156
+    },
+    {
+      "color_l1": 0.031429894268512726,
+      "iteration": 300.0,
+      "loss": 0.04581659287214279,
+      "opacity_l1": 0.10486318171024323
+    },
+    {
+      "color_l1": 0.02709779143333435,
+      "iteration": 400.0,
+      "loss": 0.0407242625951767,
+      "opacity_l1": 0.10112348198890686
+    },
+    {
+      "color_l1": 0.025104369968175888,
+      "iteration": 500.0,
+      "loss": 0.03810752555727959,
+      "opacity_l1": 0.09659305214881897
+    },
+    {
+      "color_l1": 0.023653468117117882,
+      "iteration": 600.0,
+      "loss": 0.036163508892059326,
+      "opacity_l1": 0.09213604778051376
+    },
+    {
+      "color_l1": 0.022550499066710472,
+      "iteration": 700.0,
+      "loss": 0.034664832055568695,
+      "opacity_l1": 0.0888148620724678
+    },
+    {
+      "color_l1": 0.02201290987432003,
+      "iteration": 800.0,
+      "loss": 0.033726584166288376,
+      "opacity_l1": 0.08536530286073685
+    },
+    {
+      "color_l1": 0.021383732557296753,
+      "iteration": 900.0,
+      "loss": 0.03252169117331505,
+      "opacity_l1": 0.08245042711496353
+    },
+    {
+      "color_l1": 0.02104797586798668,
+      "iteration": 1000.0,
+      "loss": 0.03194435313344002,
+      "opacity_l1": 0.07953344285488129
+    },
+    {
+      "color_l1": 0.02039840631186962,
+      "iteration": 1100.0,
+      "loss": 0.030909031629562378,
+      "opacity_l1": 0.07625296711921692
+    },
+    {
+      "color_l1": 0.019734306260943413,
+      "iteration": 1200.0,
+      "loss": 0.02969047799706459,
+      "opacity_l1": 0.07340547442436218
+    },
+    {
+      "color_l1": 0.019596872851252556,
+      "iteration": 1300.0,
+      "loss": 0.0292532816529274,
+      "opacity_l1": 0.0709749162197113
+    },
+    {
+      "color_l1": 0.01948888599872589,
+      "iteration": 1400.0,
+      "loss": 0.02905942127108574,
+      "opacity_l1": 0.06930714845657349
+    },
+    {
+      "color_l1": 0.019049115478992462,
+      "iteration": 1500.0,
+      "loss": 0.028370346873998642,
+      "opacity_l1": 0.06814881414175034
+    },
+    {
+      "color_l1": 0.01911849156022072,
+      "iteration": 1600.0,
+      "loss": 0.028254391625523567,
+      "opacity_l1": 0.0663454532623291
+    },
+    {
+      "color_l1": 0.01844903640449047,
+      "iteration": 1700.0,
+      "loss": 0.027315128594636917,
+      "opacity_l1": 0.06463715434074402
+    },
+    {
+      "color_l1": 0.018204599618911743,
+      "iteration": 1800.0,
+      "loss": 0.02695118635892868,
+      "opacity_l1": 0.06300625205039978
+    },
+    {
+      "color_l1": 0.017889834940433502,
+      "iteration": 1900.0,
+      "loss": 0.026359301060438156,
+      "opacity_l1": 0.06182941794395447
+    },
+    {
+      "color_l1": 0.01856023445725441,
+      "iteration": 2000.0,
+      "loss": 0.027017837390303612,
+      "opacity_l1": 0.06132316589355469
+    },
+    {
+      "color_l1": 0.0173373743891716,
+      "iteration": 2100.0,
+      "loss": 0.02545839548110962,
+      "opacity_l1": 0.06005243957042694
+    },
+    {
+      "color_l1": 0.01742381602525711,
+      "iteration": 2200.0,
+      "loss": 0.025491759181022644,
+      "opacity_l1": 0.05901741608977318
+    },
+    {
+      "color_l1": 0.017150666564702988,
+      "iteration": 2300.0,
+      "loss": 0.02509804628789425,
+      "opacity_l1": 0.058105114847421646
+    },
+    {
+      "color_l1": 0.01681601069867611,
+      "iteration": 2400.0,
+      "loss": 0.024737967178225517,
+      "opacity_l1": 0.057459425181150436
+    },
+    {
+      "color_l1": 0.016549360007047653,
+      "iteration": 2500.0,
+      "loss": 0.024319002404808998,
+      "opacity_l1": 0.056245107203722
+    },
+    {
+      "color_l1": 0.01625540480017662,
+      "iteration": 2600.0,
+      "loss": 0.02377624437212944,
+      "opacity_l1": 0.0551469549536705
+    },
+    {
+      "color_l1": 0.015822378918528557,
+      "iteration": 2700.0,
+      "loss": 0.023170042783021927,
+      "opacity_l1": 0.05374223738908768
+    },
+    {
+      "color_l1": 0.015550556592643261,
+      "iteration": 2800.0,
+      "loss": 0.022687295451760292,
+      "opacity_l1": 0.052547305822372437
+    },
+    {
+      "color_l1": 0.015256172977387905,
+      "iteration": 2900.0,
+      "loss": 0.022377097979187965,
+      "opacity_l1": 0.0518268346786499
+    },
+    {
+      "color_l1": 0.015018122270703316,
+      "iteration": 3000.0,
+      "loss": 0.02194598689675331,
+      "opacity_l1": 0.05034098029136658
+    }
+  ],
+  "alignment_repair": {
+    "identity": {
+      "version": "acquired_rendered_silhouette_sim3_v2",
+      "steps": 200,
+      "starts": 32,
+      "seed": 0,
+      "min_iou_improvement": 0.01,
+      "inputs": {
+        "checkpoint": "04930dada9c52007425cd85ff6c81bb1a99bbd27e03214431c1f435d589e8f85",
+        "summary": "693de34b761dea517b5842eb6754a9f22f399ea40d7578c2b4e48fc42b4153e5",
+        "visibility": "ebbf9bb699b6725c40e85cd7bb9fff87f30cd08f92efd785a5411e19d41354e0",
+        "ground_truth": "5eda41ae1e38e0d0bccaec1fbe44c2aef824ab03ca0548bf1f1459c4e7e93494"
+      },
+      "acquired_rgb_sha256": [
+        "beba841e2ff3643d0ef210bcc0acbf80cfecc397259c97e605eaa35cd06b7d2a",
+        "85bf31180c32bdc8c28107f0ea8538eda48b46e14afdd373399f74af0d2239f7"
+      ],
+      "audit": {
+        "original_alignment": {
+          "camera_center_rmse_normalized": 0.0351693787064454,
+          "mode": "camera_pose_sim3",
+          "scale": 2.3907491879796083
+        },
+        "prediction_cache_available": true,
+        "prediction_cache_sha256": "0202d358261e8c23efd4a592ea983d51312a8c8937bbbd5f1669419dbbf99312",
+        "relative_rotation_errors_degrees": [
+          19.487073248498703
+        ],
+        "median_relative_rotation_error_degrees": 19.487073248498703
+      }
+    },
+    "source": "/home/reese/computer_vision/cv3d-project/outputs/gaussian_splatting_per_view_budget/02933112/18d94e539b0ed30d105e720ebc569399/2views/phase3_vggt_joint_token_attention/2dgs",
+    "accepted": false,
+    "scale": 1.0,
+    "quaternion_wxyz": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "translation": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "transform": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "silhouette_proxy_before": 0.008681738749146461,
+    "silhouette_proxy_after": 0.008681738749146461,
+    "fitted_to": "acquired_rgb_foreground_only",
+    "ground_truth_used_for_fit": false,
+    "limitations": "Similarity placement only; cannot recover missing or deformed geometry. Silhouettes may admit symmetric/ambiguous fits.",
+    "acceptance": "identity_retained_by_rendered_silhouette_iou",
+    "rendered_silhouette_validation": {
+      "metric": "mean_per_view_rendered_mask_iou",
+      "alpha_threshold": 0.5,
+      "before": 0.9028578964940777,
+      "candidate": 0.3748779520885777,
+      "candidate_evaluated": true,
+      "minimum_absolute_improvement": 0.01,
+      "accepted": false
+    },
+    "rejected_candidate": {
+      "scale": 1.9853511772712578,
+      "quaternion_wxyz": [
+        -0.04840056598186493,
+        -0.022305652499198914,
+        0.9684441685676575,
+        0.2434660792350769
+      ],
+      "translation": [
+        0.17710888385772705,
+        -0.9687825441360474,
+        0.5159742832183838
+      ],
+      "transform": [
+        [
+          -1.9740737676620483,
+          -0.038983892649412155,
+          -0.2076832801103592,
+          0.17710888385772705
+        ],
+        [
+          -0.13256457448005676,
+          1.7480093240737915,
+          0.9319385886192322,
+          -0.9687825441360474
+        ],
+        [
+          0.16455614566802979,
+          0.9405121207237244,
+          -1.7406829595565796,
+          0.5159742832183838
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "silhouette_proxy": 0.000759374990593642
+    }
+  }
+}
