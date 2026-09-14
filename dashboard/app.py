@@ -1848,47 +1848,27 @@ def render_dataset_page() -> None:
         unsafe_allow_html=True,
     )
 
-    split_columns = st.columns(3)
-    for column, split_name in zip(
-        split_columns, ("train", "val", "test"), strict=True
-    ):
-        split_count = int((dataset["split"] == split_name).sum())
-        with column:
-            st.metric(f"{SPLIT_LABELS[split_name]} objects", f"{split_count:,}")
-
     category_options = sorted(dataset["category"].unique())
-    selector_a, selector_b, selector_c, selector_d = st.columns([1.1, 1, 2.2, 1])
+    selector_a, selector_b, selector_c = st.columns([1.1, 2.2, 1])
     with selector_a:
         selected_category = st.selectbox("Category", category_options)
 
     category_rows = dataset[dataset["category"] == selected_category]
-    available_splits = [
-        split_name
-        for split_name in ("train", "val", "test")
-        if split_name in set(category_rows["split"])
-    ]
+    object_options = sorted(category_rows["object_id"].tolist())
     with selector_b:
-        selected_split = st.selectbox(
-            "Object split",
-            available_splits,
-            format_func=lambda value: SPLIT_LABELS[value],
-        )
-
-    object_options = sorted(
-        category_rows.loc[
-            category_rows["split"] == selected_split, "object_id"
-        ].tolist()
-    )
-    with selector_c:
         selected_object = st.selectbox("Object", object_options)
-    with selector_d:
+    with selector_c:
         selected_anchor = st.selectbox(
             "Camera anchor",
             anchors["anchor_id"].astype(int).tolist(),
             format_func=pretty_anchor,
         )
 
-    category_id = str(category_rows.iloc[0]["category_id"])
+    selected_object_row = category_rows.loc[
+        category_rows["object_id"] == selected_object
+    ].iloc[0]
+    selected_split = str(selected_object_row["split"])
+    category_id = str(selected_object_row["category_id"])
     object_key = f"{category_id}/{selected_object}"
     mesh_path = SHAPENET_ROOT / object_key / "models" / "model_normalized.ply"
     image_path = (
