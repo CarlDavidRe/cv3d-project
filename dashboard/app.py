@@ -1592,6 +1592,12 @@ def build_closed_loop_curve(
     x_title: str,
     y_title: str,
     y_domain: tuple[float, float] | None = None,
+    chart_width: int | None = None,
+    chart_height: int = 430,
+    show_legend: bool = True,
+    selection=None,
+    add_selection: bool = True,
+    configure: bool = True,
 ) -> alt.LayerChart:
     """Build a consistent multi-policy closed-loop trajectory chart."""
     domain = [
@@ -1606,14 +1612,25 @@ def build_closed_loop_curve(
             domain=domain,
             range=[CLOSED_LOOP_POLICY_COLORS[label] for label in domain],
         ),
-        legend=alt.Legend(orient="top", direction="horizontal", columns=4),
+        legend=(
+            alt.Legend(orient="top", direction="horizontal", columns=4)
+            if show_legend
+            else None
+        ),
     )
     phase_dash = alt.StrokeDash(
         "phase:N",
         scale=alt.Scale(domain=["Phase 2", "Phase 3"], range=[[1, 0], [7, 4]]),
         legend=None,
     )
-    selection = alt.selection_point(fields=["policy_label"], bind="legend")
+    if selection is None:
+        selection = (
+            alt.selection_point(fields=["policy_label"], bind="legend")
+            if show_legend
+            else alt.selection_point(
+                fields=["policy_label"], on="click", clear="dblclick"
+            )
+        )
     opacity = alt.condition(selection, alt.value(1.0), alt.value(0.14))
     tooltips = [
         alt.Tooltip("phase:N", title="Evaluation"),
@@ -1638,10 +1655,16 @@ def build_closed_loop_curve(
     }
     line = alt.Chart(data).mark_line(point=False, strokeWidth=3).encode(**encoding)
     points = alt.Chart(data).mark_circle(size=48).encode(**encoding)
+    chart = alt.layer(line, points)
+    if add_selection:
+        chart = chart.add_params(selection)
+    chart = chart.properties(height=chart_height)
+    if chart_width is not None:
+        chart = chart.properties(width=chart_width)
+    if not configure:
+        return chart
     return (
-        alt.layer(line, points)
-        .add_params(selection)
-        .properties(height=430)
+        chart
         .configure_view(strokeWidth=0)
         .configure_axis(
             labelColor="#cbd5e1", titleColor="#e2e8f0", gridColor="#263247"
@@ -1658,6 +1681,12 @@ def build_reconstruction_comparison_chart(
     gaussian_metric: str,
     y_title: str,
     y_domain: tuple[float, float],
+    chart_width: int = 500,
+    chart_height: int = 430,
+    show_legend: bool = True,
+    selection=None,
+    add_selection: bool = True,
+    configure: bool = True,
 ) -> alt.FacetChart:
     """Draw separate VGGT and 2DGS plots with one shared policy legend."""
     method_order = ["VGGT reconstruction", "2DGS reconstruction"]
@@ -1677,7 +1706,14 @@ def build_reconstruction_comparison_chart(
         for label in CLOSED_LOOP_POLICY_COLORS
         if label in set(combined["policy_label"])
     ]
-    selection = alt.selection_point(fields=["policy_label"], bind="legend")
+    if selection is None:
+        selection = (
+            alt.selection_point(fields=["policy_label"], bind="legend")
+            if show_legend
+            else alt.selection_point(
+                fields=["policy_label"], on="click", clear="dblclick"
+            )
+        )
     opacity = alt.condition(selection, alt.value(1.0), alt.value(0.14))
     encoding = {
         "x": alt.X(
@@ -1697,7 +1733,11 @@ def build_reconstruction_comparison_chart(
                 domain=domain,
                 range=[CLOSED_LOOP_POLICY_COLORS[label] for label in domain],
             ),
-            legend=alt.Legend(orient="top", direction="horizontal", columns=4),
+            legend=(
+                alt.Legend(orient="top", direction="horizontal", columns=4)
+                if show_legend
+                else None
+            ),
         ),
         "strokeDash": alt.StrokeDash(
             "phase:N",
@@ -1717,10 +1757,11 @@ def build_reconstruction_comparison_chart(
     }
     line = alt.Chart(combined).mark_line(point=False, strokeWidth=3).encode(**encoding)
     points = alt.Chart(combined).mark_circle(size=48).encode(**encoding)
-    return (
-        alt.layer(line, points)
-        .add_params(selection)
-        .properties(width=500, height=430)
+    chart = alt.layer(line, points)
+    if add_selection:
+        chart = chart.add_params(selection)
+    faceted_chart = (
+        chart.properties(width=chart_width, height=chart_height)
         .facet(
             column=alt.Column(
                 "reconstruction_method:N",
@@ -1732,6 +1773,11 @@ def build_reconstruction_comparison_chart(
             )
         )
         .resolve_scale(color="shared", strokeDash="shared", y="shared")
+    )
+    if not configure:
+        return faceted_chart
+    return (
+        faceted_chart
         .configure_view(strokeWidth=0)
         .configure_axis(
             labelColor="#cbd5e1", titleColor="#e2e8f0", gridColor="#263247"
@@ -2209,11 +2255,6 @@ def render_closed_loop_page() -> None:
         )
         return
 
-    st.markdown(
-        '<div class="section-title">Which policy leaves the most surface observed?</div>',
-        unsafe_allow_html=True,
-    )
-    render_variant_overview("policy")
     summary_metrics = {
         "final_coverage_mean": ("Final absolute coverage", "↑ higher is better"),
         "coverage_auc_mean": ("Coverage AUC", "↑ higher is better"),
@@ -2228,20 +2269,17 @@ def render_closed_loop_page() -> None:
     )
 
     metric_label, direction = summary_metrics[summary_metric]
-    leading_row = comparison.loc[
-        comparison[summary_metric].idxmin()
+    non_oracle = comparison.loc[comparison["policy"] != "oracle"]
+    eligible_policies = non_oracle if not non_oracle.empty else comparison
+    leading_row = eligible_policies.loc[
+        eligible_policies[summary_metric].idxmin()
         if direction.startswith("↓")
-        else comparison[summary_metric].idxmax()
+        else eligible_policies[summary_metric].idxmax()
     ]
     best_a, best_b, best_c = st.columns(3)
     best_a.metric("Leading policy", leading_row["policy_label"])
     best_b.metric(metric_label, f'{float(leading_row[summary_metric]):.4f}')
     best_c.metric("Evaluation cohort", f'{int(leading_row["object_count"]):,} objects')
-    st.markdown(
-        f'<div class="metric-note"><strong>{direction}</strong> · Solid lines are Phase 2; '
-        'dashed lines are Phase 3. Select a policy in the legend to isolate it.</div>',
-        unsafe_allow_html=True,
-    )
 
     st.markdown(
         '<div class="section-kicker">Coverage × reconstruction</div>',
@@ -2345,47 +2383,71 @@ def render_closed_loop_page() -> None:
             reconstruction_max * 1.05 if reconstruction_max > 0 else 1.0,
         )
 
-        st.markdown("#### Absolute surface coverage")
-        st.altair_chart(
-            build_closed_loop_curve(
+        if vggt_for_chart.empty or not reconstruction_metric:
+            st.info("No completed VGGT reconstruction evaluations were found.")
+        elif gs_for_chart.empty:
+            st.info("No completed repaired 2DGS evaluations were found.")
+        else:
+            st.markdown("#### Absolute surface coverage and reconstruction")
+            shared_selection = alt.selection_point(
+                name="closed_loop_policy_focus",
+                fields=["policy_label"],
+                bind="legend",
+                on="click",
+                clear="dblclick",
+            )
+            coverage_chart = build_closed_loop_curve(
                 coverage_for_chart,
                 x="acquired_view_count",
                 y="coverage_mean",
                 x_title="Acquired views",
                 y_title="Absolute surface coverage",
                 y_domain=coverage_y_domain,
-            ),
-            width="stretch",
-        )
-
-        if vggt_for_chart.empty or not reconstruction_metric:
-            st.info("No completed VGGT reconstruction evaluations were found.")
-        elif gs_for_chart.empty:
-            st.info("No completed repaired 2DGS evaluations were found.")
-        else:
-            st.altair_chart(
-                build_reconstruction_comparison_chart(
-                    vggt_for_chart,
-                    gs_for_chart,
-                    vggt_metric=vggt_metric,
-                    gaussian_metric=reconstruction_metric,
-                    y_title=RECONSTRUCTION_METRICS[reconstruction_metric],
-                    y_domain=reconstruction_y_domain,
-                ),
-                width="stretch",
+                chart_width=410,
+                chart_height=340,
+                show_legend=True,
+                selection=shared_selection,
+                add_selection=False,
+                configure=False,
             )
-    st.caption(
-        "Use the shared policy and metric controls to compare the same variants across "
-        "all three graphs. "
-        "Click a legend entry to isolate a curve and hover over a point for its value "
-        "and cohort size. All y-axes start at zero, and the VGGT and 2DGS charts share "
-        "the same scale. The anomalous Phase 2 farthest-view VGGT point at two inputs "
-        "is omitted from these plots and their y-axis range only; source metrics remain "
-        "unchanged. Coverage and VGGT reconstruction use the full 300-object test cohort; "
-        "2DGS means use runs trained with 1,500 iterations per view. The one-view point "
-        "uses the original placement because depth and scale are underconstrained; points "
-        "from two views onward require the v2 silhouette repair. A repair candidate is "
-        "accepted only when rendered mask IoU improves."
+            reconstruction_chart = build_reconstruction_comparison_chart(
+                vggt_for_chart,
+                gs_for_chart,
+                vggt_metric=vggt_metric,
+                gaussian_metric=reconstruction_metric,
+                y_title=RECONSTRUCTION_METRICS[reconstruction_metric],
+                y_domain=reconstruction_y_domain,
+                chart_width=410,
+                chart_height=340,
+                show_legend=False,
+                selection=shared_selection,
+                add_selection=False,
+                configure=False,
+            )
+            comparison_chart = (
+                alt.hconcat(coverage_chart, reconstruction_chart, spacing=14)
+                .add_params(shared_selection)
+                .resolve_legend(color="shared")
+                .configure_view(strokeWidth=0)
+                .configure_axis(
+                    labelColor="#cbd5e1",
+                    titleColor="#e2e8f0",
+                    gridColor="#263247",
+                )
+                .configure_legend(
+                    labelColor="#cbd5e1",
+                    titleColor="#e2e8f0",
+                    orient="top",
+                    direction="horizontal",
+                    columns=4,
+                )
+            )
+            st.altair_chart(comparison_chart, width="stretch")
+    st.markdown(
+        f'<div class="metric-note"><strong>{direction}</strong> · Solid lines are Phase 2; '
+        'dashed lines are Phase 3. Click a curve or legend entry to focus it; '
+        'double-click to reset.</div>',
+        unsafe_allow_html=True,
     )
 
     st.markdown(
