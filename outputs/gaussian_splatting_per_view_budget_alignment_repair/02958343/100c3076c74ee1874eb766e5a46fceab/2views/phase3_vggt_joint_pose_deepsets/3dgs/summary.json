@@ -1,0 +1,483 @@
+{
+  "acquired_view_count": 2,
+  "alignment": {
+    "camera_center_rmse_normalized": 3.447543943338315e-16,
+    "mode": "camera_pose_sim3_positive_scale_fallback",
+    "scale": 3.933740027678007
+  },
+  "backend": "3dgs",
+  "camera_source": "known_num_cameras",
+  "geometry_evaluation_enabled": false,
+  "ground_truth_cache": "/content/cv3d-project/data/cache/reconstruction/ground_truth/02958343/100c3076c74ee1874eb766e5a46fceab/f10c8a04b8e2e63996a0.npz",
+  "ground_truth_comparison": {
+    "type": "canonical_render_vs_corresponding_num_rgb",
+    "interactive": "/home/reese/computer_vision/cv3d-project/outputs/gaussian_splatting_per_view_budget_alignment_repair/02958343/100c3076c74ee1874eb766e5a46fceab/2views/phase3_vggt_joint_pose_deepsets/3dgs/ground_truth_comparison.html",
+    "training_view_ids": [
+      0,
+      33
+    ],
+    "held_out_view_ids": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47
+    ]
+  },
+  "history_anchor_ids": [
+    0,
+    33
+  ],
+  "initialization": "camera_aligned_vggt_filtered_point_map",
+  "metric_status": "disabled_by_contract_3dgs_is_qualitative_visualization_only",
+  "object_id": "02958343/100c3076c74ee1874eb766e5a46fceab",
+  "policy": "vggt_joint_pose_deepsets",
+  "prediction_cache": "/content/cv3d-project/data/cache/reconstruction/predictions/02958343/100c3076c74ee1874eb766e5a46fceab/efca30c5cc455ffbb705df21.npz",
+  "schema_version": 1,
+  "settings": {
+    "alpha_threshold": 0.5,
+    "backend": "3dgs",
+    "distortion_loss_weight": 0.01,
+    "fscore_thresholds": [
+      0.01,
+      0.02,
+      0.1
+    ],
+    "iterations": 3000,
+    "learning_rate": 0.01,
+    "metric_chunk_size": 1024,
+    "normal_loss_weight": 0.05,
+    "opacity_loss_weight": 0.1,
+    "position_learning_rate": 0.0002,
+    "render_batch_size": 8,
+    "resolution": 256,
+    "seed": 0,
+    "surface_point_count": 10000
+  },
+  "training_budget": {
+    "iterations_per_view": 1500,
+    "total_iterations": 3000,
+    "view_count": 2
+  },
+  "training_history": [
+    {
+      "color_l1": 0.07576828449964523,
+      "iteration": 1.0,
+      "loss": 0.08796311169862747,
+      "opacity_l1": 0.1219482421875
+    },
+    {
+      "color_l1": 0.14605975151062012,
+      "iteration": 100.0,
+      "loss": 0.16706408560276031,
+      "opacity_l1": 0.21004334092140198
+    },
+    {
+      "color_l1": 0.14427116513252258,
+      "iteration": 200.0,
+      "loss": 0.16517287492752075,
+      "opacity_l1": 0.20901714265346527
+    },
+    {
+      "color_l1": 0.14372889697551727,
+      "iteration": 300.0,
+      "loss": 0.16458459198474884,
+      "opacity_l1": 0.2085569202899933
+    },
+    {
+      "color_l1": 0.14355877041816711,
+      "iteration": 400.0,
+      "loss": 0.16435742378234863,
+      "opacity_l1": 0.2079865038394928
+    },
+    {
+      "color_l1": 0.14347988367080688,
+      "iteration": 500.0,
+      "loss": 0.1642317920923233,
+      "opacity_l1": 0.20751908421516418
+    },
+    {
+      "color_l1": 0.1434381902217865,
+      "iteration": 600.0,
+      "loss": 0.16415241360664368,
+      "opacity_l1": 0.2071421891450882
+    },
+    {
+      "color_l1": 0.1434091329574585,
+      "iteration": 700.0,
+      "loss": 0.1640803962945938,
+      "opacity_l1": 0.20671263337135315
+    },
+    {
+      "color_l1": 0.1433897167444229,
+      "iteration": 800.0,
+      "loss": 0.16402068734169006,
+      "opacity_l1": 0.2063097059726715
+    },
+    {
+      "color_l1": 0.14337372779846191,
+      "iteration": 900.0,
+      "loss": 0.1639709174633026,
+      "opacity_l1": 0.20597191154956818
+    },
+    {
+      "color_l1": 0.14336124062538147,
+      "iteration": 1000.0,
+      "loss": 0.163916677236557,
+      "opacity_l1": 0.20555436611175537
+    },
+    {
+      "color_l1": 0.1433507204055786,
+      "iteration": 1100.0,
+      "loss": 0.16387666761875153,
+      "opacity_l1": 0.2052595168352127
+    },
+    {
+      "color_l1": 0.14334450662136078,
+      "iteration": 1200.0,
+      "loss": 0.16385099291801453,
+      "opacity_l1": 0.2050647884607315
+    },
+    {
+      "color_l1": 0.14333751797676086,
+      "iteration": 1300.0,
+      "loss": 0.16382254660129547,
+      "opacity_l1": 0.20485027134418488
+    },
+    {
+      "color_l1": 0.1433333158493042,
+      "iteration": 1400.0,
+      "loss": 0.16380096971988678,
+      "opacity_l1": 0.20467647910118103
+    },
+    {
+      "color_l1": 0.14333024621009827,
+      "iteration": 1500.0,
+      "loss": 0.16378749907016754,
+      "opacity_l1": 0.20457252860069275
+    },
+    {
+      "color_l1": 0.14332881569862366,
+      "iteration": 1600.0,
+      "loss": 0.16376501321792603,
+      "opacity_l1": 0.2043619602918625
+    },
+    {
+      "color_l1": 0.14332489669322968,
+      "iteration": 1700.0,
+      "loss": 0.16374516487121582,
+      "opacity_l1": 0.20420265197753906
+    },
+    {
+      "color_l1": 0.14332237839698792,
+      "iteration": 1800.0,
+      "loss": 0.16373316943645477,
+      "opacity_l1": 0.20410794019699097
+    },
+    {
+      "color_l1": 0.14332053065299988,
+      "iteration": 1900.0,
+      "loss": 0.16372354328632355,
+      "opacity_l1": 0.20403018593788147
+    },
+    {
+      "color_l1": 0.14331914484500885,
+      "iteration": 2000.0,
+      "loss": 0.1637107878923416,
+      "opacity_l1": 0.20391644537448883
+    },
+    {
+      "color_l1": 0.14331716299057007,
+      "iteration": 2100.0,
+      "loss": 0.16369792819023132,
+      "opacity_l1": 0.20380772650241852
+    },
+    {
+      "color_l1": 0.14331474900245667,
+      "iteration": 2200.0,
+      "loss": 0.16368791460990906,
+      "opacity_l1": 0.20373159646987915
+    },
+    {
+      "color_l1": 0.14331300556659698,
+      "iteration": 2300.0,
+      "loss": 0.16368287801742554,
+      "opacity_l1": 0.2036987543106079
+    },
+    {
+      "color_l1": 0.14331123232841492,
+      "iteration": 2400.0,
+      "loss": 0.16367162764072418,
+      "opacity_l1": 0.20360392332077026
+    },
+    {
+      "color_l1": 0.1433098018169403,
+      "iteration": 2500.0,
+      "loss": 0.1636621057987213,
+      "opacity_l1": 0.2035229653120041
+    },
+    {
+      "color_l1": 0.14330872893333435,
+      "iteration": 2600.0,
+      "loss": 0.16365830600261688,
+      "opacity_l1": 0.2034957855939865
+    },
+    {
+      "color_l1": 0.14330750703811646,
+      "iteration": 2700.0,
+      "loss": 0.16365469992160797,
+      "opacity_l1": 0.20347192883491516
+    },
+    {
+      "color_l1": 0.14330631494522095,
+      "iteration": 2800.0,
+      "loss": 0.16364772617816925,
+      "opacity_l1": 0.20341414213180542
+    },
+    {
+      "color_l1": 0.14330516755580902,
+      "iteration": 2900.0,
+      "loss": 0.16364459693431854,
+      "opacity_l1": 0.20339424908161163
+    },
+    {
+      "color_l1": 0.14330396056175232,
+      "iteration": 3000.0,
+      "loss": 0.16363629698753357,
+      "opacity_l1": 0.20332342386245728
+    }
+  ],
+  "turntable": "/home/reese/computer_vision/cv3d-project/outputs/gaussian_splatting_per_view_budget_alignment_repair/02958343/100c3076c74ee1874eb766e5a46fceab/2views/phase3_vggt_joint_pose_deepsets/3dgs/turntable.html",
+  "cpu_rendering": {
+    "renderer": "numpy_3dgs_antialiased_rgb_v1",
+    "cuda_parity_verified": false,
+    "anchor_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47
+    ]
+  },
+  "alignment_repair": {
+    "identity": {
+      "version": "acquired_rendered_silhouette_sim3_v2",
+      "steps": 200,
+      "starts": 32,
+      "seed": 0,
+      "min_iou_improvement": 0.01,
+      "inputs": {
+        "checkpoint": "c614ccd7765511f14c10a9fafcf656cbb8d0bc1ddb41ccbd009f160e6b565f95",
+        "summary": "758d7405bef14bfb0de7a5a69d9597bc5cea359401f67223005e7c84e11b593f",
+        "visibility": "13865c8bc09a67e51786bf9fa04d0d253612851b5e5c9fbf11e0fb338f281ee3"
+      },
+      "acquired_rgb_sha256": [
+        "6ea67155612e005c2859ef0fb1c38962973264885a997fa50147cdc83fe105a2",
+        "55717050a484ea2e2d4c4300fff6aaa9a1b5e00030dd7f900910fe9d0309ca7e"
+      ],
+      "audit": {
+        "original_alignment": {
+          "camera_center_rmse_normalized": 3.447543943338315e-16,
+          "mode": "camera_pose_sim3_positive_scale_fallback",
+          "scale": 3.933740027678007
+        },
+        "prediction_cache_available": true,
+        "prediction_cache_sha256": "ccfe52e53c1d2438b73cd6bb82cfe7a50122877176c8da2b779f23d13584bc1e",
+        "relative_rotation_errors_degrees": [
+          177.1523804691921
+        ],
+        "median_relative_rotation_error_degrees": 177.1523804691921
+      },
+      "reference_rgb_sha256": [
+        "6ea67155612e005c2859ef0fb1c38962973264885a997fa50147cdc83fe105a2",
+        "d1aa71be58e4c5a26865a979aa3880ee5b8b8f7ee0e72c762f8047061724b97c",
+        "414937841c2676273fe6a3a92d314b1ad493f72072df5a3982f4cd3be4a5eb29",
+        "79d2269aa60e3795812b37232d9d88956005f241b3f2099b9d07ab71bea009b3",
+        "ff70da907b6fcbd872c2cbded00a3181198bf6d2b4c070119742908e57630a9f",
+        "1aaa6fe56449878219db75f003c7e5d60c3237458a239ce7cab9e0190765af41",
+        "2ba7bcf16f41a69d34a356957f63107976d1a2e9eb8dae24b1b11c36a5c4a6e2",
+        "30f9c4621292bbe0ba400f8749e8732002df088de0a6fb1c42e912d4019b1e7c",
+        "04e37e07643ed5be7fc27c40b3ad36b25a730135bf7c54435ec03aee5f6dfdd9",
+        "fbee72aa6c7bc2209094b8ab610dbe3e5506bcc22df335ff4368444a9427eefb",
+        "00be8dcd4a2829aa741e33c9ad7afa1e48980b4759e9f3ed8edd15f9e37e312e",
+        "c3487c3b15329d7312c99a16b325f71aaf6955462e24596f8e32fbc05dac6b29",
+        "e09b7d768b99fcb5f005e633c1021555e84601af2d30997a5025047cc4597079",
+        "c51a436021c32b62a8e1153f44f4197d2d1c2966be730200175c03510eaff066",
+        "bb75247b8201050b69e01667a6286a02ef700026ce9d1dc79739a5cc2331becb",
+        "ebf2ff7bf5f3f11b9115ebf2dd60cdc51e71ca6d173b0052aff1bbdcff9fe2c5",
+        "fba1dcc7df70e1347a2d9b172c2fc490699813edca018f46667b6a615116ddc3",
+        "c401316fd6edef80649b1e84c3e018e96d74eeb232699d48c595a0e32828d7e4",
+        "2bb4e2be858dfb446fba0d77ed377903ae964a0c7c58e965ae8a23071d157aa2",
+        "08a3b9eeb1fcea0547cac1717abcc740ac988ee296cae26085ad72161082f8b5",
+        "6a0bffd906e26948f0081a6fbd6642575a68cfc201aa7c53f5d2f4e2efed6259",
+        "dff706691d735fec79fdafc174512a79f12c132f6c4a3afef3d83a85f3928552",
+        "cd58080dfb93686892859c9682f88cea50ea89d8558afc35c1c2c2e30637d44e",
+        "3c526f49db197e2714afc81956f8fccfbeebf072f0888fdc3c801173761e7dd9",
+        "d1df319afcf63b44dd7242b7514ae45e97dd09aabb6c1c733b291b48a3a0b4dc",
+        "77bc6c38acbd8377f038406ad3e3cecfbca214ff8c11a5db6425dc7cea51ebe2",
+        "66a480df24ff986359143383f6994231c776765ed15e9955a6bc20fbed4aee79",
+        "e2f1a31a4aafe82b137cca032fc5630d13a9319937394dfd9769e2117622d121",
+        "2d3a448bea0e60345aff28060f243acf86d602c166a70ac4c4ae3dabb4940642",
+        "d597fc00fbb65405488910c9670f280df8a29ca75576b60e92768921584ab8c6",
+        "8022a9970063c8075854b29479b3dff20873cdfb277e6caa41b26d8e04bc5fcb",
+        "2a466f6dd8efc6cd9f6f5fab76a68baa0a2ef62b50c3b33fa141345a8725b16d",
+        "347ec22c1303b551d4a73073eee8b99631b21033dbcad4004b3010b183717884",
+        "55717050a484ea2e2d4c4300fff6aaa9a1b5e00030dd7f900910fe9d0309ca7e",
+        "f7d7224e2adabe2b8167c8a3083743124466debe81eddd3ca0fdde210216581e",
+        "ba0ddac798e4cfd83079eb47b373fbe78bdadc8b3bb7adb57f676f379144d4f1",
+        "8a353c8ed3ef2c0d96d4ec3cdb95c3ad6a8ed71680673d8b3ace6bdd0327da95",
+        "ae2ab474b7245db9f1e49bfc3e150895d0688f6b35860f8a50d300c279ad3b25",
+        "e25bc80cbe08edbced5736fa5dad5f47323bc16a75dd964a27d1e50fe239d3e2",
+        "6b2404d8b0a2a807c450f50ea7184433cd1ed5fbadd87aecfaa1633ccb9277c0",
+        "dae9f1a4ed83cd289736d1c8b8b1ff88905decba9fe72dc291074c7e4f3d7541",
+        "cd99f929e171cd98ac1901982a8fdfc7bf5b3ba700e4cc98ee1d8aef144d5a3a",
+        "e1f9aa5c0a4dade182b8ed60447dffeb35bad17eec13e94d65f9be3d9dc40543",
+        "09d5985aa482800c1a44b52fdc1ee7d0ce93013e43c99999339d3877cd9f824e",
+        "deb588a22e438a82d7159edfb40d27bf16f752542de6d7f61e840622380100db",
+        "acce4a717c5c729ee32e6a493f6664be838148a4d069df0f64d991cc69752184",
+        "35b1530be5f29d6f0e31ba8ce539e3878fa6019c8d056cffdb10cc7b80e26f00",
+        "c5bfa967fb208da3be583db70bf0707c955af44a15d020bfacf7863e1c734cb6"
+      ],
+      "renderer": "numpy_3dgs_antialiased_rgb_v1"
+    },
+    "source": "/home/reese/computer_vision/cv3d-project/outputs/gaussian_splatting_per_view_budget/02958343/100c3076c74ee1874eb766e5a46fceab/2views/phase3_vggt_joint_pose_deepsets/3dgs",
+    "accepted": true,
+    "scale": 1.6414299099996197,
+    "quaternion_wxyz": [
+      -0.02427486702799797,
+      0.8757102489471436,
+      0.27314725518226624,
+      0.3974076807498932
+    ],
+    "translation": [
+      -6.853826999664307,
+      -3.7482166290283203,
+      -1.3204818964004517
+    ],
+    "transform": [
+      [
+        0.878026008605957,
+        0.8169229626655579,
+        1.1207138299942017,
+        -6.853826999664307
+      ],
+      [
+        0.7535833120346069,
+        -1.3945634365081787,
+        0.4261434078216553,
+        -3.7482166290283203
+      ],
+      [
+        1.1642487049102783,
+        0.2865709662437439,
+        -1.1210243701934814,
+        -1.3204818964004517
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "silhouette_proxy_before": 3025.653564453125,
+    "silhouette_proxy_after": 0.0005459198146127164,
+    "fitted_to": "acquired_rgb_foreground_only",
+    "ground_truth_used_for_fit": false,
+    "limitations": "Similarity placement only; cannot recover missing or deformed geometry. Silhouettes may admit symmetric/ambiguous fits.",
+    "acceptance": "proxy_and_rendered_silhouette_iou",
+    "rendered_silhouette_validation": {
+      "metric": "mean_per_view_rendered_mask_iou",
+      "alpha_threshold": 0.5,
+      "before": 0.0,
+      "candidate": 0.4699604310824783,
+      "candidate_evaluated": true,
+      "minimum_absolute_improvement": 0.01,
+      "accepted": true
+    }
+  }
+}
