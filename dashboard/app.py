@@ -2105,9 +2105,9 @@ def render_closed_loop_page() -> None:
         "the same scale. The anomalous Phase 2 farthest-view VGGT point at two inputs "
         "is omitted from these plots and their y-axis range only; source metrics remain "
         "unchanged. Coverage and VGGT reconstruction use the full 300-object test cohort; "
-        "2DGS means use only completed silhouette-refined runs. Placement is fitted "
-        "to acquired RGB silhouettes before geometry evaluation; one-view histories "
-        "are skipped by the repair."
+        "2DGS means use only completed silhouette-refined runs. A placement candidate "
+        "is fitted to acquired RGB silhouettes and accepted only when rendered mask "
+        "IoU improves; one-view histories are skipped by the repair."
     )
 
     st.markdown(
@@ -2495,7 +2495,8 @@ def render_reconstruction_gallery_page() -> None:
                 )
             st.caption(
                 "Unrepaired 2DGS uses corrected CPU depth extraction at the original "
-                "placement. Repaired 2DGS and 3DGS use placement fitted to acquired RGB silhouettes."
+                "placement. Repaired 2DGS and 3DGS accept a silhouette-fitted placement "
+                "only when its rendered mask IoU improves."
             )
             selection_label = (
                 f"{CATEGORY_NAMES.get(render_category, render_category)} / "

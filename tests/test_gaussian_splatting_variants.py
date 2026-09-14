@@ -17,6 +17,7 @@ from scripts.evaluate_gaussian_splatting_variants import (
     main,
     normalize_views,
     object_output_root,
+    summary_has_training_budget,
     validate_inputs,
     write_index,
 )
@@ -40,6 +41,19 @@ def write_rows(path: Path, policies: tuple[str, ...], views=(1, 2, 3, 5, 10)) ->
 
 
 class GaussianSplattingVariantTests(unittest.TestCase):
+    def test_resume_requires_matching_per_view_training_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "summary.json"
+            path.write_text(json.dumps({"settings": {"iterations": 1500}}))
+            self.assertFalse(summary_has_training_budget(path, 1500, 5))
+            path.write_text(json.dumps({"training_budget": {
+                "iterations_per_view": 1500,
+                "view_count": 5,
+                "total_iterations": 7500,
+            }}))
+            self.assertTrue(summary_has_training_budget(path, 1500, 5))
+            self.assertFalse(summary_has_training_budget(path, 1000, 5))
+
     def test_object_output_root_mirrors_num_hierarchy(self) -> None:
         self.assertEqual(
             object_output_root(Path("output"), "category/object"),
@@ -192,7 +206,11 @@ class GaussianSplattingVariantTests(unittest.TestCase):
                     / "2dgs/summary.json"
                 )
                 summary.parent.mkdir(parents=True)
-                summary.write_text("{}", encoding="utf-8")
+                summary.write_text(json.dumps({"training_budget": {
+                    "iterations_per_view": 1500,
+                    "view_count": 1,
+                    "total_iterations": 1500,
+                }}), encoding="utf-8")
             arguments = [
                 "evaluate_gaussian_splatting_variants.py",
                 "--object-id", "category/object",

@@ -29,6 +29,7 @@ from nbv.eval.gaussian_splatting import (
     known_num_splat_cameras, GaussianParameters, load_splat_images,
     write_image_comparison_gallery, write_render_gallery,
 )
+from nbv.eval.gaussian_splatting_cpu import render_depth_cpu
 from nbv.geometry.anchors import canonical_anchors
 from nbv.geometry.num_camera import CAMERA_CONVENTION, anchor_camera_to_world
 from nbv.geometry.visibility import PerspectiveCamera
@@ -37,12 +38,13 @@ from scripts.reevaluate_gaussian_splatting_cpu import (
 )
 from scripts.visualize_reconstruction import validate_object_id
 
-VERSION = "acquired_silhouette_sim3_v1"
+VERSION = "acquired_rendered_silhouette_sim3_v2"
 RGB_RENDERER_VERSION = "numpy_3dgs_antialiased_rgb_v1"
 RGB_OUTPUT_FILES = ("ground_truth_comparison.html", "turntable.html", "preview.png", "summary.json")
 
 
-def render_rgb_3dgs_cpu(model, cameras, resolution, *, progress=None):
+def render_rgb_3dgs_cpu(model, cameras, resolution, *, progress=None,
+                        return_alpha=False):
     """Antialiased pinhole EWA splatting with white background, constant RGB.
 
     Follows gsplat v1.5.3 ProjectionEWA3DGSFused/ RasterizeToPixels3DGSFwd:
@@ -58,7 +60,7 @@ def render_rgb_3dgs_cpu(model, cameras, resolution, *, progress=None):
     rotation = quaternion_rotation(torch.tensor(quats)).numpy()
     axes = rotation * scales[:, None, :]
     covariance = axes @ axes.transpose(0, 2, 1)
-    frames = []
+    frames, alphas = [], []
     yy, xx = np.mgrid[:resolution, :resolution].astype(np.float32) + .5
     for camera_index, (view, intrinsic) in enumerate(zip(cameras.world_to_camera, cameras.intrinsics)):
         r = view[:3, :3].astype(np.float32)
@@ -107,9 +109,106 @@ def render_rgb_3dgs_cpu(model, cameras, resolution, *, progress=None):
             rgb[region] += (transmission[region]*alpha*active)[..., None]*colors[indices[j]]
             transmission[region] = np.where(active, next_t, transmission[region])
         frames.append(np.clip(rgb+transmission[..., None], 0, 1))
+        alphas.append(1-transmission)
         if progress:
             progress(camera_index+1, len(cameras.world_to_camera))
-    return np.stack(frames)
+    rendered = np.stack(frames)
+    return (rendered, np.stack(alphas)) if return_alpha else rendered
+
+
+def mean_silhouette_iou(alphas: np.ndarray, masks: list[np.ndarray],
+                        *, alpha_threshold: float = .5) -> float:
+    """Mean per-view IoU between rendered alpha and acquired RGB foreground."""
+    rendered = np.asarray(alphas)
+    targets = np.asarray(masks, dtype=bool)
+    if rendered.shape != targets.shape:
+        raise ValueError("rendered alpha and silhouette masks must have matching shapes")
+    if not np.isfinite(rendered).all() or not 0 < alpha_threshold < 1:
+        raise ValueError("rendered alpha must be finite and threshold must lie in (0, 1)")
+    predicted = rendered >= alpha_threshold
+    intersection = np.logical_and(predicted, targets).sum(axis=(1, 2))
+    union = np.logical_or(predicted, targets).sum(axis=(1, 2))
+    return float(np.mean(np.divide(intersection, union, out=np.ones_like(
+        intersection, dtype=np.float64), where=union != 0)))
+
+
+def checkpoint_silhouette_alpha(checkpoint: dict, cameras, resolution: int) -> np.ndarray:
+    """Render checkpoint opacity on CPU for placement acceptance validation."""
+    backend = checkpoint["settings"]["backend"]
+    model = GaussianParameters(
+        checkpoint["state_dict"]["means"].numpy(),
+        np.full(checkpoint["state_dict"]["means"].shape, .5),
+        backend,
+    )
+    model.load_state_dict(checkpoint["state_dict"])
+    if backend == "2dgs":
+        alpha, _ = render_depth_cpu(model, cameras, resolution)
+        return alpha
+    _, alpha = render_rgb_3dgs_cpu(
+        model, cameras, resolution, return_alpha=True,
+    )
+    return alpha
+
+
+def validate_fitted_checkpoint(checkpoint: dict, fitted: dict, cameras,
+                               masks: list[np.ndarray], *, resolution: int,
+                               min_iou_improvement: float) -> tuple[dict, dict]:
+    """Accept a proxy candidate only when its rendered acquired-mask IoU improves."""
+    if not 0 <= min_iou_improvement <= 1:
+        raise ValueError("minimum IoU improvement must lie in [0, 1]")
+    before = mean_silhouette_iou(
+        checkpoint_silhouette_alpha(checkpoint, cameras, resolution), masks,
+    )
+    candidate = apply_checkpoint_transform(
+        checkpoint, fitted["scale"], np.asarray(fitted["quaternion_wxyz"]),
+        np.asarray(fitted["translation"]),
+    )
+    after = before
+    gate_accepted = False
+    if fitted["accepted"]:
+        after = mean_silhouette_iou(
+            checkpoint_silhouette_alpha(candidate, cameras, resolution), masks,
+        )
+        gate_accepted = after >= before + min_iou_improvement
+    validation = {
+        "metric": "mean_per_view_rendered_mask_iou",
+        "alpha_threshold": .5,
+        "before": before,
+        "candidate": after,
+        "candidate_evaluated": bool(fitted["accepted"]),
+        "minimum_absolute_improvement": min_iou_improvement,
+        "accepted": gate_accepted,
+    }
+    if gate_accepted:
+        fitted["acceptance"] = "proxy_and_rendered_silhouette_iou"
+        fitted["rendered_silhouette_validation"] = validation
+        return candidate, fitted
+
+    rejected = dict(fitted)
+    rejected_candidate = None
+    if fitted["accepted"]:
+        rejected_candidate = {
+            key: rejected[key] for key in (
+                "scale", "quaternion_wxyz", "translation", "transform",
+            )
+        }
+        rejected_candidate["silhouette_proxy"] = fitted["silhouette_proxy_after"]
+    rejected.update({
+        "accepted": False,
+        "scale": 1.,
+        "quaternion_wxyz": [1., 0., 0., 0.],
+        "translation": [0., 0., 0.],
+        "transform": np.eye(4).tolist(),
+        "silhouette_proxy_after": fitted["silhouette_proxy_before"],
+        "acceptance": (
+            "identity_retained_by_rendered_silhouette_iou"
+            if fitted["accepted"] else "identity_retained_by_proxy"
+        ),
+        "rendered_silhouette_validation": validation,
+    })
+    if rejected_candidate is not None:
+        rejected["rejected_candidate"] = rejected_candidate
+    return checkpoint, rejected
 
 
 def quaternion_rotation(q: torch.Tensor) -> torch.Tensor:
@@ -308,7 +407,9 @@ def repair(source: Path, destination: Path, args) -> str:
         with Image.open(path) as im:
             masks.append(np.asarray(im.convert("RGB").resize((64, 64), Image.Resampling.BILINEAR)).min(-1) < 245)
     silhouette_targets(masks, 128, args.seed)  # validate before publishing or fitting
+    min_iou_improvement = getattr(args, "min_iou_improvement", .01)
     identity = {"version": VERSION, "steps": args.steps, "starts": args.starts, "seed": args.seed,
+                "min_iou_improvement": min_iou_improvement,
                 "inputs": {name: digest(path) for name, path in (
                     ("checkpoint", source / "checkpoint.pt"), ("summary", source / "summary.json"),
                     ("visibility", visibility_path))},
@@ -332,8 +433,10 @@ def repair(source: Path, destination: Path, args) -> str:
     fitted = fit_similarity(checkpoint["state_dict"]["means"].numpy(), cameras, masks,
         resolution=64, radius=float(metadata["camera_radius"]), steps=args.steps,
         starts=args.starts, seed=args.seed, progress=lambda message: print(f"  {message}", flush=True))
-    repaired = apply_checkpoint_transform(checkpoint, fitted["scale"],
-        np.asarray(fitted["quaternion_wxyz"]), np.asarray(fitted["translation"]))
+    repaired, fitted = validate_fitted_checkpoint(
+        checkpoint, fitted, cameras, masks, resolution=64,
+        min_iou_improvement=min_iou_improvement,
+    )
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".alignment-repair-", dir=destination.parent) as temporary:
         stage = Path(temporary)
@@ -408,13 +511,20 @@ def main(argv=None) -> int:
     parser.add_argument("--limit", type=int)
     parser.add_argument("--steps", type=int, default=200)
     parser.add_argument("--starts", type=int, default=32, help="Independent initial rotations for placement fitting")
+    parser.add_argument("--min-iou-improvement", type=float, default=.01,
+                        help="Minimum absolute rendered silhouette IoU gain required to accept a placement")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--threads", type=int, default=2)
     parser.add_argument("--dry-run", action="store_true", help="Validate inputs and audit cached cameras without writing")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args(argv)
-    if min(args.steps, args.starts, args.threads) <= 0 or (args.limit is not None and args.limit <= 0) or args.seed < 0:
-        parser.error("steps, starts, threads, limit must be positive; seed must be nonnegative")
+    if (min(args.steps, args.starts, args.threads) <= 0
+            or (args.limit is not None and args.limit <= 0) or args.seed < 0
+            or not 0 <= args.min_iou_improvement <= 1):
+        parser.error(
+            "steps, starts, threads, and limit must be positive; seed must be "
+            "nonnegative; min-iou-improvement must lie in [0, 1]"
+        )
     source_root, output_root = args.input_root.resolve(), args.output_root.resolve()
     if source_root == output_root or source_root in output_root.parents or output_root in source_root.parents:
         parser.error("input and output roots must be separate, non-nested directories")
@@ -443,7 +553,14 @@ def main(argv=None) -> int:
     for index, source in enumerate(sources, 1):
         print(f"[{index}/{len(sources)}] {source.relative_to(source_root)}", flush=True)
         try:
-            print("  " + repair(source, output_root / source.relative_to(source_root), args), flush=True)
+            result = repair(
+                source, output_root / source.relative_to(source_root), args,
+            )
+            print("  " + result, flush=True)
+            # Keep the dashboard aggregate usable during long or interrupted batches.
+            if (not args.dry_run and source.name == "2dgs"
+                    and not result.startswith("skipped")):
+                write_aggregate(output_root)
         except (OSError, ValueError, KeyError, RuntimeError) as exc:
             failures += 1
             print(f"  FAILED: {exc}", file=sys.stderr, flush=True)

@@ -80,8 +80,11 @@ the known NUM cameras. It tries deterministic initial rotations and minimizes
 symmetric distances between projected Gaussian centers and foreground pixels.
 The camera-orbit origin is an initialization prior; translation remains free.
 A separate, denser sample selects the fit and checks it improves this image
-placement proxy by at least 1%; otherwise the original placement is retained.
-This proxy is not rendered silhouette IoU and does not guarantee better geometry.
+placement proxy by at least 1%. The candidate is then rendered on the acquired
+cameras with the backend's CPU alpha renderer. It is accepted only if its mean
+per-view mask IoU improves by at least 0.01 over the original checkpoint;
+otherwise the original placement is retained. Use `--min-iou-improvement` to
+change that absolute margin. Neither acceptance check guarantees better geometry.
 
 Ground-truth geometry is **not an input to fitting or candidate selection**.
 It is used only after placement is fixed, to calculate geometric evaluation
@@ -122,8 +125,9 @@ Results go to `outputs/gaussian_splatting_alignment_repair` using the existing
 - transformed `checkpoint.pt`;
 - freshly extracted `surface.ply` and `metrics.csv`;
 - `comparison.png` and `comparison_interactive.html`;
-- `summary.json`, including the source hashes, camera diagnostics, fitted
-  transform, before/after image-placement proxy, and protocol limitations;
+- `summary.json`, including the source hashes, camera diagnostics, selected and
+  rejected-candidate transforms, before/after image-placement proxy, rendered
+  silhouette IoU validation, and protocol limitations;
 - root-level `recovered_metrics.csv` aggregating completed outputs.
 
 3DGS writes a transformed `checkpoint.pt`, a fresh 48-anchor
@@ -138,13 +142,13 @@ and [RGB compositing](https://github.com/nerfstudio-project/gsplat/blob/v1.5.3/g
 CPU/CUDA parity has not been verified. A better silhouette fit does not guarantee
 better RGB colors, which remain those learned at the original placement.
 
-The three-view PUN airplane was also run through the complete 3DGS path:
+The three-view PUN airplane was also run through the earlier complete 3DGS path:
 48 comparison frames were generated, a repeated invocation skipped the completed
 repair, and the original checkpoint hash stayed unchanged. Its repaired RGB is
 still faint and incomplete; moving the Gaussians does not recover colors or
 opacity learned poorly during the original training. The renderer's analytic
-projection/compositing tests and the repair integration tests pass (29 tests
-across the repair, CPU extraction, and Gaussian modules).
+projection/compositing tests and repair integration tests cover alpha output
+and rendered-IoU candidate rejection as well.
 
 The original checkpoints, cached predictions, and original evaluations are
 preserved. Interrupted runs do not publish a completion marker. Old RGB

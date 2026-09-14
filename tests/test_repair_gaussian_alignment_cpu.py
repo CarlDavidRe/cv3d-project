@@ -17,7 +17,8 @@ from nbv.geometry.anchors import canonical_anchors
 from nbv.geometry.visibility import PerspectiveCamera
 from scripts.repair_gaussian_alignment_cpu import (
     apply_checkpoint_transform, audit_cameras, fit_similarity, main,
-    quaternion_rotation, render_rgb_3dgs_cpu, repair, digest,
+    mean_silhouette_iou, quaternion_rotation, render_rgb_3dgs_cpu, repair,
+    digest, validate_fitted_checkpoint,
 )
 
 
@@ -81,6 +82,78 @@ class AlignmentRepairTests(unittest.TestCase):
         near_alpha, far_alpha = .2*.04/.34, .8*.01/.31
         expected = near_alpha*np.array([.9, .2, .1]) + (1-near_alpha)*far_alpha*np.array([.1, .2, .9]) + (1-near_alpha)*(1-far_alpha)
         np.testing.assert_allclose(image[0, 0, 0], expected, atol=1e-6)
+
+    def test_rgb_renderer_can_return_alpha_for_silhouette_validation(self):
+        model, cameras = self.rgb_fixture(
+            [[0., 0., 2.]], [[.2, .4, .6]], [.8],
+        )
+        image, alpha = render_rgb_3dgs_cpu(
+            model, cameras, 1, return_alpha=True,
+        )
+        self.assertEqual(image.shape, (1, 1, 1, 3))
+        self.assertEqual(alpha.shape, (1, 1, 1))
+        self.assertGreater(alpha[0, 0, 0], 0)
+
+    def test_rendered_silhouette_iou_gates_proxy_candidate(self):
+        model = GaussianParameters(
+            np.asarray([[0., 0., 2.], [.1, 0., 2.]]),
+            np.full((2, 3), .5), "2dgs",
+        )
+        checkpoint = {
+            "schema_version": 1,
+            "settings": {"backend": "2dgs"},
+            "state_dict": model.state_dict(),
+        }
+        cameras = object()
+        masks = [np.asarray([[True, True], [False, False]])]
+        fitted = {
+            "scale": 2.,
+            "quaternion_wxyz": [1., 0., 0., 0.],
+            "translation": [0., 0., 0.],
+            "transform": np.diag([2., 2., 2., 1.]).tolist(),
+            "accepted": True,
+            "silhouette_proxy_before": .2,
+            "silhouette_proxy_after": .1,
+        }
+        original_alpha = np.asarray([[[.9, .9], [.1, .1]]])
+        worse_alpha = np.asarray([[[.9, .1], [.9, .1]]])
+        with patch(
+            "scripts.repair_gaussian_alignment_cpu.checkpoint_silhouette_alpha",
+            side_effect=(original_alpha, worse_alpha),
+        ):
+            selected, result = validate_fitted_checkpoint(
+                checkpoint, dict(fitted), cameras, masks, resolution=2,
+                min_iou_improvement=.01,
+            )
+        self.assertIs(selected, checkpoint)
+        self.assertFalse(result["accepted"])
+        self.assertEqual(result["scale"], 1.)
+        self.assertEqual(result["rejected_candidate"]["scale"], 2.)
+        self.assertEqual(result["silhouette_proxy_after"], .2)
+        self.assertEqual(
+            result["rendered_silhouette_validation"]["before"], 1.,
+        )
+        self.assertEqual(
+            result["rendered_silhouette_validation"]["candidate"], 1/3,
+        )
+
+        improved_alpha = np.asarray([[[.9, .9], [.1, .1]]])
+        weak_original = np.asarray([[[.9, .1], [.1, .1]]])
+        with patch(
+            "scripts.repair_gaussian_alignment_cpu.checkpoint_silhouette_alpha",
+            side_effect=(weak_original, improved_alpha),
+        ):
+            selected, result = validate_fitted_checkpoint(
+                checkpoint, dict(fitted), cameras, masks, resolution=2,
+                min_iou_improvement=.01,
+            )
+        self.assertIsNot(selected, checkpoint)
+        self.assertTrue(result["accepted"])
+        self.assertEqual(result["acceptance"], "proxy_and_rendered_silhouette_iou")
+
+    def test_mean_silhouette_iou_validates_shapes(self):
+        with self.assertRaisesRegex(ValueError, "matching shapes"):
+            mean_silhouette_iou(np.zeros((1, 2, 2)), [np.zeros((3, 3))])
 
     def test_rgb_renderer_camera_translation_and_clipping(self):
         view = np.eye(4)

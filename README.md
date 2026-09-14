@@ -402,7 +402,7 @@ for object_id in "${test_objects[@]}"; do
       --object-id "$object_id" \
       --views 1 2 3 5 10 \
       --backend both \
-      --iterations 1500; then
+      --iterations 1500; then  # iterations per acquired view
     succeeded=$((succeeded + 1))
   else
     status=$?

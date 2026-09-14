@@ -103,7 +103,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--backend", choices=("2dgs", "3dgs", "both"), default="both",
         help="2DGS writes geometry metrics; 3DGS writes visualization only",
     )
-    parser.add_argument("--iterations", type=int, default=1_500)
+    parser.add_argument(
+        "--iterations", type=int, default=1_500, metavar="PER_VIEW",
+        help="Optimization iterations per acquired view (default: 1500)",
+    )
     parser.add_argument("--resolution", type=int, default=256)
     parser.add_argument("--render-frames", type=int, default=60)
     parser.add_argument("--learning-rate", type=float, default=1e-2)
@@ -126,9 +129,18 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def total_training_iterations(iterations_per_view: int, view_count: int) -> int:
+    """Give every acquired camera the same number of optimizer updates."""
+    if iterations_per_view <= 0 or view_count <= 0:
+        raise ValueError("iterations per view and view count must be positive")
+    return iterations_per_view * view_count
+
+
 def main() -> int:
     args = build_parser().parse_args()
     try:
+        if args.iterations <= 0:
+            raise ValueError("--iterations must be positive")
         backends = ("2dgs", "3dgs") if args.backend == "both" else (args.backend,)
         for backend in backends:
             require_gsplat(backend)
@@ -190,6 +202,7 @@ def main() -> int:
         image_paths = [store.acquire(anchor).image_path for anchor in history]
         all_image_paths = [store.acquire(anchor.anchor_id).image_path for anchor in anchors]
         view_count = int(row["acquired_view_count"])
+        total_iterations = total_training_iterations(args.iterations, view_count)
         category_id, object_key = object_id.split("/", 1)
         output = args.output_dir or (
             args.metrics.parent / "gaussian_splatting" / category_id / object_key
@@ -211,7 +224,7 @@ def main() -> int:
         for backend in backends:
             settings = GaussianSplatSettings(
                 backend=backend,
-                iterations=args.iterations,
+                iterations=total_iterations,
                 resolution=args.resolution,
                 learning_rate=args.learning_rate,
                 position_learning_rate=args.position_learning_rate,
@@ -242,6 +255,11 @@ def main() -> int:
                 **common,
                 "backend": backend,
                 "settings": asdict(settings),
+                "training_budget": {
+                    "iterations_per_view": args.iterations,
+                    "view_count": view_count,
+                    "total_iterations": total_iterations,
+                },
                 "training_history": training_history,
                 "turntable": str((destination / "turntable.html").resolve()),
                 "geometry_evaluation_enabled": backend == "2dgs",

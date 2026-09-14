@@ -59,5 +59,11 @@ silhouette-refined evaluation procedure: apply it consistently across policies
 and keep its scores separate from original-placement scores. CPU/CUDA renderer
 parity has not been verified.
 
+New Gaussian training runs interpret `--iterations` as iterations per acquired
+view, so every view receives the same optimization budget. Placement candidates
+must improve mean rendered silhouette IoU by at least 0.01 before they are
+accepted; configure this guard with `--min-iou-improvement`. Existing checkpoints
+must be retrained and existing repairs rerun to benefit from these changes.
+
 See [placement repair details and dashboard setup](gaussian_alignment_cpu_repair.md)
 and [CPU surface recovery details](reconstruction_evaluation.md#recovering-saved-2dgs-evaluation-on-cpu).

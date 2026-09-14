@@ -55,7 +55,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--backend", choices=("2dgs", "3dgs", "both"), default="both",
     )
-    parser.add_argument("--iterations", type=int, default=1_500)
+    parser.add_argument(
+        "--iterations", type=int, default=1_500, metavar="PER_VIEW",
+        help="Optimization iterations per acquired view (default: 1500)",
+    )
     parser.add_argument("--resolution", type=int, default=256)
     parser.add_argument("--render-frames", type=int, default=60)
     parser.add_argument("--phase2-root", type=Path, default=ROOT / "outputs/phase2")
@@ -167,6 +170,22 @@ def backend_summaries(output: Path, backend: str) -> tuple[Path, ...]:
     return tuple(output / name / "summary.json" for name in names)
 
 
+def summary_has_training_budget(path: Path, iterations_per_view: int,
+                                view_count: int) -> bool:
+    """Only resume checkpoints trained with the requested per-view budget."""
+    if not path.is_file():
+        return False
+    try:
+        summary = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return summary.get("training_budget") == {
+        "iterations_per_view": iterations_per_view,
+        "view_count": view_count,
+        "total_iterations": iterations_per_view * view_count,
+    }
+
+
 def build_command(
     variant: Variant,
     object_id: str,
@@ -248,6 +267,8 @@ a{{display:inline-block;margin:2px 0}}.missing{{color:#94a3b8;display:inline-blo
 def main() -> int:
     args = build_parser().parse_args()
     try:
+        if args.iterations <= 0:
+            raise ValueError("--iterations must be positive")
         views = normalize_views(args.views)
         variants = discover_variants(args.phase2_root, args.phase3_root)
         validate_inputs(variants, args.object_id, views)
@@ -259,7 +280,9 @@ def main() -> int:
                 summaries = backend_summaries(output, args.backend)
                 missing_backends = tuple(
                     path.parent.name for path in summaries
-                    if args.force or not path.is_file()
+                    if args.force or not summary_has_training_budget(
+                        path, args.iterations, view_count,
+                    )
                 )
                 if not missing_backends:
                     print(f"SKIP {variant.key} at {view_count} views (already complete)")

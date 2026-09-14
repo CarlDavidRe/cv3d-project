@@ -9,7 +9,10 @@ from unittest.mock import patch
 import numpy as np
 import torch
 
-from scripts.evaluate_gaussian_splatting import resolve_metric_cache
+from scripts.evaluate_gaussian_splatting import (
+    resolve_metric_cache,
+    total_training_iterations,
+)
 from scripts.visualize_reconstruction import mapping_sha256
 
 from nbv.eval.gaussian_splatting import (
@@ -32,6 +35,12 @@ from nbv.geometry.visibility import PerspectiveCamera
 
 
 class GaussianSplattingTests(unittest.TestCase):
+    def test_training_iterations_scale_with_acquired_views(self) -> None:
+        self.assertEqual(total_training_iterations(1_500, 2), 3_000)
+        self.assertEqual(total_training_iterations(1_500, 10), 15_000)
+        with self.assertRaisesRegex(ValueError, "positive"):
+            total_training_iterations(0, 10)
+
     def test_stale_metric_cache_path_resolves_by_prediction_identity(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
