@@ -1,0 +1,270 @@
+{
+  "acquired_view_count": 2,
+  "alignment": {
+    "camera_center_rmse_normalized": 1.127474395522728,
+    "mode": "camera_pose_sim3",
+    "scale": 0.29159196415530314
+  },
+  "backend": "2dgs",
+  "camera_source": "known_num_cameras",
+  "geometry_evaluation_enabled": true,
+  "ground_truth_cache": "/content/cv3d-project/data/cache/reconstruction/ground_truth/02933112/18d94e539b0ed30d105e720ebc569399/fff8eaae4633d78038c6.npz",
+  "ground_truth_comparison": {
+    "colors": {
+      "ground_truth": [
+        37,
+        99,
+        235
+      ],
+      "surface": [
+        234,
+        88,
+        12
+      ]
+    },
+    "combined_point_cloud": "/content/cv3d-project/outputs/gaussian_splatting_per_view_budget/02933112/18d94e539b0ed30d105e720ebc569399/2views/phase2_pun/2dgs/comparison.ply",
+    "interactive": "/content/cv3d-project/outputs/gaussian_splatting_per_view_budget/02933112/18d94e539b0ed30d105e720ebc569399/2views/phase2_pun/2dgs/comparison_interactive.html",
+    "static": "/content/cv3d-project/outputs/gaussian_splatting_per_view_budget/02933112/18d94e539b0ed30d105e720ebc569399/2views/phase2_pun/2dgs/comparison.png"
+  },
+  "history_anchor_ids": [
+    0,
+    24
+  ],
+  "initialization": "camera_aligned_vggt_filtered_point_map",
+  "metric_status": "evaluation_candidate_without_ground_truth_alignment",
+  "metrics": {
+    "accuracy_normalized": 0.17207056281801514,
+    "chamfer_l1_normalized": 0.38357435919140276,
+    "completeness_normalized": 0.5950781555647904,
+    "fscore_10pct": 0.0,
+    "fscore_1pct": 0.0,
+    "fscore_2pct": 0.0,
+    "ground_truth_diameter": 1.9962585713983276,
+    "precision_10pct": 0.0,
+    "precision_1pct": 0.0,
+    "precision_2pct": 0.0,
+    "recall_10pct": 0.0,
+    "recall_1pct": 0.0,
+    "recall_2pct": 0.0
+  },
+  "object_id": "02933112/18d94e539b0ed30d105e720ebc569399",
+  "policy": "pun",
+  "prediction_cache": "/content/cv3d-project/data/cache/reconstruction/predictions/02933112/18d94e539b0ed30d105e720ebc569399/2d466a1b7230ed56b7d2f913.npz",
+  "schema_version": 1,
+  "settings": {
+    "alpha_threshold": 0.5,
+    "backend": "2dgs",
+    "distortion_loss_weight": 0.01,
+    "fscore_thresholds": [
+      0.01,
+      0.02,
+      0.1
+    ],
+    "iterations": 3000,
+    "learning_rate": 0.01,
+    "metric_chunk_size": 1024,
+    "normal_loss_weight": 0.05,
+    "opacity_loss_weight": 0.1,
+    "position_learning_rate": 0.0002,
+    "render_batch_size": 8,
+    "resolution": 256,
+    "seed": 0,
+    "surface_point_count": 10000
+  },
+  "surface_extraction": "median 2DGS depth from all 48 canonical NUM cameras; alpha filtered, voxel fused, deterministically sampled",
+  "surface_point_count": 8741,
+  "training_budget": {
+    "iterations_per_view": 1500,
+    "total_iterations": 3000,
+    "view_count": 2
+  },
+  "training_history": [
+    {
+      "color_l1": 0.09837281703948975,
+      "iteration": 1.0,
+      "loss": 0.14648303389549255,
+      "opacity_l1": 0.3077932596206665
+    },
+    {
+      "color_l1": 0.1462077498435974,
+      "iteration": 100.0,
+      "loss": 0.1775432974100113,
+      "opacity_l1": 0.27819007635116577
+    },
+    {
+      "color_l1": 0.14604847133159637,
+      "iteration": 200.0,
+      "loss": 0.17653745412826538,
+      "opacity_l1": 0.278472363948822
+    },
+    {
+      "color_l1": 0.14592967927455902,
+      "iteration": 300.0,
+      "loss": 0.1758621782064438,
+      "opacity_l1": 0.2786809802055359
+    },
+    {
+      "color_l1": 0.1458638608455658,
+      "iteration": 400.0,
+      "loss": 0.17633208632469177,
+      "opacity_l1": 0.27886366844177246
+    },
+    {
+      "color_l1": 0.14581841230392456,
+      "iteration": 500.0,
+      "loss": 0.1755480170249939,
+      "opacity_l1": 0.27906036376953125
+    },
+    {
+      "color_l1": 0.1457957923412323,
+      "iteration": 600.0,
+      "loss": 0.17555831372737885,
+      "opacity_l1": 0.27926120162010193
+    },
+    {
+      "color_l1": 0.1457761824131012,
+      "iteration": 700.0,
+      "loss": 0.17560210824012756,
+      "opacity_l1": 0.27944445610046387
+    },
+    {
+      "color_l1": 0.14576247334480286,
+      "iteration": 800.0,
+      "loss": 0.1748364120721817,
+      "opacity_l1": 0.27956172823905945
+    },
+    {
+      "color_l1": 0.1457529366016388,
+      "iteration": 900.0,
+      "loss": 0.17509478330612183,
+      "opacity_l1": 0.2796666920185089
+    },
+    {
+      "color_l1": 0.14574551582336426,
+      "iteration": 1000.0,
+      "loss": 0.17475487291812897,
+      "opacity_l1": 0.27976423501968384
+    },
+    {
+      "color_l1": 0.14574037492275238,
+      "iteration": 1100.0,
+      "loss": 0.1748264878988266,
+      "opacity_l1": 0.27984780073165894
+    },
+    {
+      "color_l1": 0.14573639631271362,
+      "iteration": 1200.0,
+      "loss": 0.1747901290655136,
+      "opacity_l1": 0.2799825370311737
+    },
+    {
+      "color_l1": 0.145732581615448,
+      "iteration": 1300.0,
+      "loss": 0.175075963139534,
+      "opacity_l1": 0.2800412178039551
+    },
+    {
+      "color_l1": 0.14572998881340027,
+      "iteration": 1400.0,
+      "loss": 0.17443321645259857,
+      "opacity_l1": 0.28008711338043213
+    },
+    {
+      "color_l1": 0.14572785794734955,
+      "iteration": 1500.0,
+      "loss": 0.17461024224758148,
+      "opacity_l1": 0.2801966369152069
+    },
+    {
+      "color_l1": 0.14572596549987793,
+      "iteration": 1600.0,
+      "loss": 0.17460846900939941,
+      "opacity_l1": 0.28024834394454956
+    },
+    {
+      "color_l1": 0.14572423696517944,
+      "iteration": 1700.0,
+      "loss": 0.17484912276268005,
+      "opacity_l1": 0.280326247215271
+    },
+    {
+      "color_l1": 0.14572201669216156,
+      "iteration": 1800.0,
+      "loss": 0.17508158087730408,
+      "opacity_l1": 0.28034543991088867
+    },
+    {
+      "color_l1": 0.14572051167488098,
+      "iteration": 1900.0,
+      "loss": 0.1746990978717804,
+      "opacity_l1": 0.28040552139282227
+    },
+    {
+      "color_l1": 0.1457194983959198,
+      "iteration": 2000.0,
+      "loss": 0.17456795275211334,
+      "opacity_l1": 0.28042709827423096
+    },
+    {
+      "color_l1": 0.14571848511695862,
+      "iteration": 2100.0,
+      "loss": 0.1743227243423462,
+      "opacity_l1": 0.2804490327835083
+    },
+    {
+      "color_l1": 0.14571700990200043,
+      "iteration": 2200.0,
+      "loss": 0.17435884475708008,
+      "opacity_l1": 0.2804824113845825
+    },
+    {
+      "color_l1": 0.14571626484394073,
+      "iteration": 2300.0,
+      "loss": 0.17442269623279572,
+      "opacity_l1": 0.2804679870605469
+    },
+    {
+      "color_l1": 0.1457156240940094,
+      "iteration": 2400.0,
+      "loss": 0.17497201263904572,
+      "opacity_l1": 0.28045788407325745
+    },
+    {
+      "color_l1": 0.14571580290794373,
+      "iteration": 2500.0,
+      "loss": 0.17437602579593658,
+      "opacity_l1": 0.28046274185180664
+    },
+    {
+      "color_l1": 0.14571595191955566,
+      "iteration": 2600.0,
+      "loss": 0.174468994140625,
+      "opacity_l1": 0.2804792523384094
+    },
+    {
+      "color_l1": 0.14571446180343628,
+      "iteration": 2700.0,
+      "loss": 0.17495732009410858,
+      "opacity_l1": 0.2804664075374603
+    },
+    {
+      "color_l1": 0.14571444690227509,
+      "iteration": 2800.0,
+      "loss": 0.17478042840957642,
+      "opacity_l1": 0.28049415349960327
+    },
+    {
+      "color_l1": 0.14571335911750793,
+      "iteration": 2900.0,
+      "loss": 0.17421448230743408,
+      "opacity_l1": 0.2805257737636566
+    },
+    {
+      "color_l1": 0.14571255445480347,
+      "iteration": 3000.0,
+      "loss": 0.17498861253261566,
+      "opacity_l1": 0.2805274426937103
+    }
+  ],
+  "turntable": "/content/cv3d-project/outputs/gaussian_splatting_per_view_budget/02933112/18d94e539b0ed30d105e720ebc569399/2views/phase2_pun/2dgs/turntable.html"
+}
